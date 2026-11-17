@@ -73,6 +73,14 @@ namespace TideSim
             if (args.Length > 0 && args[0] == "--erase-all-probe")
                 return EraseAllProbe.Run();
 
+            // 手牌上限 12 / 溢出进除外区（2026-11-18 规则改版验收）
+            if (args.Length > 0 && args[0] == "--hand-overflow-probe")
+                return HandOverflowProbe.Run();
+
+            // 蓝套可作地/产色探针（2026-11-18 基础运转验收）
+            if (args.Length > 0 && args[0] == "--land-probe")
+                return LandEligibilityProbe.Run();
+
             // 绿预组数据探针（2026-11-15 临时，跑完删）：推导费 / 选择模式 / 效果推导价 / 指纹
             if (args.Length > 0 && args[0] == "--green-probe")
             {
@@ -103,7 +111,7 @@ namespace TideSim
 
             // 教学式固定盘面场景回归（2026-11-04；2026-11-13 红套削弱版：血偿/活体炸弹准入+斩杀排序+拆波）
             // 蓝·元素充盈（潮痕碑/深潭碑 触发·不触发·每回合封顶）+ 自由分支引擎主干 7 种（2026-11-06：
-            // 倒计时/运势/拼枪/死亡计数/团结/附加诅咒/附加祝福）三套串跑，一次命令覆盖全部场景
+            // 倒计时/运势/拼抢/死亡计数/团结/附加诅咒/附加祝福）三套串跑，一次命令覆盖全部场景
             if (args.Length > 0 && args[0] == "--tutorial-scenario")
             {
                 int red = TutorialScenarioCheck.Run();

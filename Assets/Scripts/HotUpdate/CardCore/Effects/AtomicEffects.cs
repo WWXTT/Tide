@@ -42,6 +42,10 @@ namespace CardCore
         SetLife,
         SetCost,
         Freeze,
+        /// <summary>蛰伏（2026-11-18 蓝技能改版，原子行 EnumName=蛰伏）：横置所选己方元素池地牌——
+        /// 此横置**不产生元素**（非支付横置）；每张地叠一层蛰伏，自己的下个准备阶段解横置时
+        /// 逐层兑现 1 点临时彩元素（AddMana Any 落临时钱包，本回合可用）。执行=DormancyHandler。</summary>
+        Dormancy,
         Purify,
         Weaken,
         Inspire,
@@ -245,7 +249,8 @@ namespace CardCore
         EngineCountdown,
         /// <summary>引擎主干·运势：掷 2d6，双骰都≥x（=分支费用）触发奖励。</summary>
         EngineLuckRoll,
-        /// <summary>引擎主干·拼点：双方各从手牌展示一张生物（取攻击力最高，无生物=0）比攻击力，差额≥门槛（=奖励锚价）触发奖励。</summary>
+        /// <summary>引擎主干·拼抢（2026-11-18 改版）：攻击宣言时双方各从手牌暗选舍弃一张卡（可拒绝=费用0），
+        /// 同时公示后比费用——己方费用−对手费用 ≥ 门槛（=奖励锚价，封顶6；抉择卡取最高分支费用）触发奖励。</summary>
         EngineClash,
         /// <summary>引擎主干·死亡计数（2026-11-10 退役出自由分支；枚举保留仅作旧号兼容，
         /// 新形态=效果原子 amplification 标记）。</summary>

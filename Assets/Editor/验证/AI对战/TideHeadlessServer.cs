@@ -491,6 +491,11 @@ namespace CardCore.Editor.TideHeadless
                         maxCards = TideObservation.MaxCardsTotal, // v3：卡槽总数入握手（契约 §7）
                     },
                     decisionSeat = r.Done ? -1 : r.DecisionSeat,
+                    // L3-A 循环治理（2026-11-18 方案 §5.4）：收口步外显 + 本回合步数——
+                    // rollout 据此把收口回合的全部步 learner 置 0（不进 PPO），stats 出四指标
+                    loopPruned = r.LoopPruned,
+                    loopReason = r.LoopReason ?? "",
+                    turnActions = r.TurnActions,
                 },
             };
             return JsonUtility.ToJson(resp);
@@ -509,7 +514,7 @@ namespace CardCore.Editor.TideHeadless
         [Serializable] public class HeadlessObs { public List<float> cards; public List<float> globals; public List<float> actions; public int nActions; }
         // v2 布局握手字段（2026-09-30 契约第 5 节）：layoutVersion / dims / decisionSeat
         [Serializable] public class HeadlessDims { public int nCard; public int nGlobal; public int nAction; public int maxActions; public int maxCards; }
-        [Serializable] public class HeadlessInfo { public int toPlay; public string winner; public string reason; public int turn; public int modelSeat; public string theme; public string modelTheme; public string modelDoped; public int layoutVersion; public HeadlessDims dims; public int decisionSeat; }
+        [Serializable] public class HeadlessInfo { public int toPlay; public string winner; public string reason; public int turn; public int modelSeat; public string theme; public string modelTheme; public string modelDoped; public int layoutVersion; public HeadlessDims dims; public int decisionSeat; public bool loopPruned; public string loopReason; public int turnActions; }
         [Serializable] public class HeadlessResponse { public string op; public HeadlessObs obs; public float reward; public bool done; public HeadlessInfo info; }
     }
 }

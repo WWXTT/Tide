@@ -291,7 +291,7 @@
   },
   {
     "ID": "a81e2068",
-    "TextHash": "679de523",
+    "TextHash": "775f1e3f",
     "EnumName": "狩猎",
     "DisplayName": "赋予{target}狩猎：回合结束时，攻击对手生命值最低的单位",
     "EffectType": "GrantHunt",

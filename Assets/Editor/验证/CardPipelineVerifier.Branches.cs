@@ -16,7 +16,7 @@ namespace CardCore.Editor
         /// <summary>
         /// 固定分支门附加费（伤害命中1/击杀2/宣言命中2，灰；奖励原子 0 费）+ 动态分支引擎端到端：
         /// 倒计时（奖励推导费换算回合，1费=1回合；归零发奖并重置）/ 运势（2d6 双&gt;x，x=1 钉种子 20 回合内必中）/
-        /// 拼点（双方牌库各随机取样一张生物比攻击力，差额≥门槛；只读取样；无生物=0）。
+        /// 拼抢（双方牌库各随机取样一张生物比攻击力，差额≥门槛；只读取样；无生物=0）。
         /// </summary>
         private static void TestBranchEngines(GameCore core, Player p1, Player p2)
         {
@@ -199,7 +199,7 @@ namespace CardCore.Editor
 
             int deckBefore = core.ZoneManager.GetCards(p1, Zone.Deck).Count;
             // 入场挂 2 层（奖励锚价 2 → 2 回合）→ 每回合开始 -1 → 归零发奖（抽1）→ 重置回 2。
-            // 拦截器跳过回合自动化（防回合抽牌污染牌库读数——拼点段同款口径）
+            // 拦截器跳过回合自动化（防回合抽牌污染牌库读数——拼抢段同款口径）
             {
                 var cdDef = CardEffectConverter.ConvertAll(cdData.Effects, cdData.ID)
                     .FirstOrDefault(d => d?.Effects != null && d.Effects.Any(a =>
@@ -292,10 +292,11 @@ namespace CardCore.Editor
             Assert(luckHit, $"运势运行时：x=1（25/36 命中）真实回合流转 20 回合内至少中一次并执行奖励（掷骰随声明时机事件——2026-10-16 解绑；诊断：回合事件×{luckTurnStarts} 推进失败×{luckAdvanceFails} 命中×{luckEvents.Count}）");
             core.ZoneManager.MoveCard(luckCard, p1, Zone.Battlefield, Zone.Graveyard);
 
-            // ---- 4. 拼点（槽级载荷）：双方牌库各随机取样一张生物，攻击力差 ≥ 门槛；只读取样；无生物=0 ----
+            // ---- 4. 拼抢（槽级载荷·2026-11-18 改版）：双方手牌各暗选舍弃一张卡（可拒绝=费用0），
+            //      己方舍弃费用−对手舍弃费用（封顶6）≥ 门槛；抉择卡取最高分支费用 ----
             var clashData = new CardData
             {
-                ID = "VERIFY_ENGINE_CLASH", CardName = "验证拼点", Supertype = Cardtype.Creature, Power = 3, Life = 3,
+                ID = "VERIFY_ENGINE_CLASH", CardName = "验证拼抢", Supertype = Cardtype.Creature, Power = 3, Life = 3,
             };
             clashData.Effects.Add(new CardEffectData
             {
@@ -309,45 +310,65 @@ namespace CardCore.Editor
             });
             var clashDef = CardEffectConverter.ConvertOne(clashData.Effects[0], clashData.ID);
             int clashGray = (int)CardCore.CostDerivationService.DeriveElementCosts(clashDef)[CardCore.ManaType.Gray];
-            Assert(clashGray == 0, "拼点计价（2026-09-15 门槛制）：门槛=奖励锚价（运行时差额≥门槛判），零计价");
+            Assert(clashGray == 0, "拼抢计价（2026-09-15 门槛制）：门槛=奖励锚价（运行时差额≥门槛判），零计价");
+            int clashThreshold = CardCore.CostDerivationService.RewardThresholdOf(
+                clashDef.Effects[0].Branch.Then, clashDef.Effects[0].Branch.EffectId);
+            Assert(clashThreshold == 2, $"拼抢门槛夹具前提：then=抽1 锚价 2（实际 {clashThreshold}）");
 
-            // 2026-10-04 改版（随机生物攻击力）：随机取样需确定性夹具——清双方牌库（移入墓地；
-            // 后续 2026-09-22 段前有 PadDeck 15 张兜底），各置唯一生物（p1 攻5 / p2 攻2）→
-            // 库内唯一，随机必中 → 差额 5−2=3 ≥ 门槛（抽1 锚价 2）→ 必中
+            // 2026-11-18 改版（手牌暗舍弃比费用）：确定性夹具——清双方牌库与手牌（移入墓地；后续
+            // 2026-09-22 段前有 PadDeck 15 张兜底），双方手牌各置唯一弃子（p1 高费 9/1 / p2 零费 0/1）、
+            // p1 牌库置 1 张抽牌填充 → 代选策略（发起方弃最高费≥门槛才弃、应对方恒弃最高费）→
+            // 差额 = cM−0 ≥ 门槛 2 → 必中；奖励=抽 1（牌库 −1）；弃子真实落墓（非只读展示）。
             foreach (var c in core.ZoneManager.GetCards(p1, Zone.Deck).ToList())
                 core.ZoneManager.MoveCard(c, p1, Zone.Deck, Zone.Graveyard);
             foreach (var c in core.ZoneManager.GetCards(p2, Zone.Deck).ToList())
                 core.ZoneManager.MoveCard(c, p2, Zone.Deck, Zone.Graveyard);
-            var topMine = new CardData { ID = "VERIFY_CLASH_TOP_M", CardName = "拼点生物M",
-                Supertype = Cardtype.Creature, Power = 5, Life = 5 };
-            var topFoe = new CardData { ID = "VERIFY_CLASH_TOP_F", CardName = "拼点生物F",
-                Supertype = Cardtype.Creature, Power = 2, Life = 5 };
-            core.ZoneManager.GetZoneContainer(p1).Add(new CardWrapper(topMine), Zone.Deck, DeckPosition.Top);
-            core.ZoneManager.GetZoneContainer(p2).Add(new CardWrapper(topFoe), Zone.Deck, DeckPosition.Top);
+            foreach (var c in core.ZoneManager.GetCards(p1, Zone.Hand).ToList())
+                core.ZoneManager.MoveCard(c, p1, Zone.Hand, Zone.Graveyard);
+            foreach (var c in core.ZoneManager.GetCards(p2, Zone.Hand).ToList())
+                core.ZoneManager.MoveCard(c, p2, Zone.Hand, Zone.Graveyard);
+            System.Func<CardData, int> costOf = d =>
+            {
+                CardCore.CardCostService.EnsureCost(d);
+                return CardCore.ElementPaymentValidator.NormalizeBill(d.Cost).Values.Sum();
+            };
+            var topMine = new CardData { ID = "VERIFY_CLASH_TOP_M", CardName = "拼抢弃子M",
+                Supertype = Cardtype.Creature, Power = 9, Life = 1 };
+            var topFoe = new CardData { ID = "VERIFY_CLASH_TOP_F", CardName = "拼抢弃子F",
+                Supertype = Cardtype.Creature, Power = 0, Life = 1 };
+            int myCost = costOf(topMine), foeCost = costOf(topFoe);
+            Assert(myCost >= clashThreshold, $"拼抢夹具前提：发起方弃子费 {myCost} ≥ 门槛 {clashThreshold}");
+            Assert(foeCost == 0, $"拼抢夹具前提：应对方弃子 0 费（实际 {foeCost}）");
+            core.ZoneManager.GetZoneContainer(p1).Add(new CardWrapper(topMine), Zone.Hand, DeckPosition.Top);
+            core.ZoneManager.GetZoneContainer(p2).Add(new CardWrapper(topFoe), Zone.Hand, DeckPosition.Top);
+            var clashDraw = new CardData { ID = "VERIFY_CLASH_DRAW", CardName = "拼抢抽牌填充",
+                Supertype = Cardtype.Creature, Power = 0, Life = 1 };
+            core.ZoneManager.GetZoneContainer(p1).Add(new CardWrapper(clashDraw), Zone.Deck, DeckPosition.Top);
 
             var clashCard = new CardWrapper(clashData);
             clashCard.SetController(p1);
-            Assert(core.ZoneManager.TryAddToBattlefield(clashCard, p1), "拼点：引擎宿主入场");
+            Assert(core.ZoneManager.TryAddToBattlefield(clashCard, p1), "拼抢：引擎宿主入场");
             deckBefore = core.ZoneManager.GetCards(p1, Zone.Deck).Count;
-            System.Func<Card, int> powerOf = c => (c as CardWrapper)?.GetData()?.Power ?? 0;
-            Crumb($"clash pre: p1deck={deckBefore} myCreature={powerOf(core.ZoneManager.GetCards(p1, Zone.Deck).First())} "
-                + $"foeCreature={powerOf(core.ZoneManager.GetCards(p2, Zone.Deck).First())} "
-                + $"p2deck={core.ZoneManager.GetCards(p2, Zone.Deck).Count}");
-            // 2026-10-09 触发改版：拼点由攻击宣言触发（仅攻击方战场引擎卡·无限次，无回合自动化干扰）——
-            // 攻击宣言无回合抽牌副作用，无需拦截器；库内唯一生物（己方 5 / 对方 2）随机必中。
-            // 2026-11-08 阶段3：拼枪评估已自 AttackDeclarationEvent 总线订阅迁 GameCore.PublishEventRouted
-            // 钩子（OnRoutedEvent·归属=攻击方）——裸 EventManager.Publish 只进总线不再触发引擎，
-            // 须反射 internal 路由单口发布（同效果光环段 FireTap 先例）。
+            Crumb($"clash pre: myCost={myCost} foeCost={foeCost} threshold={clashThreshold} p1deck={deckBefore}");
+            // 2026-10-09 触发改版：拼抢由攻击宣言触发（仅攻击方战场引擎卡·无限次，无回合自动化干扰）——
+            // 攻击宣言无回合抽牌副作用，无需拦截器。2026-11-08 阶段3：评估自 AttackDeclarationEvent
+            // 总线订阅迁 GameCore.PublishEventRouted 钩子（OnRoutedEvent·归属=攻击方）——裸
+            // EventManager.Publish 只进总线不再触发引擎，须反射 internal 路由单口发布（同效果光环段
+            // FireTap 先例）。2026-11-18 改版：无头（Current==null）暗选链同步完成——发布口返回时
+            // 弃牌已落墓、奖励已执行，断言可直接读区。
             var clashPublish = typeof(GameCore).GetMethod("PublishEventRouted",
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            Assert(clashPublish != null, "拼点段前提：GameCore.PublishEventRouted 可反射（internal 事件路由单口）");
+            Assert(clashPublish != null, "拼抢段前提：GameCore.PublishEventRouted 可反射（internal 事件路由单口）");
             clashPublish.Invoke(core, new object[] { new AttackDeclarationEvent { AttackingPlayer = p1 }, false });
             GameActions.DrainStack(core);
             Assert(core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckBefore - 1,
-                   "拼点运行时（2026-10-09 触发改版：攻击宣言·仅攻击方）：己方随机生物 5 − 对方 2 = 3 ≥ 门槛 2 → 执行奖励（抽 1）");
-            Assert(core.ZoneManager.GetCards(p1, Zone.Hand).Any(c =>
+                $"拼抢运行时（2026-11-18 改版：攻击宣言·手牌暗舍弃比费用）：{myCost} − {foeCost} = {myCost - foeCost} ≥ 门槛 {clashThreshold} → 执行奖励（抽 1，牌库 −1）");
+            Assert(core.ZoneManager.GetCards(p1, Zone.Graveyard).Any(c =>
                        (c as CardWrapper)?.GetData()?.ID == "VERIFY_CLASH_TOP_M"),
-                   "拼点：随机取样只读不移牌——奖励抽 1 抽到的正是牌库中那张生物（取样未预耗）");
+                "拼抢：发起方弃子真实落墓（舍弃=弃牌入墓，非只读展示）");
+            Assert(core.ZoneManager.GetCards(p2, Zone.Graveyard).Any(c =>
+                       (c as CardWrapper)?.GetData()?.ID == "VERIFY_CLASH_TOP_F"),
+                "拼抢：应对方弃子真实落墓（应对方代选=恒弃最高费）");
             core.ZoneManager.MoveCard(clashCard, p1, Zone.Battlefield, Zone.Graveyard);
 
             // ======================================== 2026-09-22 定案：死亡计数 / 元素充盈 / 状态门 / 改写门 =======
@@ -898,7 +919,7 @@ namespace CardCore.Editor
 
         /// <summary>
         /// 测试拦截器：合成 TurnStartEvent 期间跳过 GameCore 回合自动化（回合抽牌/地牌曲线/重置）——
-        /// 分支引擎段断言只测量引擎奖励自身的抽牌，隔离环境副作用（2026-09-13 拼点口径修复配套）。
+        /// 分支引擎段断言只测量引擎奖励自身的抽牌，隔离环境副作用（2026-09-13 拼抢口径修复配套）。
         /// </summary>
         private sealed class TurnStartAutomationShield : ITurnStartInterceptor
         {

@@ -318,7 +318,9 @@ namespace CardCore
             if (stack != null)
                 hand = hand.Where(c => !(c is Card hc && stack.IsPendingCast(hc))).ToList();
 
-            // 手牌上限：规则扩展点（OCP）修改链（基值 7）
+            // 手牌上限：规则扩展点（OCP）修改链（基值 12）。2026-11-18 规则改版：满员入手
+            // 已在 ZoneContainer.Move/Add 即时改投除外区，本口仅剩「上限缩水」兜底——
+            // 纳川结界离场/蓝地减少把上限压到已持张数之下时，回合末仍强制选弃。
             int limit = RuleHooks.GetHandLimit(player);
             int over = hand.Count - limit;
             if (over <= 0) return;
@@ -537,6 +539,9 @@ namespace CardCore
 
             // 重置游戏状态
             Reset();
+            // 拼抢串行链复位（2026-11-18）：静态队列/在途作业不随对局销毁——旧局中断后
+            // 必须在开新局时换代清空，否则新局拼抢会被旧链卡住（静默不评估）。
+            BranchEngines.ResetClashChain();
 
             // 工具/AI 对局：在 StartGame 发 TurnStartEvent 之前就设 AI 标记，
             // 否则回合 1 的回合头渲染会漏「（AI）」——控制台即时渲染与终局导出战报会不一致。
@@ -820,7 +825,7 @@ namespace CardCore
             // 回合开始重置拦截（2026-09-13 定案：冻结/沉睡无法重置）——组合根登记（幂等）
             RuleHooks.RegisterUntapBlockRule(SleepFreezeUntapBlockRule.Instance);
 
-            // 动态分支引擎（2026-09-13 分支体系正规化：倒计时/运势/拼点）——组合根登记（幂等）
+            // 动态分支引擎（2026-09-13 分支体系正规化：倒计时/运势/拼抢）——组合根登记（幂等）
             BranchEngines.EnsureRegistered();
 
             // 诅咒系统（2026-10-02 信息轴定案：抽到被诅咒卡时自动执行载荷分支并消层）

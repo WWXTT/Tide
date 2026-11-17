@@ -85,7 +85,7 @@ namespace CardCore.Editor
                    && !CardCore.ComposerCatalog.IsDerivedThresholdEngine(CardCore.BranchEngineKind.Countdown)
                    && !CardCore.ComposerCatalog.IsDerivedThresholdEngine(CardCore.BranchEngineKind.CurseOnDraw)
                    && !CardCore.ComposerCatalog.IsDerivedThresholdEngine(CardCore.BranchEngineKind.BlessingOnDraw),
-                   "派生门槛引擎单源：拼点/元素充盈（门槛=Then 锚价，无手填参数）；死亡计数 2026-11-10 改版退出（value 增幅·无门槛）；"
+                   "派生门槛引擎单源：拼抢/元素充盈（门槛=Then 锚价，无手填参数）；死亡计数 2026-11-10 改版退出（value 增幅·无门槛）；"
                    + "团结/运势/倒计时/附加诅咒/附加祝福仍手填（团结 x∈[1,6] 门槛=x）");
             Assert(CardCore.CostDerivationService.RewardThreshold(new List<CardCore.AtomicEffectInstance>
                        { CardCore.CardEffectConverter.ConvertAtomForUI(AtomRefs.New(CardCore.AtomicEffectType.DrawCard, value: 1)) }) == 2
@@ -310,7 +310,7 @@ namespace CardCore.Editor
             var plainCosts = CardCore.CostDerivationService.DeriveElementCosts(plainDef);
             Assert(freeCosts[CardCore.ManaType.Gray] <= 0
                    && (int)freeCosts.Total == (int)plainCosts.Total,
-                   $"引擎零计价：载荷/Then 不入 DeriveElementCosts（主干照常计价，拼点门槛=奖励锚价运行时判）——带载荷 {freeCosts.Total:0.###} vs 裸主干 {plainCosts.Total:0.###}");
+                   $"引擎零计价：载荷/Then 不入 DeriveElementCosts（主干照常计价，拼抢门槛=奖励锚价运行时判）——带载荷 {freeCosts.Total:0.###} vs 裸主干 {plainCosts.Total:0.###}");
 
             // 倒计时载荷（settle=3·Countdown）：初值 = Then 推导费换算回合（1费=1回合；声明 0=自动）
             var countdownDef = CardCore.CardEffectConverter.ConvertOne(new CardCore.CardEffectData

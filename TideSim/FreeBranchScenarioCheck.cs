@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -12,7 +12,7 @@ namespace TideSim
 {
     /// <summary>
     /// 教学式固定盘面场景回归（2026-11-06）——自由分支·引擎主干 7 种（元素充盈已由蓝充盈场景覆盖）的
-    /// 行为级验证：倒计时（准备阶段 tick·归零直发·重挂）/ 运势（主动发动掷 2d6 双≥x）/ 拼枪（攻击宣言·
+    /// 行为级验证：倒计时（准备阶段 tick·归零直发·重挂）/ 运势（主动发动掷 2d6 双≥x）/ 拼抢（攻击宣言·
     /// 牌库随机生物比攻·差≥门槛）/ 死亡计数（双方生物死亡累计·满值6）/ 团结（施放结算后邻接占用≥x）/
     /// 附加诅咒·附加祝福（施放部署→抽到发作→消层）。
     /// · 盘面来自 Assets/TutorialData/自由分支场景.json（scenario 块=教学 TutorialScenario 同构，
@@ -95,6 +95,7 @@ namespace TideSim
         {
             CardCatalog.LoadAll();
             InjectRewardFxCards(); // 分支奖励效果化夹具（2026-11-07）：两张注入卡（反射注 CardCatalog）
+            InjectClashSacCard(); // 拼抢弃子夹具（2026-11-18）：抉择法术=拼抢 0 费（⑬b 负例）
             string path = CardDataPaths.TutorialFileIn(ScenarioFileName + ".json");
             if (!File.Exists(path))
             {
@@ -117,7 +118,7 @@ namespace TideSim
                 return 1;
             }
 
-            Console.WriteLine("【教学场景回归】自由分支·引擎主干 7 种：倒计时/运势/拼枪/死亡计数/团结/附加诅咒/附加祝福（固定盘面，注入走 TutorialScenarioSeeder）");
+            Console.WriteLine("【教学场景回归】自由分支·引擎主干 7 种：倒计时/运势/拼抢/死亡计数/团结/附加诅咒/附加祝福（固定盘面，注入走 TutorialScenarioSeeder）");
             Console.WriteLine("受测引擎卡池推导费（GetRuntimeCost——施放/发动的支付依据）：");
             foreach (var id in new[] { "C_FFDF953C", "C_2E00FB6A", "C_CD77F233", "C_E84B9F8A", "C_BD0822E9", "C_CC0DE001", "C_CC0DE002", "C_CC0DE003", "C_E2122348", "C_A9ED8C5A" })
             {
@@ -145,7 +146,7 @@ namespace TideSim
         }
 
         /// <summary>引擎分支载荷迁移校验（2026-11-10 用户定案）：
-        /// · 前 6 引擎（倒计时/运势/拼枪/死亡计数/元素充盈/团结）：then=单个原子、effectId 空；
+        /// · 前 6 引擎（倒计时/运势/拼抢/死亡计数/元素充盈/团结）：then=单个原子、effectId 空；
         /// · 附加诅咒/祝福：then（≤1）与主动·并列效果引用至少一个，effectId 可解析。
         /// 合并库（主∪教∪训）全扫。</summary>
         /// <summary>amplification 端到端（2026-11-10）：效果原子 → CardEffectData JSON → Converter，
@@ -294,6 +295,16 @@ namespace TideSim
                         Assert(payload.Then.Count == 0 && string.IsNullOrEmpty(payload.EffectId),
                             $"迁移：{dto.id}「{dto.name}」死亡计数=value 增幅标记，不得带 Then/effectId（实际 Then {payload.Then.Count} / '{payload.EffectId}'）");
                     }
+                    else if (payload.EngineKind == BranchEngineKind.Unity)
+                    {
+                        // 2026-11-16 用户定案：团结奖励=原子 / 效果引用 / 多原子（装载口同源放行）——
+                        // 旧「前 6 引擎单原子」对团结作废；此处只守「至少一个奖励 + effectId 可解析」。
+                        Assert(payload.Then.Count > 0 || !string.IsNullOrEmpty(payload.EffectId),
+                            $"迁移：{dto.id}「{dto.name}」团结须有奖励（原子/效果引用至少一个）");
+                        if (!string.IsNullOrEmpty(payload.EffectId))
+                            Assert(EffectsLibrary.Get(payload.EffectId) != null,
+                                $"迁移：{dto.id}「{dto.name}」团结 effectId 悬空（实际 '{payload.EffectId}'）");
+                    }
                     else if (ComposerCatalog.IsAtomOnlyEngine(payload.EngineKind))
                     {
                         Assert(payload.Then.Count == 1 && string.IsNullOrEmpty(payload.EffectId),
@@ -346,6 +357,7 @@ namespace TideSim
                 case "luck-miss": return new[] { "教学·26" };
                 case "clash-fire":
                 case "clash-miss":
+                case "clash-choice-zero":
                 case "clash-twice": return new[] { "教学·10" };
                 case "deathtoll-fire": return new[] { "教学·27" };
                 case "deathtoll-repeat": return new[] { "教学·52" };
@@ -518,7 +530,15 @@ namespace TideSim
                         responder == p2
                             ? (opts ?? new List<ResponseOption>()).FirstOrDefault(o => o.Kind == ResponseOption.ResponseKind.HandCard)
                             : null;
-                RunTurns(TurnCountOf(entry.id));
+                // 拼抢四场景（2026-11-18 改版）：**直接路由攻击宣言**，不经 SimpleAI 完整回合——
+                // 手牌里的比费弃子（教学·8）是普通生物，AI 会在自己回合先把它铺成地，导致手牌空、
+                // 拼抢永远走「空手拒绝」分支（实测 0vs0）。本组只验拼抢引擎，攻击本体不结算
+                // （终态=30−引擎伤；真实攻击宣言路径由 Unity CardPipelineVerifier.Branches 覆盖）。
+                if (entry.id == "clash-fire" || entry.id == "clash-miss"
+                    || entry.id == "clash-twice" || entry.id == "clash-choice-zero")
+                    RunManualClash(core, p2, entry.id == "clash-twice" ? 2 : 1);
+                else
+                    RunTurns(TurnCountOf(entry.id));
 
                 int Kw(string kw) => _keywords.Count(k => k.keyword == kw);
                 string KwDetail(string kw) => _keywords.FirstOrDefault(k => k.keyword == kw).detail ?? "无";
@@ -559,22 +579,27 @@ namespace TideSim
                         break;
 
                     case "clash-fire":
-                        Assert(_redAttacks >= 1, "④ 红确实宣言攻击（攻击宣言=拼枪触发口）");
-                        Assert(_clashes.Count >= 1 && _clashes[0].ok && _clashes[0].my == 7 && _clashes[0].their == 0 && _clashes[0].x == 6,
-                            $"④ 拼枪评估：红库7/7 vs 蓝库无生物(0)，差7 ≥ 门槛6（实际 {string.Join("/", _clashes.Select(c => $"{c.my}vs{c.their}≥{c.x}:{c.ok}"))}）");
-                        Assert(Kw("拼枪") == 1, $"④ 拼枪播报恰 1 次（实际 {Kw("拼枪")}）");
+                        Assert(_redAttacks >= 1, "④ 红确实宣言攻击（攻击宣言=拼抢触发口）");
+                        Assert(_clashes.Count >= 1 && _clashes[0].ok && _clashes[0].my >= 6 && _clashes[0].their == 0 && _clashes[0].x == 6,
+                            $"④ 拼抢评估：红舍教学·8(单效果生物费6) vs 蓝空手拒绝(0费)，差额封顶6 ≥ 门槛6（实际 {string.Join("/", _clashes.Select(c => $"{c.my}vs{c.their}≥{c.x}:{c.ok}"))}）");
+                        Assert(Kw("拼抢") == 1, $"④ 拼抢播报恰 1 次（实际 {Kw("拼抢")}）");
                         Assert(_engineDamage.Count == 1 && _engineDamage[0].dmg == 6 && _engineDamage[0].target == p1.Name,
                             $"④ 奖励=6 伤落蓝角色（实际 {DescribeDamage()}）");
-                        Assert(p1.Life == 17, $"④ 蓝终态 17（30−引擎6伤−攻击本体7）——实际 {p1.Life}");
+                        Assert(p1.Life == 24, $"④ 蓝终态 24（30−引擎6伤；本场景直发攻击宣言、攻击本体不结算）——实际 {p1.Life}");
+                        Assert(In(core, p2, Zone.Graveyard, "教学·8") != null,
+                            "④ 红方舍弃的教学·8 落墓（手牌暗舍弃=真实弃牌，非只读展示）");
                         break;
 
                     case "clash-miss":
                         Assert(_redAttacks >= 1, "⑤ 红确实宣言攻击（评估必发）");
-                        Assert(_clashes.Count >= 1 && !_clashes[0].ok,
-                            $"⑤ 差额 −7 < 6 → Success=false（实际 {string.Join("/", _clashes.Select(c => $"{c.my}vs{c.their}≥{c.x}:{c.ok}"))}）");
-                        Assert(Kw("拼枪") == 0 && _engineDamage.Count == 0,
-                            $"⑤ 不达标零播报零奖励（播报 {Kw("拼枪")} 伤 {DescribeDamage()}）");
-                        Assert(p1.Life == 23, $"⑤ 蓝终态 23（只吃攻击本体7）——实际 {p1.Life}");
+                        Assert(_clashes.Count >= 1 && !_clashes[0].ok && _clashes[0].my >= 6 && _clashes[0].their == 6,
+                            $"⑤ 拒截：红舍教学·8(费6) vs 蓝舍教学·8(费6) 拦截，差<6 → Success=false（实际 {string.Join("/", _clashes.Select(c => $"{c.my}vs{c.their}≥{c.x}:{c.ok}"))}）");
+                        Assert(Kw("拼抢") == 0 && _engineDamage.Count == 0,
+                            $"⑤ 不达标零播报零奖励（播报 {Kw("拼抢")} 伤 {DescribeDamage()}）");
+                        Assert(p1.Life == 30, $"⑤ 蓝终态 30（直发攻击宣言、攻击本体不结算；零奖励）——实际 {p1.Life}");
+                        Assert(In(core, p1, Zone.Graveyard, "教学·8") != null
+                               && core.ZoneManager.GetCards(p1, Zone.Hand).Count == 0,
+                            "⑤ 蓝方拦截弃牌入墓且手牌清空（应对方代选=恒弃最高费拦截）");
                         break;
 
                     case "deathtoll-fire":
@@ -727,11 +752,23 @@ namespace TideSim
 
                     case "clash-twice":
                         Assert(_redAttacks == 2, $"⑬ 两次攻击宣言（实际 {_redAttacks}）");
-                        Assert(_clashes.Count == 2 && _clashes.All(c => c.ok && c.my == 7 && c.their == 0),
-                            $"⑬ 每宣必评估且均命中——评估无每回合上限（实际 {string.Join("/", _clashes.Select(c => $"{c.my}vs{c.their}:{c.ok}"))}）");
-                        Assert(Kw("拼枪") == 2 && _engineDamage.Count == 2 && _engineDamage.All(d => d.dmg == 6),
-                            $"⑬ 两次宣言各发一发（2026-11-13 起无每回合上限；播报 {Kw("拼枪")} 伤 {DescribeDamage()}）");
-                        Assert(p1.Life == 4, $"⑬ 蓝终态 4（30−引擎6×2−攻击7×2）——实际 {p1.Life}");
+                        Assert(_clashes.Count == 2 && _clashes.All(c => c.ok && c.my >= 6 && c.their == 0),
+                            $"⑬ 每宣必评估且均命中（两次各弃一张教学·8 费6 vs 蓝空手0）——评估无每回合上限（实际 {string.Join("/", _clashes.Select(c => $"{c.my}vs{c.their}:{c.ok}"))}）");
+                        Assert(Kw("拼抢") == 2 && _engineDamage.Count == 2 && _engineDamage.All(d => d.dmg == 6),
+                            $"⑬ 两次宣言各发一发（2026-11-13 起无每回合上限；播报 {Kw("拼抢")} 伤 {DescribeDamage()}）");
+                        Assert(p1.Life == 18, $"⑬ 蓝终态 18（30−引擎6×2；直发攻击宣言、攻击本体不结算）——实际 {p1.Life}");
+                        break;
+
+                    case "clash-choice-zero":
+                        Assert(_redAttacks >= 1, "⑬b 红确实宣言攻击（评估口）");
+                        Assert(_clashes.Count >= 1 && !_clashes[0].ok && _clashes[0].my == 0 && _clashes[0].their == 0,
+                            $"⑬b 抉择法术按0费：0 vs 0 < 6 → Success=false（实际 {string.Join("/", _clashes.Select(c => $"{c.my}vs{c.their}:{c.ok}"))}）");
+                        Assert(Kw("拼抢") == 0 && _engineDamage.Count == 0,
+                            $"⑬b 零播报零奖励（播报 {Kw("拼抢")} 伤 {DescribeDamage()}）");
+                        Assert((core.ZoneManager.GetCards(p2, Zone.Hand) ?? new List<Card>())
+                                   .Any(c => (c as CardWrapper)?.GetData()?.ID == "C_CLASHSAC"),
+                            "⑬b 抉择法术留在手牌（0费未达门槛=拒绝，不弃牌——若按名义8费则会被弃出）");
+                        Assert(p1.Life == 30, $"⑬b 蓝终态 30（直发攻击宣言、攻击本体不结算）——实际 {p1.Life}");
                         break;
 
                     case "deathtoll-repeat":
@@ -750,14 +787,12 @@ namespace TideSim
                         break;
 
                     case "unity-mixed-cells":
-                        Assert(BranchEngines.UnityAdjacentCountOf != null && BranchEngines.UnityAdjacentCountOf(_engine) == 4,
-                            $"⑮ 施放前邻接占用=4（角色格1+地牌格1+单位格2；实际 {BranchEngines.UnityAdjacentCountOf?.Invoke(_engine) ?? -1}）");
+                        Assert(BranchEngines.UnityAdjacentCountOf != null && BranchEngines.UnityAdjacentCountOf(_engine) == 2,
+                            $"⑮ 施放前邻接占用=2（2026-11-16 计数收窄：只算相邻己方生物，角色/地牌不计；实际 {BranchEngines.UnityAdjacentCountOf?.Invoke(_engine) ?? -1}）");
                         Assert(_redPlays == 1, $"⑮ 红出一张火苗（实际 {_redPlays}）");
-                        Assert(Kw("团结") == 1 && KwDetail("团结").Contains("各算一"),
-                            $"⑮ 触发且播报含「各算一」口径（明细：{KwDetail("团结")}）——若角色/地牌不计则仅2<4不触发");
-                        Assert(_engineDamage.Count == 1 && _engineDamage[0].dmg == 4 && _engineDamage[0].target == p1.Name,
-                            $"⑮ 奖励=4 伤落蓝角色（实际 {DescribeDamage()}）");
-                        Assert(p1.Life == 24, $"⑮ 蓝终态 24（30−4−火苗攻击2）——实际 {p1.Life}");
+                        Assert(Kw("团结") == 0 && _engineDamage.Count == 0,
+                            $"⑮ 2<4 不触发（播报 {Kw("团结")} 伤 {DescribeDamage()}）——角色/地牌若计入才会误触发");
+                        Assert(p1.Life == 28, $"⑮ 蓝终态 28（只吃火苗攻击2）——实际 {p1.Life}");
                         break;
 
                     case "curse-empty-deck":
@@ -839,7 +874,7 @@ namespace TideSim
                 foreach (var k in _keywords) Console.WriteLine($"    [播报] {k.keyword}@回合{k.turn}：{k.detail}");
                 foreach (var c in _counters) Console.WriteLine($"    [指示物] {c.target} {c.type} {c.amount:+#;-#;0}");
                 foreach (var r in _luckRolls) Console.WriteLine($"    [掷骰] {r.d1}+{r.d2} ≥ {r.x}×2 → {r.ok}");
-                foreach (var c in _clashes) Console.WriteLine($"    [拼枪] 我{c.my} vs 对{c.their}，门槛{c.x} → {c.ok}");
+                foreach (var c in _clashes) Console.WriteLine($"    [拼抢] 我{c.my} vs 对{c.their}，门槛{c.x} → {c.ok}");
                 foreach (var d in _allDamage) Console.WriteLine($"    [伤害] {d}");
                 foreach (var h in _heals) Console.WriteLine($"    [治疗] {h.target} +{h.amount}");
             }
@@ -861,6 +896,25 @@ namespace TideSim
                 TargetSelectionService.AiOrder = null;
                 CardCore.Attribute.Handlers.SummonTokenHandler.ResolveTemplate = null;
                 DetachBoard();
+            }
+        }
+
+        /// <summary>拼抢专用：直接走 internal 路由口发 N 次攻击宣言（不结算攻击本体/不推进回合）。
+        /// 目的=保住手牌里的比费弃子（普通生物会被 SimpleAI 先铺成地）；引擎评估/双暗选/奖励
+        /// 仍走真实 PublishEventRouted→OnRoutedEvent→串行链，与 AI 攻击路径同一引擎口。</summary>
+        private static void RunManualClash(GameCore core, Player attacker, int times)
+        {
+            var publish = typeof(GameCore).GetMethod("PublishEventRouted",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            if (publish == null)
+            {
+                Assert(false, "拼抢场景前提：GameCore.PublishEventRouted 可反射");
+                return;
+            }
+            for (int i = 0; i < times; i++)
+            {
+                publish.Invoke(core, new object[] { new AttackDeclarationEvent { AttackingPlayer = attacker }, false });
+                GameActions.DrainStack(core);
             }
         }
 
@@ -985,6 +1039,62 @@ namespace TideSim
             catch (Exception e)
             {
                 Console.WriteLine($"    [注入] 夹具注入异常：{e.Message}——⑲⑳ 场景将失败");
+            }
+        }
+
+        /// <summary>抉择法术 0 费夹具（2026-11-18 用户定案：抉择法术在拼抢比费中**视为费用 0**）：
+        /// 注入 C_CLASHSAC（双主动模式·各 8 红锚价，名义 8 费）——ClashCostOf 对抉择法术直接归零，
+        /// ⑬b 场景里发起方（红）最高费 0&lt;门槛 6 → 拒绝不弃牌（卡留手）；同时付不起/不可铺地
+        /// 保证它恒驻手牌。④⑤⑬ 正/负场景改用真实卡 教学·8（6 费，非抉择）。</summary>
+        private static void InjectClashSacCard()
+        {
+            try
+            {
+                string dealRow = AtomicEffectTable.GetByType(AtomicEffectType.DealDamage)?.HashId;
+                if (string.IsNullOrEmpty(dealRow))
+                {
+                    Console.WriteLine("    [注入] DealDamage 原子行不可解析——④⑤⑬ 拼抢场景将失败");
+                    return;
+                }
+                CardEffectData Mode(string id) => new CardEffectData
+                {
+                    Id = id,
+                    DisplayName = "拼抢弃子模式（注入·不被打出不结算）",
+                    TriggerTiming = (int)TriggerTiming.Activate_Active,
+                    ActivationType = (int)EffectActivationType.Voluntary,
+                    Steps = new List<EffectStepData>
+                    {
+                        new EffectStepData
+                        {
+                            kind = 0,
+                            atomic = new AtomicEffectEntry { refId = dealRow, value = 8, kinds = new List<int> { 2 } },
+                        },
+                    },
+                };
+                var sac = new CardData
+                {
+                    ID = "C_CLASHSAC",
+                    CardName = "拼抢弃子",
+                    Supertype = Cardtype.Spell,
+                    // 不带 Cost 存档（EnsureCost 恒推导刷新显示缓存；分支费由 SpellCastAnchor 锚价口径实时取）
+                    Tags = new List<string> { "教学" },
+                    Effects = new List<CardEffectData> { Mode("FXSAC1"), Mode("FXSAC2") },
+                };
+                var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static;
+                var byId = typeof(CardCatalog).GetField("_byId", flags)?.GetValue(null) as Dictionary<string, CardData>;
+                var cache = typeof(CardCatalog).GetField("_cache", flags)?.GetValue(null) as List<CardData>;
+                if (byId == null || cache == null)
+                {
+                    Console.WriteLine("    [注入] CardCatalog 私有字段反射失败——④⑤⑬ 拼抢场景将失败");
+                    return;
+                }
+                byId[sac.ID] = sac;
+                if (cache.All(x => x?.ID != sac.ID)) cache.Add(sac);
+                Console.WriteLine("    [注入] 拼抢弃子夹具就绪：C_CLASHSAC（抉择法术·双模式 8 红·拼抢比费视为 0 费·不可铺地=恒在手）");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"    [注入] 拼抢弃子注入异常：{e.Message}——⑬b 场景将失败");
             }
         }
 

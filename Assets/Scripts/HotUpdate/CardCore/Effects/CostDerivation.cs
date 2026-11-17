@@ -76,7 +76,7 @@ namespace CardCore
                     // **有限分支（局面门）与产出条件（Outcome）=纯校验上限，零计价**——条件"预算"只是
                     // Then 奖励锚价的放置上限（drop 硬校验），奖励原子免费（条件性即折扣），
                     // 分支整体贡献 0 费（不达标不奖励也不惩罚——纯条件奖励）。
-                    // **引擎（Engine 载荷）=零计价**——拼点门槛=奖励锚价合计（运行时判差额 ≥ 门槛，见 BranchEngines），
+                    // **引擎（Engine 载荷）=零计价**——拼抢门槛=奖励锚价合计（运行时判差额 ≥ 门槛，见 BranchEngines），
                     // 奖励按声明值结算（门槛制）；运势 x=纯概率门槛（掷骰阈值）；倒计时延迟即付费。
                     // Then 奖励原子免费（VisitBillableAtoms 只扫主序列主干，Branch 载荷不进遍历）。
                     // 赋予引擎（Grant）已解体——无条件赋予=无分支槽原子照常主序列计费（×持续档）。
@@ -345,7 +345,7 @@ namespace CardCore
         /// 按分支实际载荷的费用**减半、向上取整**；2026-11-06 载荷效果化：载荷=效果库组合效果引用时
         /// 按引用效果锚价取费，Then 原子列为旧手写数据兼容通道）：
         /// 色分配=载荷推导色费按原色占比分摊减半总额（最大余数法）。
-        /// 其余引擎照旧零计价（条件性即折扣——倒计时延迟即付费、拼点差额付门槛）。</summary>
+        /// 其余引擎照旧零计价（条件性即折扣——倒计时延迟即付费、拼抢差额付门槛）。</summary>
         public static ElementCost EngineBranchSurcharge(BranchPayload payload)
         {
             var result = new ElementCost();
@@ -419,8 +419,8 @@ namespace CardCore
         public static float EngineBranchSurchargeHalfOf(BranchPayload payload)
             => (float)Math.Ceiling(CursePayloadFullCost(payload).Total / 2f);
 
-        /// <summary>自平衡门槛（原拼点门槛 2026-10-09 抽公共；同日统一——运行时判定与 UI 短文案同源，
-        /// 防显示≠判定）：拼点/死亡计数/元素充盈共用——奖励锚价合计四舍五入（AwayFromZero）、
+        /// <summary>自平衡门槛（原拼抢门槛 2026-10-09 抽公共；同日统一——运行时判定与 UI 短文案同源，
+        /// 防显示≠判定）：拼抢/死亡计数/元素充盈共用——奖励锚价合计四舍五入（AwayFromZero）、
         /// 下限 1，门槛随 Then 奖励实时变（奖励越贵门槛越高，玩家在合成器 1-5 费区间内调奖励即调门槛）。
         /// 团结（2026-10-20 效果序位换轴）不入此族：x∈[1,6] 手填，门槛=x。</summary>
         public static int RewardThreshold(List<AtomicEffectInstance> then)

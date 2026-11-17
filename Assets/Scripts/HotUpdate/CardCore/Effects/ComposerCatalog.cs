@@ -13,7 +13,7 @@ namespace CardCore
     /// - 有限分支（Gate）＝局面状态门：与原子产出无关、任意主干原子可挂，效果结算时评估一次；
     ///   达标→Then 奖励，不达标→不奖励也不惩罚（2026-10-09 定案——原对赌惩罚面不还原）；
     /// - 自由分支·产出条件（Outcome）＝读主干 per-target 产出（"伤害击杀 Then xx"），producer 匹配挂条件上；
-    /// - 自由分支·事件引擎（Engine）＝倒计时/拼点等，条件时机内生于引擎事件（参数/预算见 EngineParamRange）。
+    /// - 自由分支·事件引擎（Engine）＝倒计时/拼抢等，条件时机内生于引擎事件（参数/预算见 EngineParamRange）。
     /// 条件评估真源仍是 BranchConditionEvaluator（运行时）；此处只暴露「用户可拼」目录与定价（GatePremium）。
     /// 预言族（延迟验证）不进目录（无 premium 定价口径——目录恢复时再议）。
     /// </summary>
@@ -43,23 +43,25 @@ namespace CardCore
             => HasMountBit(row, MountKind.EngineTrunk);
 
         /// <summary>2026-11-10 用户定案：自由分支前 6 种引擎奖励=**单个原子**——
-        /// 倒计时/运势/拼枪/死亡计数/元素充盈/团结；不允许组合效果引用。
-        /// 附加诅咒/祝福是例外（.IsCursePayloadEngine：原子 + 主动·并列效果引用双通道）。</summary>
+        /// 倒计时/运势/拼抢/死亡计数/元素充盈；不允许组合效果引用。
+        /// 团结例外（2026-11-16 用户定案：奖励=原子 / 效果引用 / 多原子，用于「回合结束全体攻+2+血+2」
+        /// 这类一次触发多原子组合，装载口同源放行）——本谓词不再含 Unity。
+        /// 附加诅咒/祝福是另一例外（.IsCursePayloadEngine：原子 + 主动·并列效果引用双通道）。</summary>
         public static bool IsAtomOnlyEngine(BranchEngineKind kind)
             => kind == BranchEngineKind.Countdown || kind == BranchEngineKind.LuckRoll
                || kind == BranchEngineKind.Clash
-               || kind == BranchEngineKind.ManaSurplus || kind == BranchEngineKind.Unity;
+               || kind == BranchEngineKind.ManaSurplus;
 
         /// <summary>附加诅咒/附加祝福载荷引擎（双通道：原子 Then + 主动·并列效果引用）。</summary>
         public static bool IsCursePayloadEngine(BranchEngineKind kind)
             => kind == BranchEngineKind.CurseOnDraw || kind == BranchEngineKind.BlessingOnDraw;
 
         /// <summary>引擎奖励门槛 x 的机制上限（2026-11-10 用户定案：计算引擎自身的限制）：
-        /// 元素充盈差值封顶 6、死亡计数满值 6——奖励费×时机系数推导出的 x 超过此值即
-        /// 条件永远不可达（死档），UI 禁存/装载期点名；其余引擎 -1=无固定上限（拼点差额、
-        /// 倒计时回合、运势/团结手填参数）。</summary>
+        /// 元素充盈差值封顶 6、拼抢差额封顶 6、死亡计数满值 6——奖励费×时机系数推导出的 x 超过此值即
+        /// 条件永远不可达（死档），UI 禁存/装载期点名；其余引擎 -1=无固定上限（倒计时回合、
+        /// 运势/团结手填参数）。2026-11-18 拼抢改比费后差额封顶 6，旧「拼抢无上限」作废。</summary>
         public static int EngineThresholdCap(BranchEngineKind kind)
-            => kind == BranchEngineKind.ManaSurplus ? 6 : -1;
+            => kind == BranchEngineKind.ManaSurplus || kind == BranchEngineKind.Clash ? 6 : -1;
 
         /// <summary>组合内限重复行（2026-10-09 全局唯一定案 → 2026-10-19 放开修订）：仅引擎主干
         /// （位 5，倒计时等引擎状态按卡单台账共槽）与规则光环仪典（位 6，运行时同名一槽）维持
@@ -75,7 +77,7 @@ namespace CardCore
         {
             BranchEngineKind.Countdown => "倒计时",
             BranchEngineKind.LuckRoll => "运势",
-            BranchEngineKind.Clash => "拼点",
+            BranchEngineKind.Clash => "拼抢",
             BranchEngineKind.DeathToll => "死亡计数增幅",
             BranchEngineKind.ManaSurplus => "元素充盈",
             BranchEngineKind.Unity => "团结",
@@ -85,7 +87,7 @@ namespace CardCore
         };
 
         /// <summary>引擎参数 x 的钳制范围（UI 输入框与运行时判定共用）。
-        /// 2026-10-09 自平衡统一：死亡计数/元素充盈并入拼点式派生门槛（IsDerivedThresholdEngine）
+        /// 2026-10-09 自平衡统一：死亡计数/元素充盈并入拼抢式派生门槛（IsDerivedThresholdEngine）
         /// ——参数区间随「预算=x」旧制一并退役（落入 default；合成器不再出参数行，运行时读推导门槛）。
         /// 团结（2026-10-20 效果序位换轴）为手填参数：x∈[1,6]=所需相邻单位数（六邻封顶 6）。</summary>
         public static void EngineParamRange(BranchEngineKind kind, out int min, out int max)
@@ -101,13 +103,13 @@ namespace CardCore
         }
 
         /// <summary>引擎奖励预算（Then 原子锚价合计上限）。2026-10-09 自平衡统一：全引擎 -1 无上限——
-        /// 拼点/倒计时/运势本就无上限；死亡计数/元素充盈/手牌序位原「预算=x（EngineParam）」旧制退役
+        /// 拼抢/倒计时/运势本就无上限；死亡计数/元素充盈/手牌序位原「预算=x（EngineParam）」旧制退役
         /// （门槛与预算同源于 Then 锚价推导，见 CostDerivationService.RewardThreshold）；
         /// 可实现费用上限由 UI 侧 RewardFilterCap 统一封顶 5。</summary>
         public static int EngineRewardBudget(BranchEngineKind kind, int engineParam)
             => -1;
 
-        /// <summary>派生门槛引擎（2026-10-09 自平衡统一单源）：拼点/死亡计数/元素充盈——
+        /// <summary>派生门槛引擎（2026-10-09 自平衡统一单源）：拼抢/死亡计数/元素充盈——
         /// 门槛 x=Then 奖励锚价实时推导（RewardThreshold），无手填参数、无独立预算。
         /// 消费：合成器参数行门控（EffectComposerScreen）、装载诊断跳参（CardLoader）、
         /// 短文案 x 口径（AtomText）与运行时判定（BranchEngines）。
@@ -128,7 +130,7 @@ namespace CardCore
         public static bool IsActiveFreeBranchRow(AtomicEffectType type)
             => type == AtomicEffectType.EngineCurseOnDraw || type == AtomicEffectType.EngineBlessingOnDraw;
 
-        /// <summary>自动引擎行（主动行以外的全部引擎主干行）：倒计时/运势/拼点/死亡计数/
+        /// <summary>自动引擎行（主动行以外的全部引擎主干行）：倒计时/运势/拼抢/死亡计数/
         /// 元素充盈/团结——发动方式钉自动（评估口内生于引擎事件）。</summary>
         public static bool IsAutomaticFreeBranchRow(AtomicEffectType type)
             => EngineKindOf(type) != BranchEngineKind.None && !IsActiveFreeBranchRow(type);
@@ -140,7 +142,7 @@ namespace CardCore
             => kind == BranchEngineKind.Countdown
                || kind == BranchEngineKind.ManaSurplus;
 
-        /// <summary>自动奖励引擎：运势/拼点/团结——奖励只能挂自动效果（真实触发时机，达标直发）。</summary>
+        /// <summary>自动奖励引擎：运势/拼抢/团结——奖励只能挂自动效果（真实触发时机，达标直发）。</summary>
         public static bool IsAutomaticRewardEngine(BranchEngineKind kind)
             => kind == BranchEngineKind.LuckRoll || kind == BranchEngineKind.Clash
                || kind == BranchEngineKind.Unity;
@@ -185,9 +187,9 @@ namespace CardCore
         ///    主干表头时机=真实系统时点）：倒计时=自动·准备阶段·无限（2026-10-20 固定触发定案）；
         ///    死亡计数=自动·其他生物死亡·无限；元素充盈=自动·效果结算后·无限（2026-11-06 判据七：
         ///    真实评估口=连锁终点 FlushCardCastSettled，时机列=真实时点）。
-        /// ② 自然缺省组（运势/拼枪/团结，2026-11-08 起不再给固定时机——奖励=自动效果自带真实触发
+        /// ② 自然缺省组（运势/拼抢/团结，2026-11-08 起不再给固定时机——奖励=自动效果自带真实触发
         ///    时机，主干表头时机只是**无奖励时的占位缺省**，可改）：运势缺省准备阶段（掷骰随声明时机）、
-        ///    拼点缺省攻击宣言、团结缺省使用卡牌时——发动方式恒钉自动（EngineActivationPinOf）。
+        ///    拼抢缺省攻击宣言、团结缺省使用卡牌时——发动方式恒钉自动（EngineActivationPinOf）。
         /// ③ 附加诅咒/祝福=主动·主动钉档·速度 0（部署点=施放结算，主动打出即生效）。</summary>
         public static EngineHeaderPreset? EngineHeaderPresetOf(BranchEngineKind kind) => kind switch
         {

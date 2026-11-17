@@ -134,8 +134,11 @@ namespace CardCore
             {
                 if (def == null) continue;
                 result.ActiveEffectCount++;
-                if (def.IsActivatedEffect)
+                if (def.IsActivatedEffect
+                    && !(card.Supertype == Cardtype.Spell && !CostDerivationService.HasChoiceEffect(card)))
                 {
+                    // 2026-11-18 用户定案：**单效果法术的卡面费 = 主动效果锚价**（法术没有"场上发动"这回事）；
+                    // 生物/结界仍走"构筑期不计、发动时现付"，抉择法术由逐模式费（GetModeCost）承载。
                     result.Breakdown.Add(new CostBreakdownLine("E", $"主动 {def.DisplayName ?? def.Id}（构筑期不计锚价，运行时现付；占挂载口）", 0f));
                     continue;
                 }
@@ -145,6 +148,15 @@ namespace CardCore
                 // 时机三档（2026-11-09：单次/多次 ×1；攻/守/横置生物专属 ×1.5）由 CostDerivation 内乘，
                 // 多次成本由结界耐久承担，生物专属次数由宿主自身行动承担。
                 var defCost = CostDerivationService.DeriveElementCosts(def, 0); // 法术宿主永久档由迁移回填承载（Duration=Permanent）
+                // 2026-11-18 修正：单效果法术的卡面费=主动锚价，但锚价必须是**效果级代价抵扣后的净费**
+                //（血偿 6 红毛锚 − 消灭己方生物 3 = 净 3）。此前只把毛锚价计入 E 桶，代价净扣在
+                // GetCardCost 的 AnchorDelta 里被减成 0 → 卡面/实付双涨。此处按 NetBill 单源入桶，
+                // 与施放账单、拼抢比费同口径；抉择法术仍由逐模式费承载，不进 E 桶。
+                if (def.IsActivatedEffect && card.Supertype == Cardtype.Spell
+                    && !CostDerivationService.HasChoiceEffect(card))
+                {
+                    defCost = EffectActivationGate.NetBill(defCost, def.Costs);
+                }
                 // 宿主挂载系数（2026-11-13）：生物自动效果=原价×f；结界=原价（频率由耐久付）。
                 float mountFactor = CostDerivationService.HostMountFactor(def, card.Supertype);
                 foreach (var color in defCost.NonzeroColors())

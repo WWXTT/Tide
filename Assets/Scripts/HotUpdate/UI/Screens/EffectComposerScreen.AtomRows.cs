@@ -207,22 +207,22 @@ namespace SynergyUI
             }
 
             // 「全部」档开放面（2026-11-07 关键词特判修订）：关键词行=赋予己方战场生物——开放 0 档
-            // 数量档（2026-11-07 定案，按**作用域**不按原子族）：战场/手牌允许 1/2/3/全部（全域）；
+            // 数量档（2026-11-07 定案，按**作用域**不按原子族；2026-11-18 NoWhole 位退役——
+            // 有无 Domain 即区分点，无域行本面板不显示）：战场/手牌允许 1/2/3/全部（全域）；
             // 牌库/墓地/除外区/元素池只允许 1/2/3（全域=超模，如磨牌全磨对手牌库）；Self 只 1。
-            // NoWhole 行仍禁 0。指示物/关键词/一般效果同口径——不再按“赋予形态”区分。
+            // 指示物/关键词/一般效果同口径——不再按“赋予形态”区分。
             var mounts = MountKindExtensions.ParseCsv(cfg.MountKinds);
             bool isKeywordRow = mounts.Contains(MountKind.Keyword);
             bool isCounterRow = !isKeywordRow && mounts.Contains(MountKind.Counter);
             bool grantRow = isKeywordRow || isCounterRow;
             // 动态数量开放面（2026-11-14）：主干原子（槽位 allowDynamic）+ 非召唤行
-            //（召唤数量由自身 num 数量档承载）+ 非 NoWhole（动态同样能选到全取，等价整体档）。
+            //（召唤数量由自身 num 数量档承载）。无域行不显示本面板，无需行标拦全取。
             // 是否「主动效果」不在选项面拦——选中动态时若效果还是自动，自动切主动并提示
             //（动态数量必须发动时计费；结界宿主的宿主形状闸仍会拒绝）。
             bool summonRow = cfg.EnumName == nameof(AtomicEffectType.SummonToken);
             bool dynamicAllowed = allowDynamic && !summonRow
                                   && !IsAuraMode(_mode) // 光环载体入场即生效，无发动时计费
                                   && !hiddenDomain // 隐蔽域强制随机，不能手动选数量
-                                  && !mounts.Contains(MountKind.NoWhole)
                                   && !pinCountOne && !costGate;
             // 目标数量按名取 dd-num（行内现有多枚下拉：dd-num/dd-select——不再靠「首个下拉」隐式命中）
             var ddNumNode = UiKit.FindDeep(row, "dd-num");
@@ -236,15 +236,14 @@ namespace SynergyUI
             void BindCountCore()
             {
                 var countAxis = CountAxisOf(cfg, atom);
-                bool allowsAll = !mounts.Contains(MountKind.NoWhole)
-                                 && TargetAxisRules.AllowsAllTarget(countAxis);
+                bool allowsAll = TargetAxisRules.AllowsAllTarget(countAxis);
                 bool allowsMulti = countAxis != null && countAxis.Selectors.Any(s =>
                     s != null && s.Region != TargetRegion.Self
                     && !TargetRegionRules.IsCharacter(s.Region)); // 角色域只 1（2026-11-07 定案）
                 if (!allowsAll && atom.count == 0)
                 {
                     Debug.LogWarning($"[EffectComposer] 原子 {cfg.EnumName}（{atom.refId}）不可开「全部」档"
-                                   + "（NoWhole 或域含牌库/墓地/除外区/元素池/角色/Self——全域仅限战场/手牌）：数量已收为 1");
+                                   + "（域含牌库/墓地/除外区/元素池/角色/Self——全域仅限战场/手牌）：数量已收为 1");
                     atom.count = 1;
                 }
                 if (!allowsMulti && (atom.count == 2 || atom.count == 3))
@@ -255,7 +254,7 @@ namespace SynergyUI
                 if (atom.count == AtomicEffectInstance.DynamicTargetCount && (!allowsMulti || !dynamicAllowed))
                 {
                     Debug.LogWarning($"[EffectComposer] 原子 {cfg.EnumName}（{atom.refId}）不可用动态数量"
-                                   + "（仅主动效果主干/非召唤/非不可全体/可多选域）——数量已收为 1");
+                                   + "（仅主动效果主干/非召唤/可多选域）——数量已收为 1");
                     atom.count = 1;
                 }
                 int[] tiers = costGate ? new[] { 1, 2, 3 } // 代价门恒 1/2/3（禁整体档——A2 定案，创作期即拦）
@@ -1023,7 +1022,7 @@ namespace SynergyUI
         }
 
         /// <summary>自由分支主干发动方式单值钉（2026-11-08 规则地基定案，取代 2026-10-30 双选组）：
-        /// 主动行（附加诅咒/附加祝福）=仅主动；其余引擎行（倒计时/运势/拼点/
+        /// 主动行（附加诅咒/附加祝福）=仅主动；其余引擎行（倒计时/运势/拼抢/
         /// 死亡计数/元素充盈/团结）=仅自动；非引擎主干（并列/有限分支/光环）=null（宿主形状闸照旧管辖）。
         ///（模拟/变形 2026-11-08 退役出组合——不再经此口。）
         /// 钉值表单源=ComposerCatalog.EngineActivationPinOf（与验证器共用，图形态判定在调用侧）。
@@ -1043,7 +1042,7 @@ namespace SynergyUI
         /// **2026-11-10 R4 修订**）：首槽引擎在案 → 速度/生效次数按 ComposerCatalog.EngineHeaderPresetOf
         /// 归一；发动方式按 EngineActivationPinOf 单值钉（四类主动行=仅主动、其余引擎行=仅自动——下拉锁定）；
         /// 时机——主动钉 Activate_*；自动固定组（倒计时/死亡计数/元素充盈）钉预设时机；
-        /// 自然缺省组（运势/拼点/团结，FreeTiming）时机可改：外层时机=引擎评估窗口由玩家选
+        /// 自然缺省组（运势/拼抢/团结，FreeTiming）时机可改：外层时机=引擎评估窗口由玩家选
         ///（2026-11-08 阶段4「时机随奖励效果钉」随 R4 退役——主动效果作奖励时引用时机反钉会令
         /// 事件类型永不匹配；预设 Timing 仅作落槽瞬间且图值缺省 OnPlay(0) 时的占位缺省），
         /// 无奖励/有奖励均解锁下拉（时机影响 BranchEngines.OnRoutedEvent 的评估窗口）。
@@ -1102,7 +1101,7 @@ namespace SynergyUI
             SyncTimingDropdown();
 
             // 禁用面（2026-11-08 规则地基修订；2026-11-10 R4）：发动下拉=引擎主干一律锁定
-            //（主动行/自动引擎行均单值钉）；时机=自动固定组锁、自然缺省组（运势/拼点/团结）解锁
+            //（主动行/自动引擎行均单值钉）；时机=自动固定组锁、自然缺省组（运势/拼抢/团结）解锁
             //——评估窗口=外层时机由玩家选（2026-11-08 阶段4「先选奖励以确定时机」占位锁随 R4 退役）；
             // 速度组已退役无控件；次数选项已整删。
             if (_activationDropdown != null)

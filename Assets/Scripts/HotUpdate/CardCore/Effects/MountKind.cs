@@ -44,7 +44,7 @@ namespace CardCore
         /// （效果合成器原子库/分类、卡合成器代价候选）——引擎执行/计价代表原子/装载照常运转。
         /// 首批：修改攻击力/修改生命值/修改费用（数值修改原语，系统侧计价与运行时消费）。</summary>
         SystemInternal = 4,
-        /// <summary>引擎主干行：引擎行（倒计时/运势/拼点/死亡计数/元素充盈/团结/附加诅咒/附加祝福）的填充资格位
+        /// <summary>引擎主干行：引擎行（倒计时/运势/拼抢/死亡计数/元素充盈/团结/附加诅咒/附加祝福）的填充资格位
         /// ——填入槽即自由分支（无 gate-row，直接引擎参数+奖励槽）；行为条件载体：
         /// 零锚价、零域、不入主序列执行、无处理器。与效果栏主干互斥由派生谓词保证（引擎行不作 Then 奖励）。</summary>
         EngineTrunk = 5,
@@ -70,12 +70,9 @@ namespace CardCore
         /// 2026-10-31 召唤衍生物入列（表行已标）：本体费=表行锚价（2灰）恒收＋模板费×数量——
         /// 模板费随卡组合界面引用卡绑定浮动（CostDerivation 召唤段），完整费绑定后才可见，故同挂本位。</summary>
         DynamicCost = 9,
-        /// <summary>不可全体（P2-1 2026-11-04）：本行不开放「数量=全部」档（count=0）——
-        /// 全取会严重违背定价/规则的操作类原子（操控/牺牲/宣言/反制/变形/跳回合/检索/发现/移动/
-        /// 活体护甲/预言，首批 19 行名单在表）。消费口：合成器 dd-num 过滤 0 档（EffectComposerScreen）；
-        /// 装载守卫（CardEffectConverter：entry.count==0 → 告警收 1）。关键词/指示物行本轮一律
-        /// 不显示全部档（P2-2 域选择后放开）。</summary>
-        NoWhole = 10,
+        /// 2026-11-18 墓碑清理：NoWhole（不可全体，P2-1 2026-11-04）位退役——数量=全部档的
+        /// 区分点改由**有无 Domain** 承担（无域行轴空恒收 1；有域行按域走 AllowsAllTarget），
+        /// 表列与消费口（CardEffectConverter/EffectComposerScreen）已全删。
     }
 
     /// <summary>MountKinds CSV 解析/判定辅助（AtomicEffectTable 与装载校验共用）。</summary>
@@ -95,7 +92,6 @@ namespace CardCore
             "不可作为连接光环", // 7 NoLinkAura（2026-10-07 晚：消耗型关键词黑名单）
             "有限分支", // 8 SituationGate（2026-10-23 入表——门槛行身份/挂载/预算位）
             "动态费用", // 9 DynamicCost（2026-10-24——动态计价行不可作 Then 奖励）
-            "不可全体", // 10 NoWhole（P2-1 2026-11-04——不开放数量=全部档）
         };
 
         /// <summary>成员中文名（越界回退枚举名）。</summary>

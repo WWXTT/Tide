@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -13,12 +13,12 @@ namespace TideSim
     /// <summary>
     /// 教学式固定盘面场景回归（2026-11-04；2026-11-06 判据七改版；2026-11-14 条件开放为 ≥）——蓝方碑族**元素充盈**引擎的行为级验证：
     /// · 判据（已定稿口径，本文件只验证不改）：任一方使用卡牌、**整条连锁结算完成后**（连锁终点补发
-    ///   CardCastSettledEvent）双方各自评估己方场上引擎——我方剩余元素（未横置地+钱包）−对方剩余元素，
+    ///   CardCastSettledEvent）双方各自评估己方场上引擎（**2026-11-18 第二版：仅对手回合——持有者自己的回合不评估**）——我方剩余元素（未横置地+钱包）−对方剩余元素，
     ///   封顶 6，**达到或超过** x（Then 锚价推导，两碑 x=2）即触发；每次施放每卡至多结算一次
     ///   （2026-11-13 起无每回合上限；2026-11-14 起耐久每次触发 −1，结界宿主）。
     /// · 盘面来自 Assets/TutorialData/蓝充盈场景.json（scenario 块=教学 TutorialScenario 同构，
     ///   TutorialScenarioSeeder 静默注入）。场景①-⑤受测回合=红（P2，SimpleAI(General) 走完整回合、
-    ///   蓝挂机）；场景⑥受测回合=蓝自己（firstPlayer=P1）——双方触发面的直接证据。
+    ///   蓝挂机）；场景⑥=己方回合负例（蓝自己出牌不评估）。
     /// · 断言只认外部证据：KeywordAppliedEvent(元素充盈) 播报明细（含触发口/判据归属）、以碑为源的
     ///   AtomicDamageEvent、TempCounter 挂层/手牌读数、区域终态；不读引擎内部状态下结论。
     /// 用法：dotnet run --project TideSim -- --tutorial-scenario（红快攻 9 场景 + 蓝充盈 6 场景一起跑）
@@ -289,16 +289,12 @@ namespace TideSim
                         break;
 
                     case "own-turn-self-trigger":
-                        Assert(_bluePlays >= 1, $"⑥ 蓝确实自己出牌（实际 {_bluePlays}）——己方回合施放是本场景受测动作");
+                        Assert(_bluePlays >= 1, $"⑥ 蓝确实自己出牌（实际 {_bluePlays}）——己方回合受测动作");
                         Assert(_redPlays == 0, $"⑥ 红全程未施放（实际 {_redPlays}）");
-                        Assert(_fullness.Count == 1, $"⑥ 充盈触发恰 1 次——己方回合自己施放也评估（双方触发面；实际 {_fullness.Count}）");
-                        Assert(_fullness.Count == 1 && _fullness[0].Contains("≥ 2"),
-                            $"⑥ 判据=≥x（明细：{_fullness.FirstOrDefault() ?? "无"}）");
-                        Assert(_monumentDamage.Count == 1 && _monumentDamage[0].Dmg == 2
-                            && _monumentDamage[0].Target == p2.Name,
-                            $"⑥ 潮痕碑 2 伤落红角色（对方无单位→角色兜底；实际 {DescribeDamage()}）");
-                        Assert(p2.Life <= 28 && p2.Life >= 26,
-                            $"⑥ 红终态=28（碑2伤）或 26（再吃火苗攻脸2）——实际 {p2.Life}");
+                        Assert(_fullness.Count == 0,
+                            $"⑥ 己方回合不评估（仅对手回合）：零充盈播报（实际 {_fullness.Count}）");
+                        Assert(_monumentDamage.Count == 0, $"⑥ 零碑伤（实际 {DescribeDamage()}）");
+                        Assert(p2.Life == 28, $"⑥ 红终态 28（只吃火苗攻击2；无碑2伤）——实际 {p2.Life}");
                         break;
 
                     default:

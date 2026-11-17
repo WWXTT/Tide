@@ -44,6 +44,7 @@ namespace CardCore
         {
             KeywordRules.Guardian,
             "运势",
+            "拼抢", // 2026-11-18：拼抢引擎结果（弃牌比费明细）进战报——旧 G10 例外收口
             CounterRules.DurabilityCounter,
             KeywordRules.ArmorCounter,
             CounterRules.DivineShieldCounter,

@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 using CardCore;
 using SynergyUI;
 
@@ -24,6 +26,15 @@ namespace CardCore.AI.NeuralEnv
         public int DecisionSeat;
         /// <summary>本停靠点是否响应窗口（true=EnumerateResponses 的动作表：Guard/RespondPlay/…/PassPriority）。</summary>
         public bool ResponseStop;
+        /// <summary>L1/L2 循环收口在本步触发（协议 info.loopPruned——L3 训练剪枝外显口，
+        /// 2026-11-18 循环治理 §5.4；仅收口那一步为 true）。</summary>
+        public bool LoopPruned;
+        /// <summary>收口种类（协议 info.loopReason："cycle"/"stall"/"budget"，未触发 ""——
+        /// stats 分开计 loop_events 与 loop_budget 的依据）。</summary>
+        public string LoopReason;
+        /// <summary>本回合已用动作数（含本步；收口步=触发时计数。协议 info.turnActions——
+        /// max_turn_actions 指标数据源）。</summary>
+        public int TurnActions;
     }
 
     /// <summary>
@@ -67,6 +78,30 @@ namespace CardCore.AI.NeuralEnv
         private const float NoProgressPenalty = 0.05f; // 无进展动作扣分（即时信号：引导避开无效动作）
         private const int MaxActionsPerTurn = 256;   // 单回合动作数上限（v2 契约第 4 节 128→256：
                                                      // 响应步计入；仍防换状态翻转死循环）
+        // L2 回合预算（2026-11-18 循环治理 §5.3）：单回合动作数到预算即强制收口本回合——
+        // 模拟真人墙钟（AI 没有墙钟，合法循环下会无限刷步），只进 headless 驱动，不进正式规则；
+        // 不判和、不改奖励（收口只损失节奏）。取值 60（用户拍板）：真人典型回合 ~10 步，
+        // 蓝碑阵铺场等多步回合也远低于 60。MaxActionsPerTurn=256 保留为硬保险（防收口实现 bug）。
+        private const int TurnActionBudget = 60;
+        private bool _budgetClosedThisTurn;          // 本回合预算收口已执行（60~256 之间不重复收口）
+        private int _loopBudgetCount;                // L2 预算收口累计次数（阶段 3 起 进协议指标，只增不清）
+
+        // L1 无进展指纹（2026-11-18 循环治理 §5.2）：识别合法净零循环（绿：牺牲地→回收墓地→铺地→
+        // 再牺牲）——同回合内局面指纹重现（回环）或连续停滞 → 收口本回合（不判和、不改奖励）。
+        // 指纹只含"净变化"项，不含实例 ID/卡编号/时间戳（否则永不相等）；增长型循环交给 L2 预算。
+        // 作用域：仅 Main 相决策点；响应窗沿用现有 StallDrawThreshold（方案 §5.2）。
+        private const int LoopStallThreshold = 8;    // 停滞：连续 8 次 Main 相决策指纹不变
+        // 自检开关：true 时停滞阈值降为 1（验证检测器可触发）。static 字段而非 const =
+        // 编辑器反射即可翻转，免去「改源码→编译→验→改回→再编译」两轮（也杜绝忘改回）；默认恒 false。
+        private static bool LoopGuardSelfTest = false;
+        private readonly HashSet<ulong> _turnFingerprints = new HashSet<ulong>(); // 本回合出现过的指纹（回合切换清空）
+        private ulong _lastFingerprint;              // 上一个 Main 相决策指纹（停滞比较用）
+        private bool _hasLastFingerprint;            // _lastFingerprint 有效位（ulong 0 是合法哈希值）
+        private int _stallCount;                     // 连续同指纹决策计数
+        private int _loopCycleCount;                 // L1 回环收口累计（阶段 3 起 进协议指标，只增不清）
+        private int _loopStallCount;                 // L1 停滞收口累计（同上）
+        private bool _loopPrunedThisStep;            // L3-A：本步触发过 L1/L2 收口（BuildResult 消费后即清——仅收口那一步外显）
+        private string _loopReasonThisStep;          // L3-A：收口种类（cycle/stall/budget；与上同生命周期）
         // 停滞判和（2026-09-30 v2 修复，当晚扩展）：连续 N 步动作表只剩兜底行（Main=EndTurn-only /
         // 响应停靠=PassPriority-only）→ 判和收口。覆盖两种实测死法：①资源耗尽终局无类疲劳规则
         // 不自然终结（每局烧满 2000 步，且长局每步耗时随回合数增长，u537/u236 两跑 0.7s→500s 爬升）；
@@ -177,7 +212,12 @@ namespace CardCore.AI.NeuralEnv
             _responseStop = false;
             _bannedThisTurn.Clear(); // 新对局：无进展防护状态归零（stamp 由 BuildResult 兜底重置）
             _actionsThisTurn = 0;
+            _budgetClosedThisTurn = false; // L2 预算收口状态归零（_loopBudgetCount 只增不清）
             _stallCounter = 0;
+            _turnFingerprints.Clear(); // L1 指纹状态归零（跨局残留会误报回环；计数器只增不清）
+            _stallCount = 0;
+            _hasLastFingerprint = false;
+            _loopPrunedThisStep = false; // L3-A 单步标志归零
 
             AdvanceToDecision();
             return BuildResult(0f);
@@ -235,6 +275,18 @@ namespace CardCore.AI.NeuralEnv
                 _stallCounter = 0;
             }
 
+            // L2 回合预算收口（2026-11-18 循环治理 §5.3）：尽力收口——排干栈 → Main 相强 EndTurn；
+            // EndTurn 可能被引擎拒绝（阶段/栈态），此时只打日志不重试（MaxActionsPerTurn=256 硬保险兜底）。
+            if (_actionsThisTurn >= TurnActionBudget && !_budgetClosedThisTurn)
+            {
+                _budgetClosedThisTurn = true;
+                _loopBudgetCount++;
+                _loopPrunedThisStep = true; // L3-A：本步即收口步（info.loopPruned）
+                _loopReasonThisStep = "budget";
+                CloseTurnByLoopGuard();
+                Console.WriteLine($"[LoopGuard] budget turn={_core.TurnEngine.TurnNumber} seat={SeatOf(_decider)} actions={_actionsThisTurn} n={_legal?.Count ?? 0} hand={_core.ZoneManager.GetCards(_decider, Zone.Hand)?.Count ?? 0}");
+            }
+
             if (_actionsThisTurn > MaxActionsPerTurn)
             {
                 // 保险：同回合动作数超限（如换状态翻转死循环、模型互挂响应）→
@@ -276,6 +328,13 @@ namespace CardCore.AI.NeuralEnv
 
             // 推进到下一决策点（End→Standby 折返 / Standby→Main / 回合初横置 / 响应窗口；可能触发疲劳判负）
             AdvanceToDecision();
+
+            // L1 指纹检测（2026-11-18 循环治理 §5.2）：净零循环/停滞 → 收口本回合。只查 Main 相
+            // 新决策点；放在奖励计算与 BuildResult 之前——收口可能推进回合/触发终局（疲劳），
+            // 奖励按收口后终态归属、obs 为收口后决策点（不返回已作废的循环态动作表）。
+            // 拒绝/越界两条早退路径不检测：状态原地不动、指纹必在本回合集合里，检测=每次必误报 cycle；
+            // 那两条路径已有摘除 + StallDrawThreshold 兜底。
+            CheckLoopFingerprint(a);
 
             // 奖励：终局 ±1 主导（不再叠加塑形，避免 Φ 在终局无界）；λ=0 基线非终局恒 0
             //（纯终局口径——塑形与无进展扣分全部关闭）；否则势能塑形 λ·ΔΦ
@@ -439,8 +498,135 @@ namespace CardCore.AI.NeuralEnv
             }
         }
 
+        // ===================================================== L1/L2 循环治理（2026-11-18 方案 §5.2/§5.3） =====
+
+        /// <summary>L1/L2 收口本回合（方案 §5.2/§5.3 共用动作）：排干栈 → Main 相强 EndTurn。
+        /// 尽力而为：EndTurn 可能被引擎拒绝（阶段/栈态）——不抛异常、不重试；回合不流动的最终
+        /// 兜底仍是 MaxActionsPerTurn=256 硬保险。不判和、不改奖励（收口只损失节奏）。</summary>
+        private void CloseTurnByLoopGuard()
+        {
+            if (!_gameOver && !_core.StackEngine.IsEmpty) GameActions.DrainStack(_core, 64);
+            if (!_gameOver && _core.TurnEngine.CurrentPhase?.Phase == PhaseType.Main
+                && _core.StackEngine.IsEmpty)
+                GameActions.EndTurn(_core, _core.TurnEngine.TurnPlayer);
+        }
+
+        /// <summary>L1 指纹检测（方案 §5.2）：仅 Main 相决策点（响应窗沿用 StallDrawThreshold）。
+        /// 回环=本回合内指纹重现（净零循环，含"动作应用后状态原地踏步"）；停滞=连续
+        /// LoopStallThreshold 次指纹不变（防御分支——回环判据已覆盖连续重复，保留双判据）。
+        /// 触发即：计数 → 收口本回合 → 摘除触发动作（EndTurn 被拒、回合未切换时保证换动作；
+        /// 回合已切换则随回合清空自然失效）→ 打日志。trigger=本步刚应用成功的动作。</summary>
+        private void CheckLoopFingerprint(TideAction trigger)
+        {
+            if (_gameOver || _responseStop) return;
+            ulong fp = ComputeFingerprint();
+            string reason = null;
+            if (!_turnFingerprints.Add(fp))
+            {
+                reason = "cycle"; // 本回合内指纹重现 → 净零循环
+            }
+            else
+            {
+                int threshold = LoopGuardSelfTest ? 1 : LoopStallThreshold; // 自检：阈值降 1 验证检测器可触发
+                if (_hasLastFingerprint && fp == _lastFingerprint)
+                {
+                    if (++_stallCount >= threshold) reason = "stall";
+                }
+                else
+                {
+                    _stallCount = 0;
+                }
+            }
+            _lastFingerprint = fp;
+            _hasLastFingerprint = true;
+            if (reason == null) return;
+
+            if (reason == "cycle") _loopCycleCount++;
+            else _loopStallCount++;
+            _loopPrunedThisStep = true; // L3-A：本步即收口步（info.loopPruned）
+            _loopReasonThisStep = reason;
+            CloseTurnByLoopGuard();
+            if (trigger.Type != TideActionType.EndTurn && trigger.Type != TideActionType.PassPriority)
+            {
+                _bannedThisTurn.Add(trigger.Signature);
+                _legal?.RemoveAll(_bannedThisTurn);
+            }
+            Console.WriteLine($"[LoopGuard] {reason} turn={_core.TurnEngine.TurnNumber} seat={SeatOf(_decider)} actions={_actionsThisTurn} n={_legal?.Count ?? 0} hand={_core.ZoneManager.GetCards(_decider, Zone.Hand)?.Count ?? 0}");
+        }
+
+        /// <summary>L1 局面指纹（方案 §5.2；2026-11-18 实测修正×2）：回合号/双方生命+指示物摘要
+        /// （角色护甲/攻击弹药等都在 Player 实体指示物里）/双方战场+技能区永久物状态多重集
+        /// （排序后拼接，忽略实例 ID 与卡编号）/双方手牌·牌库·墓地·除外张数/元素池张数与横置数。
+        /// 不含手牌内容（成本高且同名互换不算进展）；增长型循环交给 L2。
+        /// 修正原因：方案原文战场只含名字、角色只有生命——正常战斗（伤害只改生物血攻、护甲吸收、
+        /// 横置、耐久-1、**角色护甲吸伤**）不换名字不换区不改生命，指纹原地复现 → 6 局误报
+        /// cycle 53 次；逐卡扩入 攻/血/横置/指示物摘要、角色扩入指示物摘要后这些"有进展"的
+        /// 操作均可分，绿套净零循环（牺牲地→回收→铺地回到原点）仍精确命中回环。</summary>
+        private ulong ComputeFingerprint()
+        {
+            var zm = _core.ZoneManager;
+            var sb = new StringBuilder();
+            sb.Append(_core.TurnEngine.TurnNumber).Append('|');
+            foreach (var p in new[] { _core.Player1, _core.Player2 })
+            {
+                sb.Append(p.Life).Append('|').Append(CountersKeyOf(p)).Append('|');
+                foreach (var z in new[] { Zone.Hand, Zone.Deck, Zone.Graveyard, Zone.Exile })
+                    sb.Append(zm.GetCards(p, z)?.Count ?? 0).Append(',');
+                var board = (zm.GetCards(p, Zone.Battlefield) ?? new List<Card>())
+                    .Concat(zm.GetCards(p, Zone.FieldZone) ?? new List<Card>())
+                    .Select(CardStateKeyOf).OrderBy(x => x, StringComparer.Ordinal);
+                sb.Append(string.Join("/", board)).Append(',');
+                var pool = _core.ElementPool.GetPooledCards(p);
+                sb.Append(pool.Count).Append(',').Append(pool.Count(x => x.IsTapped)).Append('|');
+            }
+            return Fnv1a64(sb.ToString());
+        }
+
+        /// <summary>永久物状态键：名字|攻|血|横置|指示物摘要（指纹用——同名卡按可视状态区分）。</summary>
+        private static string CardStateKeyOf(Card c)
+        {
+            int power = 0, life = 0;
+            c.TryGetPower(out power);
+            c.TryGetLife(out life);
+            bool tapped = c is ITappable t && t.IsTapped;
+            return CardNameOf(c) + "|" + power + "|" + life + "|" + (tapped ? 1 : 0)
+                + "|" + CountersKeyOf(c);
+        }
+
+        /// <summary>实体指示物摘要（排序 key:layer 拼接；角色护甲/弹药、卡的耐久/增减益全覆盖）。</summary>
+        private static string CountersKeyOf(Entity e)
+        {
+            var counters = e.EnumerateCounters()
+                .OrderBy(kv => kv.Key, StringComparer.Ordinal)
+                .Select(kv => kv.Key + ":" + kv.Value);
+            return string.Join(";", counters);
+        }
+
+        /// <summary>卡面名字（同名视为同物——指纹不用实例 ID/卡编号）。</summary>
+        private static string CardNameOf(Card c) => (c as CardWrapper)?.GetData()?.CardName ?? "?";
+
+        /// <summary>FNV-1a 64 位（指纹哈希，自实现不引依赖；逐 char 累积，等值性判定足够）。</summary>
+        private static ulong Fnv1a64(string s)
+        {
+            ulong hash = 14695981039346656037UL;
+            for (int i = 0; i < s.Length; i++)
+            {
+                hash ^= (ulong)s[i];
+                hash *= 1099511628211UL;
+            }
+            return hash;
+        }
+
         private TideStepResult BuildResult(float reward)
         {
+            // L3-A 外显（§5.4）：turnActions 取"本步结算时"的计数（收口步=触发计数 60——
+            // 下方回合切换复位发生在其后，正常步=本回合已用步数）；loopPruned 单步消费即清。
+            bool prunedThisStep = _loopPrunedThisStep;
+            string reasonThisStep = _loopReasonThisStep ?? "";
+            _loopPrunedThisStep = false;
+            _loopReasonThisStep = null;
+            int turnActionsAtBuild = _actionsThisTurn;
+
             // 回合切换：清空摘除表与动作计数（新回合同一动作可能重新合法——地牌重置/新抽牌等）
             int turn = _core.TurnEngine.TurnNumber;
             if (_banTurnStamp != turn)
@@ -448,6 +634,9 @@ namespace CardCore.AI.NeuralEnv
                 _banTurnStamp = turn;
                 _bannedThisTurn.Clear();
                 _actionsThisTurn = 0;
+                _budgetClosedThisTurn = false; // L2 预算收口状态随回合切换复位
+                _turnFingerprints.Clear();     // L1 指纹按回合重开（回合号在指纹内，跨回合本就必不等——清空兼防膨胀）
+                _stallCount = 0;
             }
 
             // 停靠座次兜底：终局/异常推进未设 _decider 时回落回合玩家（obs 仍可构建）
@@ -472,6 +661,9 @@ namespace CardCore.AI.NeuralEnv
                 ModelSeat = ModelSeat,
                 DecisionSeat = _gameOver ? -1 : SeatOf(_decider),
                 ResponseStop = _responseStop,
+                LoopPruned = prunedThisStep,   // L3-A：收口那一步 true（协议 info.loopPruned）
+                LoopReason = reasonThisStep,  // 协议 info.loopReason（cycle/stall/budget/""）
+                TurnActions = turnActionsAtBuild, // 协议 info.turnActions（本回合已用步数）
             };
         }
 

@@ -199,7 +199,7 @@ namespace SynergyUI
                     _film?.Present(new BattleFxOp { Kind = BattleFxKind.PhaseAnnounce, Seat = SeatOf(e.ActivePlayer), Reason = (int)e.Phase });
             });
             On<LifeChangeEvent>(e => // 角色HP读数·表现层真相源（2026-10-20 用户定案）：引擎同帧瞬达、
-            {                       // 步帧只带终值——中间值（宣言帧拼点奖励 30→24 等）只能靠"行
+            {                       // 步帧只带终值——中间值（宣言帧拼抢奖励 30→24 等）只能靠"行
                                     // 可见"时刻的事件态同步对账上屏。未在播=行即刻入史可见→立即全量
                                     // 对账（此刻引擎即中间态）；在播（结算回放期）=行随帧放（终值归
                                     // 步进快照/攻击步另有命中节拍）→照旧只置脏（抑制期丢弃）。
@@ -314,7 +314,7 @@ namespace SynergyUI
             });
             // 攻击宣言（2026-10-14 优先权半场高光）：宣言即优先权翻转（守卫窗口对手持有）
             On<AttackDeclarationEvent>(_ => QueueField());
-            On<ClashResolvedEvent>(e => // 拼点演出（2026-10-20：攻击宣言期引擎结算同步到——差值浮字随展示翻面同拍）
+            On<ClashResolvedEvent>(e => // 拼抢演出（2026-10-20：攻击宣言期引擎结算同步到——差值浮字随展示翻面同拍）
             {
                 if (e != null)
                     _film?.Present(new BattleFxOp

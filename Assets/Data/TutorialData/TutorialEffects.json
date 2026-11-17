@@ -738,8 +738,8 @@
     },
     {
       "id": "AE2C3BF2",
-      "name": "攻击宣言时与双方手牌各自展示攻击力最高的生物比攻击力，差额≥门槛时对对方目标造成6点伤害",
-      "hash": "27D44CE8",
+      "name": "攻击宣言时双方各从手牌暗选舍弃一张卡（可拒绝视为费用0）比费用，差额≥门槛时对对方目标造成6点伤害（未弃牌/抉择法术视为费用0）",
+      "hash": "CC963DB6",
       "timing": 7,
       "activation": 1,
       "limit": 1,
@@ -1986,7 +1986,7 @@
       "cost": [
         0.0,
         0.0,
-        6.0,
+        8.0,
         0.0,
         0.0
       ],
@@ -2364,7 +2364,7 @@
       "count": 0,
       "cost": [
         0.0,
-        9.0,
+        12.0,
         0.0,
         0.0,
         0.0
@@ -2454,8 +2454,8 @@
     },
     {
       "id": "6AAD18EB",
-      "name": "登场时，抽1张卡；若为本回合使用的第一张卡，将双方墓地的2张卡洗回牌库",
-      "hash": "6AAD18EB",
+      "name": "冻结一个对方地牌：横置并放置1层冻结指示物，冻结期间无法重置，持有者回合结束时自动解除1层冻结；若为本回合使用的第一张卡，将双方墓地各2张洗回牌库",
+      "hash": "3F54D56A",
       "timing": 19,
       "activation": 2,
       "selection": 0,
@@ -2471,7 +2471,10 @@
         {
           "kind": 0,
           "atom": {
-            "refId": "03c85bc4",
+            "refId": "973884b1",
+            "kinds": [
+              14
+            ],
             "branch": {
               "settle": 1,
               "gateId": "FirstCardThisTurn",
@@ -2759,7 +2762,7 @@
       "cost": [
         0.0,
         0.0,
-        6.0,
+        8.0,
         0.0,
         0.0
       ],
@@ -2949,43 +2952,42 @@
     },
     {
       "id": "EA8346E6",
-      "name": "对1个对方战场的生物附加3层紊乱指示物，期间不能以玩家为攻击目标，持有者回合结束时自动解除一层紊乱，【代价】对手抽1张卡",
-      "hash": "EA8346E6",
+      "name": "对3个对方战场的生物各附加1层紊乱指示物（期间不能以玩家为攻击目标，持有者回合结束时自动解除一层）；若为本回合使用的第一张卡，将双方墓地各2张洗回牌库",
+      "hash": "45516A8B",
       "timing": 19,
       "activation": 2,
-      "selection": 0,
-      "count": 1,
+      "selection": 1,
+      "count": 3,
       "cost": [
         0.0,
         0.0,
-        3.0,
+        2.0,
         0.0,
         0.0
-      ],
-      "costs": [
-        {
-          "type": 1,
-          "value": 0,
-          "manaType": 0,
-          "turns": 0,
-          "payload": {
-            "refId": "03c85bc4",
-            "kinds": [
-              8
-            ]
-          }
-        }
       ],
       "steps": [
         {
           "kind": 0,
           "atom": {
             "refId": "d3ed120d",
-            "value": 3,
             "kinds": [
               2
             ]
           }
+        },
+        {
+          "kind": 1,
+          "gid": "FirstCardThisTurn",
+          "then": [
+            {
+              "refId": "9af09c90",
+              "kinds": [
+                9,
+                10
+              ],
+              "count": 2
+            }
+          ]
         }
       ]
     },
@@ -3644,7 +3646,7 @@
       "activation": 2,
       "cost": [
         0.0,
-        3.0,
+        2.0,
         0.0,
         0.0,
         0.0
@@ -4153,7 +4155,7 @@
       "selection": 2,
       "count": 0,
       "cost": [
-        18.0,
+        24.0,
         0.0,
         0.0,
         0.0,
@@ -4237,14 +4239,6 @@
       "activation": 2,
       "selection": 1,
       "count": -1,
-      "steps": [
-        {
-          "kind": 0,
-          "atom": {
-            "refId": "84136d36"
-          }
-        }
-      ],
       "cost": [
         2.0,
         0.0,
@@ -4252,7 +4246,15 @@
         0.0,
         0.0
       ],
-      "costPin": 1
+      "costPin": 1,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "84136d36"
+          }
+        }
+      ]
     },
     {
       "id": "FXGREEN09",
@@ -4339,7 +4341,7 @@
       "count": 1,
       "cost": [
         0.0,
-        3.0,
+        2.0,
         0.0,
         0.0,
         0.0
@@ -4375,7 +4377,7 @@
     {
       "id": "AB57E454",
       "name": "团结3，赋予一个友方生物系命",
-      "hash": "AB57E454",
+      "hash": "DE07E1A1",
       "timing": 6,
       "activation": 1,
       "limit": 1,
@@ -4401,7 +4403,7 @@
     {
       "id": "962BF790",
       "name": "全体攻击力增加2",
-      "hash": "962BF790",
+      "hash": "7884CB71",
       "timing": 6,
       "activation": 1,
       "selection": 2,
@@ -4428,7 +4430,7 @@
     {
       "id": "FD74D899",
       "name": "全体生命值增加2",
-      "hash": "FD74D899",
+      "hash": "400F14F4",
       "timing": 6,
       "activation": 1,
       "selection": 2,
@@ -4455,10 +4457,11 @@
     {
       "id": "D1A00011",
       "name": "团结4，回合结束时全体攻击力增加2",
-      "hash": "D1A00011",
+      "hash": "38B9AE07",
       "timing": 6,
       "activation": 1,
       "limit": -1,
+      "selection": 2,
       "steps": [
         {
           "kind": 0,
@@ -4481,16 +4484,16 @@
             }
           }
         }
-      ],
-      "selection": 2
+      ]
     },
     {
       "id": "D1A00012",
       "name": "团结4，回合结束时全体生命值增加2",
-      "hash": "D1A00012",
+      "hash": "0D71D1AD",
       "timing": 6,
       "activation": 1,
       "limit": -1,
+      "selection": 2,
       "steps": [
         {
           "kind": 0,
@@ -4513,13 +4516,12 @@
             }
           }
         }
-      ],
-      "selection": 2
+      ]
     },
     {
       "id": "D1A00013",
       "name": "主动：召唤5个战斗衍生物",
-      "hash": "D1A00013",
+      "hash": "7AF74D26",
       "timing": 19,
       "activation": 2,
       "steps": [
@@ -4536,7 +4538,7 @@
     {
       "id": "D1A00014",
       "name": "主动：召唤3个系命衍生物",
-      "hash": "D1A00014",
+      "hash": "35B9F9FB",
       "timing": 19,
       "activation": 2,
       "steps": [
@@ -4553,7 +4555,7 @@
     {
       "id": "D1A00015",
       "name": "团结4，回合结束时全体攻击力/生命值增加2",
-      "hash": "D1A00015",
+      "hash": "246472C7",
       "timing": 6,
       "activation": 1,
       "limit": 1,
@@ -4567,7 +4569,8 @@
               "settle": 3,
               "engine": 8,
               "engineParam": 4,
-              "effectId": "D1A00016"
+              "effectId": "D1A00016",
+              "then": []
             }
           }
         }
@@ -4576,12 +4579,12 @@
     {
       "id": "D1A00016",
       "name": "回合结束时，全体攻击力增加2、全体生命值增加2",
-      "hash": "D1A00016",
+      "hash": "8F79B1A7",
       "timing": 6,
       "activation": 1,
       "selection": 2,
       "cost": [
-        4.0,
+        8.0,
         0.0,
         0.0,
         0.0,
@@ -4615,7 +4618,7 @@
     {
       "id": "D1A00017",
       "name": "主动：召唤5个战斗衍生物（加血）",
-      "hash": "D1A00017",
+      "hash": "09FAC8E6",
       "timing": 19,
       "activation": 2,
       "steps": [
@@ -4632,7 +4635,7 @@
     {
       "id": "D1A00018",
       "name": "主动：召唤2个工蜂",
-      "hash": "D1A00018",
+      "hash": "F25C4C15",
       "timing": 19,
       "activation": 2,
       "steps": [
@@ -4649,7 +4652,7 @@
     {
       "id": "D1A00020",
       "name": "将己方墓地全部卡返回手牌；若操控地数量<2，抽1张牌",
-      "hash": "D1A00020",
+      "hash": "93EB9861",
       "timing": 19,
       "activation": 2,
       "selection": 0,
@@ -4661,6 +4664,7 @@
         8.0,
         0.0
       ],
+      "costPin": 1,
       "steps": [
         {
           "kind": 0,
@@ -4681,13 +4685,12 @@
             }
           ]
         }
-      ],
-      "costPin": 1
+      ]
     },
     {
       "id": "D1A00021",
       "name": "封印一个对方单位",
-      "hash": "D1A00021",
+      "hash": "35628BEB",
       "timing": 19,
       "activation": 2,
       "selection": 0,
@@ -4706,6 +4709,64 @@
             "refId": "c336be8f",
             "kinds": [
               2
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "E31E9EB0",
+      "name": "横置任意张己方地牌（蛰伏不产元素），自己的下个准备阶段每张获得1点临时彩元素",
+      "hash": "E31E9EB0",
+      "timing": 19,
+      "activation": 2,
+      "selection": 1,
+      "count": -1,
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "8d37285d"
+          }
+        }
+      ]
+    },
+    {
+      "id": "7A11E001",
+      "name": "冻结对方全部地牌：横置并放置1层冻结指示物，冻结期间无法重置，持有者回合结束时自动解除1层冻结",
+      "hash": "9BC3863E",
+      "timing": 19,
+      "activation": 2,
+      "selection": 2,
+      "count": 0,
+      "cost": [
+        0.0,
+        0.0,
+        8.0,
+        0.0,
+        0.0
+      ],
+      "costs": [
+        {
+          "type": 1,
+          "value": 0,
+          "manaType": 0,
+          "turns": 0,
+          "payload": {
+            "refId": "03c85bc4",
+            "kinds": [
+              8
+            ]
+          }
+        }
+      ],
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "973884b1",
+            "kinds": [
+              14
             ]
           }
         }

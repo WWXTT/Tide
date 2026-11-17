@@ -42,7 +42,8 @@ namespace CardCore
         bool ShouldSkipTurnStartAutomation(Player player);
     }
 
-    /// <summary>手牌上限修改链：逐个套用，基值 RuleHooks.DefaultHandLimit（7）。</summary>
+    /// <summary>手牌上限修改链：逐个套用，基值 RuleHooks.DefaultHandLimit（12，2026-11-18 规则改版）
+    /// ——修改链增量=结界给的额外上限（现役=纳川仪典结界 +自己蓝色地牌数）。</summary>
     public interface IHandLimitModifier
     {
         int Modify(Player player, int currentLimit);
@@ -159,7 +160,9 @@ namespace CardCore
         public static void UnregisterHandLimitModifier(IHandLimitModifier modifier)
             => _handLimitModifiers.Remove(modifier);
 
-        /// <summary>玩家当前手牌上限（基值 7，逐个套用修改链）。</summary>
+        /// <summary>玩家当前手牌上限（基值 12——2026-11-18 规则改版：常规上限最高 12 张，
+        /// 逐个套用修改链=结界给的额外上限可超出）。消费口：ZoneContainer 入手闸（满员改投
+        /// 除外区）与 GameCore.EnforceHandLimitAsync（上限缩水兜底）。</summary>
         public static int GetHandLimit(Player player)
         {
             var limit = DefaultHandLimit;

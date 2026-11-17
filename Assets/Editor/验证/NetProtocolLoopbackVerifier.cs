@@ -652,12 +652,18 @@ namespace CardCore.Editor
                     "v20：客户端选消息[0] → 翻译回引擎原下标 → 引擎拿到战场卡（Indices 指向原候选语义不变）");
 
                 // ---- 3b. 手牌上限弃牌（真实引擎反问点：GameCore.OnTurnEnded → EnforceHandLimitAsync） ----
+                // 2026-11-18 手牌上限改版：入手闸（满员改投除外区，见 ZoneContainer.Move/Add）后
+                // 抽牌无法再超限——临时注册上限修改器抬高 +2 抽满，再撤除制造「上限缩水」超员，
+                // 走同一真实反问点（改版后回合末选弃仅剩缩水兜底这一触发路径）。
                 selector.Seen.Clear();
                 int before = core.ZoneManager.GetCards(core.Player1, Zone.Hand).Count;
                 int limit = RuleHooks.GetHandLimit(core.Player1);
+                var limitBooster = new LoopbackHandLimitBooster(2);
+                RuleHooks.RegisterHandLimitModifier(limitBooster);
                 int over = limit + 2 - before;
                 for (int i = 0; i < over; i++)
                     core.ZoneManager.DrawCard(core.Player1);
+                RuleHooks.UnregisterHandLimitModifier(limitBooster);
 
                 // 2026-09-24 回合推进口径：准备阶段由引擎自动推进入主（StartNewTurn 即 AdvanceFromStandby）
                 // ——SkipElementPool 保留兼容但正常流程不再需要（调用时相位已是 Main，返回 false）
@@ -1681,6 +1687,17 @@ namespace CardCore.Editor
             if (!decoder.TryDecode(out var decoded))
                 throw new InvalidOperationException("握手帧解码失败");
             return NetworkSerializer.DeserializePayload<T>(decoded);
+        }
+
+        /// <summary>3b 临时手牌上限修改器（+N）：注册后抽满、撤除后制造「上限缩水」超员
+        /// （2026-11-18 改版：入手闸生效后抽牌本身已无法把手牌抽超上限）。</summary>
+        private sealed class LoopbackHandLimitBooster : IHandLimitModifier
+        {
+            private readonly int _bonus;
+
+            public LoopbackHandLimitBooster(int bonus) { _bonus = bonus; }
+
+            public int Modify(Player player, int currentLimit) => currentLimit + _bonus;
         }
 
         /// <summary>

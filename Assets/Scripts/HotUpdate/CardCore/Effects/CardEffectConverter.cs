@@ -323,7 +323,7 @@ namespace CardCore
             {
                 if (ehp.FreeTiming)
                 {
-                    // 自然缺省组（运势/拼枪/团结·2026-11-10 R4 双通道修订）：一律自动；时机=效果头
+                    // 自然缺省组（运势/拼抢/团结·2026-11-10 R4 双通道修订）：一律自动；时机=效果头
                     // **声明值**（2026-11-14 档位制起 OnTurnStart 不再归一，按声明值走）——外层时机=
                     // 引擎评估窗口由玩家在合成器选（BranchEngines.RewardTimingOf 运行时同源读此值）。
                     // 不再随奖励效果时机反钉（2026-11-08 阶段3 旧口径）：R4 允许主动效果作奖励——
@@ -687,21 +687,13 @@ namespace CardCore
                 return null;
             }
 
-            // 数量装载守卫（2026-11-07 定案：按**作用域**，不按原子族）：
-            // ① 行标「不可全体」（NoWhole——操控/牺牲/宣言/反制/变形/跳回合等）禁 count=0。
-            // ② count=0（全域）仅允许**战场/手牌**（AllowsAllTarget）——这两处目标数量可预测（3~5），
+            // 数量装载守卫（2026-11-07 定案：按**作用域**，不按原子族；2026-11-18 NoWhole 位退役——
+            // 有无 Domain 即区分点：无域行轴空恒收 1，不再按行标）：
+            // ① count=0（全域）仅允许**战场/手牌**（AllowsAllTarget）——这两处目标数量可预测（3~5），
             //    1/2/3/全部合理；牌库/墓地/除外区/元素池取全域严重超模（如磨牌全磨对手牌库）→ 收 1。
-            // ③ count=2/3 任意非 Self 域允许；Self 域收 1。
+            // ② count=2/3 任意非 Self 域允许；Self 域收 1。
             int effectiveCount = entry.count;
-            var mounts = MountKindExtensions.ParseCsv(config.MountKinds);
-            if (effectiveCount == 0 && mounts.Contains(MountKind.NoWhole))
-            {
-                TideLog.Warn($"[CardEffectConverter] 原子 {type}（行 {entry.refId}）行标「不可全体」（NoWhole）" +
-                             "——count=0（域内全取）已收为 1（全取严重违背定价/规则）");
-                effectiveCount = 1;
-            }
-            bool allowsAll = !mounts.Contains(MountKind.NoWhole)
-                             && TargetAxisRules.AllowsAllTarget(axis);
+            bool allowsAll = TargetAxisRules.AllowsAllTarget(axis);
             if (effectiveCount == 0 && !allowsAll)
             {
                 TideLog.Warn($"[CardEffectConverter] 原子 {type}（行 {entry.refId}）count=0（全域）但域 '"
@@ -771,7 +763,7 @@ namespace CardCore
                 RowHashId = entry.refId, // 来源行身份（2026-10-03：同枚举多行各自锚价——计价按行取锚）
                 Mana = null, // ManaList 已随彻底引用化删除（全数据 0 使用）
                 TargetKinds = kinds,
-                TargetCount = effectiveCount, // 每原子数量覆盖（-2=未声明回落效果级；NoWhole 行 0 收 1）
+                TargetCount = effectiveCount, // 每原子数量覆盖（-2=未声明回落效果级；全域仅限战场/手牌域）
                 RandomTarget = entry.rand,   // 每原子随机覆盖（-1=未声明回落效果级）
                 DeferSelect = entry.defer,   // 每原子目标选择方式（0=预选=默认/1=效果处理时选）
                 Filter = filter,             // 域词表双读后的合并 filter（无域声明=表行 TargetFilter ?? ""，与旧口径一致）

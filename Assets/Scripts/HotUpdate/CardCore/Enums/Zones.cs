@@ -512,11 +512,23 @@ namespace CardCore
         /// </summary>
         public void Move(Card card, Zone from, Zone to)
         {
+            // 手牌满员改投（2026-11-18 规则改版）：手牌到达上限后，继续加入手牌的卡不进手牌，
+            // 改落除外区（CardExileEvent 通告——OnExile 触发/战报/UI 同源可见）。
+            // 除外区捞回遇满=移动落空（卡本就在除外区，无净变化）。
+            bool overflowExiled = false;
+            if (to == Zone.Hand && HandAtLimit())
+            {
+                if (from == Zone.Exile) return;
+                to = Zone.Exile;
+                overflowExiled = true;
+            }
             zones[from].Remove(card);
             if (!zones[to].Contains(card))
                 zones[to].Add(card);
             card._zone = to; // 区域真源维护：_zone 随容器移动同步（见类尾注释）
             OnCardMoved(card, from, to);
+            if (overflowExiled)
+                PublishHandOverflowExile(card, from);
         }
 
         /// <summary>
@@ -613,9 +625,18 @@ namespace CardCore
         /// </summary>
         public void Add(Card card, Zone zone)
         {
+            // 手牌满员改投除外区（同 Move 口径；Add 路径=衍生物/临时复制/偷取等无源区新落位）
+            bool overflowExiled = false;
+            if (zone == Zone.Hand && HandAtLimit())
+            {
+                zone = Zone.Exile;
+                overflowExiled = true;
+            }
             if (!zones[zone].Contains(card))
                 zones[zone].Add(card);
             card._zone = zone;
+            if (overflowExiled)
+                PublishHandOverflowExile(card, Zone.None);
         }
 
         /// <summary>
@@ -634,6 +655,30 @@ namespace CardCore
         {
             zones[zone].Remove(card);
             card._zone = Zone.None;
+        }
+
+        /// <summary>
+        /// 手牌满员判定（2026-11-18 规则改版）：有效手牌张数 ≥ 当前上限（RuleHooks.GetHandLimit
+        /// =基值 12 + 结界仪典额外）。施放中的卡留手牌但不占上限（同回合末 EnforceHandLimitAsync 口径）。
+        /// </summary>
+        private bool HandAtLimit()
+        {
+            var hand = zones[Zone.Hand];
+            int effective = hand.Count;
+            var stack = GameCore.Instance != null ? GameCore.Instance.StackEngine : null;
+            if (stack != null)
+                for (int i = 0; i < hand.Count; i++)
+                    if (hand[i] is Card hc && stack.IsPendingCast(hc))
+                        effective--;
+            return effective >= RuleHooks.GetHandLimit(Owner);
+        }
+
+        /// <summary>满员改投通告：除外事件（处理器版同款）经 GameCore 统一路由发布。</summary>
+        private void PublishHandOverflowExile(Card card, Zone from)
+        {
+            var e = new CardCore.Attribute.CardExileEvent { Card = card, Source = null, FromZone = from };
+            if (GameCore.Instance != null) GameCore.Instance.PublishEvent(e);
+            else EventManager.Instance.Publish(e);
         }
 
         /// <summary>

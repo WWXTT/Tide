@@ -229,6 +229,35 @@ namespace CardCore.Attribute.Handlers
         }
     }
 
+    /// <summary>蛰伏（2026-11-18 蓝技能改版·表行 EnumName=蛰伏）：横置所选己方元素池地牌——
+    /// 此横置**不产生元素**（非支付横置，走冻地同款直写池内包装口）；每张叠 1 层蛰伏，
+    /// 持有者自己的下个准备阶段（ElementPool.OnTurnStart 解横置后）每层兑现 1 点临时彩元素。
+    /// 已横置的地（本回合已付过费）跳过——再横置无意义也不重复计层。</summary>
+    public class DormancyHandler : AtomicEffectHandlerBase
+    {
+        protected override AtomicEffectType DefaultEffectType => AtomicEffectType.Dormancy;
+
+        public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
+        {
+            if (context.Targets == null) return; // 空解析=空转（不空发整卡、不入账）
+            foreach (var target in context.Targets)
+            {
+                if (!(target is Card poolCard) || poolCard.GetZone() != Zone.ElementPool) continue;
+                // 只蛰伏效果控制者自己的地（域=己方元素池:卡，防御性双保险）
+                var owner = poolCard.GetOwner() ?? poolCard.GetController();
+                if (owner == null || !ReferenceEquals(owner, context.Controller)) continue;
+                var pooled = context.ElementPool?.GetPool(owner)?.PooledCards
+                    .FirstOrDefault(pc => pc != null && pc.SourceCard == poolCard);
+                if (pooled == null || pooled.IsTapped) continue;
+                pooled.IsTapped = true;
+                pooled.DormancyLayers += 1;
+            }
+        }
+
+        protected override string DescribeTemplate(AtomicEffectInstance effect)
+            => "横置所选己方地牌（不产生元素），自己的下个准备阶段每张获得1点临时彩元素";
+    }
+
     // ================================================================
     // 绿色效果 - 恢复（成长机制 2026-10-08 已删除，本区仅剩治疗）
     // ================================================================

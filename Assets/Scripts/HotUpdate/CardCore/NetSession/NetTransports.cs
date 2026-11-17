@@ -18,7 +18,7 @@ namespace CardCore.Network
     }
 
     /// <summary>演出事件白名单（二期 B·方案 §3-B 表单源）：EventFeed.FxOnly 出队过滤用——
-    /// 帧切分/伤害治疗/死亡入场/属性状态/战斗拼点运势/效果视觉/回合骨架。漏类型=联机缺演出，
+    /// 帧切分/伤害治疗/死亡入场/属性状态/战斗拼抢运势/效果视觉/回合骨架。漏类型=联机缺演出，
     /// 补表即回退（Full 一行兜底）；V11.f 回环段断言覆盖。</summary>
     public static class NetFxEventWhitelist
     {
@@ -33,7 +33,7 @@ namespace CardCore.Network
             // 属性/状态
             nameof(CounterChangedEvent), nameof(StatModifyEvent), nameof(StatSetEvent),
             nameof(KeywordEvent), nameof(FreezeEvent),
-            // 战斗/拼点/运势
+            // 战斗/拼抢/运势
             nameof(AttackDeclarationEvent), nameof(AttackResolvedEvent), nameof(BlockDeclarationEvent),
             nameof(ClashResolvedEvent), nameof(LuckRolledEvent),
             // 效果视觉

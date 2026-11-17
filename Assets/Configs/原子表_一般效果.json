@@ -65,7 +65,7 @@
     "EffectType": "DiscardCard",
     "TargetFilter": null,
     "Polarity": -1,
-    "MountKinds": "不可随机",
+    "MountKinds": "",
     "Tags": null,
     "Tier": "D0"
   },
@@ -129,7 +129,7 @@
     "EffectType": "SearchDeck",
     "TargetFilter": null,
     "Polarity": 1,
-    "MountKinds": "不可全体",
+    "MountKinds": null,
     "Tags": null,
     "参数": "CardName",
     "Tier": "Dp1"
@@ -156,7 +156,7 @@
     "EffectType": "LookAtTopCards",
     "TargetFilter": null,
     "Polarity": 0,
-    "MountKinds": "不可随机",
+    "MountKinds": null,
     "Tags": null,
     "Tier": "Dm1"
   },
@@ -169,7 +169,7 @@
     "EffectType": "LockCard",
     "TargetFilter": null,
     "Polarity": -1,
-    "MountKinds": "不可随机",
+    "MountKinds": null,
     "Tags": "衰退型",
     "Tier": "Dm1",
     "特殊裁定": "对手有手牌被展示时，可以选择锁定被展示的卡，没有时改为随机，不可指定"
@@ -209,7 +209,7 @@
     "EffectType": "GainControl",
     "TargetFilter": null,
     "Polarity": -1,
-    "MountKinds": "不可全体",
+    "MountKinds": null,
     "Tags": null,
     "Tier": "Dp1"
   },
@@ -221,7 +221,7 @@
     "EffectType": "NegateActivation",
     "TargetFilter": null,
     "Polarity": -1,
-    "MountKinds": "不可全体",
+    "MountKinds": null,
     "Tags": null,
     "Tier": "Dm0_5"
   },
@@ -233,7 +233,7 @@
     "EffectType": "NegateEffect",
     "TargetFilter": null,
     "Polarity": -1,
-    "MountKinds": "不可全体",
+    "MountKinds": null,
     "Tags": null,
     "Tier": "D0"
   },
@@ -272,7 +272,7 @@
     "EffectType": "SkipTurn",
     "TargetFilter": null,
     "Polarity": -1,
-    "MountKinds": "不可全体",
+    "MountKinds": null,
     "Tags": null,
     "Tier": "Dp3"
   },
@@ -314,33 +314,6 @@
     "MountKinds": "",
     "Tags": null,
     "Tier": "Dp1_5"
-  },
-  {
-    "ID": "7e6840f3",
-    "TextHash": "34675a99",
-    "Domain": "双方战场:生物; 双方战场:结界",
-    "EnumName": "模拟",
-    "DisplayName": "变成{target}(无法复制场地光环)，附加一层变形指示物，解除时还原;发动时，按变形前后卡费用，用任意元素补齐差额",
-    "EffectType": "Morph",
-    "TargetFilter": null,
-    "Polarity": 0,
-    "MountKinds": "系统,动态费用",
-    "Tags": "换区清除型",
-    "Tier": "Dm1_5"
-  },
-  {
-    "ID": "dccd2254",
-    "TextHash": "dccd2254",
-    "Domain": "双方战场:生物; 双方战场:结界",
-    "EnumName": "变形",
-    "DisplayName": "将{target}变成引用卡（引用卡ID指向一张真实生物/结界卡，无法引用场地光环），附加一层变形指示物，解除时还原；发动主动效果按变形前后卡费用，用任意元素补齐差额",
-    "EffectType": "GrantMorph",
-    "TargetFilter": null,
-    "Polarity": 0,
-    "MountKinds": "系统,动态费用",
-    "Tags": "换区清除型",
-    "参数": "CardRef",
-    "Tier": "Dm1_5"
   },
   {
     "ID": "cab6ae97",
@@ -389,7 +362,6 @@
     "EffectType": "ChangeOwner",
     "TargetFilter": null,
     "Polarity": -1,
-    "MountKinds": "不可全体",
     "Tags": null,
     "Tier": "Dp1_5"
   },
@@ -504,7 +476,6 @@
     "EffectType": "SkipTurn",
     "TargetFilter": null,
     "Polarity": -1,
-    "MountKinds": "不可全体",
     "Tags": null,
     "Tier": "D0"
   },
@@ -516,7 +487,6 @@
     "EffectType": "SkipTurn",
     "TargetFilter": null,
     "Polarity": -1,
-    "MountKinds": "不可全体",
     "Tags": null,
     "Tier": "Dp1"
   },
@@ -528,7 +498,6 @@
     "EffectType": "SkipTurn",
     "TargetFilter": null,
     "Polarity": -1,
-    "MountKinds": "不可全体",
     "Tags": null,
     "Tier": "Dp1"
   },
@@ -540,7 +509,6 @@
     "EffectType": "DeclareHand",
     "TargetFilter": null,
     "Polarity": 1,
-    "MountKinds": "不可全体",
     "Tags": null,
     "参数": "CardName",
     "Tier": "D0"
@@ -553,7 +521,6 @@
     "EffectType": "DeclareDeck",
     "TargetFilter": null,
     "Polarity": 1,
-    "MountKinds": "不可全体",
     "Tags": null,
     "参数": "CardName",
     "Tier": "Dm0_5"
@@ -566,7 +533,6 @@
     "EffectType": "DeclareDeckTop",
     "TargetFilter": null,
     "Polarity": 1,
-    "MountKinds": "不可全体",
     "Tags": null,
     "参数": "Dimension",
     "Tier": "Dm1"
@@ -580,7 +546,6 @@
     "EffectType": "MoveUnit",
     "TargetFilter": null,
     "Polarity": 0,
-    "MountKinds": "不可全体",
     "Tags": "位置族",
     "ManaList": [
       1,
@@ -622,7 +587,6 @@
     "EffectType": "LivingArmor",
     "TargetFilter": null,
     "Polarity": 1,
-    "MountKinds": "不可全体",
     "Tags": null,
     "ManaList": [
       0,
@@ -701,7 +665,7 @@
     "EffectType": "ProphecyNextCard",
     "TargetFilter": null,
     "Polarity": 1,
-    "MountKinds": "有限分支,不可全体",
+    "MountKinds": "有限分支",
     "Tags": null,
     "参数": "Dimension",
     "ManaList": null,
@@ -719,5 +683,23 @@
     "MountKinds": "不可随机",
     "Tags": null,
     "Tier": "Dm1_25"
+  },
+  {
+    "ID": "8d37285d",
+    "TextHash": "8d37285d",
+    "Domain": "己方元素池:卡",
+    "EnumName": "蛰伏",
+    "DisplayName": "蛰伏{target}：横置且不产生元素，自己的下个准备阶段获得1点临时彩元素",
+    "EffectType": "Dormancy",
+    "TargetFilter": null,
+    "Polarity": 0,
+    "MountKinds": "系统",
+    "Tags": null,
+    "ManaList": [
+      0,
+      0,
+      0,
+      0
+    ]
   }
 ]

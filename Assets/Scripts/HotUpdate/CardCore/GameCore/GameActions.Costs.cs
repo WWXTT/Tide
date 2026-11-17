@@ -52,17 +52,33 @@ namespace CardCore
             if (data != null && data.Supertype == Cardtype.Spell)
             {
                 // 动态数量（2026-11-14）：声明期选目标数在锚价推导时生效——选 N 个=base×N。
-                var anchor = SpellCastAnchor(card, modeIndex, dynamicCounts);
+                var fullAnchor = SpellCastAnchor(card, modeIndex, dynamicCounts);
+                // 2026-11-18 用户定案：单效果法术的卡面费**已并入净锚价**（CardCostService.Derive 的 E 桶
+                // 已按 NetBill 扣除效果级代价）——这里只补「动态数量增量」，且增量也必须按净费算，
+                // 避免「扣一次代价 + 再加一次毛增量」的双计/漏计（血偿类代价法术回归锚）。
                 var modeDefs = GetCastableEffectDefinitions(card);
                 var modeDef = modeDefs != null && modeDefs.Count > 0
                     ? modeDefs[Math.Clamp(modeIndex, 0, modeDefs.Count - 1)] : null;
-                // 主动模式行才对锚价净费（法术施放=使用所选主动效果）；非主动行经
-                // ApplyCastDeduction 施放期补扣——同桶互斥防双计（2026-11-08 效果级化配套）
                 var modeCosts = modeDef != null && modeDef.IsActivatedEffect && modeDef.Costs != null
                     ? modeDef.Costs.Where(c => c != null && c.Type != CostType.ElementConsume).ToList()
                     : null;
-                if (modeCosts != null && modeCosts.Count > 0)
-                    anchor = EffectActivationGate.NetBill(anchor, modeCosts);
+                bool singleMode = !CostDerivationService.HasChoiceEffect(data);
+                ElementCost anchor;
+                if (singleMode)
+                {
+                    var netFull = modeCosts != null && modeCosts.Count > 0
+                        ? EffectActivationGate.NetBill(fullAnchor, modeCosts) : fullAnchor;
+                    var baseAnchor = SpellCastAnchor(card, modeIndex, null);
+                    var netBase = modeCosts != null && modeCosts.Count > 0
+                        ? EffectActivationGate.NetBill(baseAnchor, modeCosts) : baseAnchor;
+                    anchor = AnchorDelta(netFull, netBase);
+                }
+                else
+                {
+                    // 抉择法术：卡面费不含主动锚价（构筑期不计），施放时整笔并入所选模式的净费。
+                    anchor = modeCosts != null && modeCosts.Count > 0
+                        ? EffectActivationGate.NetBill(fullAnchor, modeCosts) : fullAnchor;
+                }
                 foreach (var color in anchor.NonzeroColors())
                     cost[color] = cost[color] + anchor[color];
 
@@ -126,14 +142,19 @@ namespace CardCore
                     var def = defs[Math.Clamp(m, 0, defs.Count - 1)];
                     if (def != null)
                     {
+                        // 2026-11-18 净费修正：单效果法术的卡面费已含**净锚价**（Derive E 桶）——
+                        // 这里不再整笔并入，否则毛锚价+净锚价双计；抉择法术卡面费不含主动锚价，
+                        // 仍在此整笔并入所选模式净费（与 GetCardCost 同口径）。
                         var anchor = CostDerivationService.DeriveElementCosts(def, 0) ?? new ElementCost();
-                        // 效果级代价净费（同 GetCardCost ①：主动行代价对锚价抵扣）
                         var modeCosts = def.IsActivatedEffect && def.Costs != null
                             ? def.Costs.Where(c => c != null && c.Type != CostType.ElementConsume).ToList() : null;
-                        if (modeCosts != null && modeCosts.Count > 0)
-                            anchor = EffectActivationGate.NetBill(anchor, modeCosts);
-                        foreach (var color in anchor.NonzeroColors())
-                            cost[color] = cost[color] + anchor[color];
+                        if (CostDerivationService.HasChoiceEffect(data))
+                        {
+                            if (modeCosts != null && modeCosts.Count > 0)
+                                anchor = EffectActivationGate.NetBill(anchor, modeCosts);
+                            foreach (var color in anchor.NonzeroColors())
+                                cost[color] = cost[color] + anchor[color];
+                        }
                     }
                     CardCostService.ApplyCastDeduction(cost, data); // 施放期代价行（同 GetCardCost ②）
                 }
@@ -162,6 +183,20 @@ namespace CardCore
             var def = defs[Math.Clamp(effectIndex, 0, defs.Count - 1)];
             if (def == null) return new ElementCost();
             return CostDerivationService.DeriveElementCosts(def, 0, dynamicCounts) ?? new ElementCost();
+        }
+
+        /// <summary>锚价增量（2026-11-18）：单效果法术的卡面费已含 base 锚价，
+        /// 施放时只补「动态数量」差额（选 N 个 = base×N 的增量），避免双计。</summary>
+        private static ElementCost AnchorDelta(ElementCost full, ElementCost baseAnchor)
+        {
+            var delta = new ElementCost();
+            if (full == null) return delta;
+            foreach (var color in full.NonzeroColors())
+            {
+                float extra = full[color] - (baseAnchor != null ? baseAnchor[color] : 0f);
+                if (extra > 0f) delta[color] = extra;
+            }
+            return delta;
         }
 
         /// <summary>

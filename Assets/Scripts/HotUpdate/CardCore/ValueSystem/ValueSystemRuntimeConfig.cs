@@ -174,7 +174,7 @@ namespace CardCore
     {
         public float InitialLife = 30f;                  // 初始生命（Reset 跨局复位同用）
         public float OpeningHandSize = 6f;               // 起手手牌数（双方对称抽满；引擎不补抽）
-        public float DefaultHandLimit = 7f;              // 手牌上限基值（回合末选弃；IHandLimitModifier 修改链之上叠加）
+        public float DefaultHandLimit = 12f;             // 手牌上限基值（2026-11-18 规则改版 7→12：到上限后加入手牌的卡不进手牌、改投除外区；IHandLimitModifier 修改链之上叠加=结界额外上限）
         public float BattlefieldCapacityPerPlayer = 9f;  // 每玩家战场单位容量（=单位区 4+5；P11 盘面重塑；BoardLayout.UnitCellsPerPlayer 单源引用）
         public float LandCurveCap = 10f;                 // 标准地牌槽曲线自然封顶 [1..cap]（2026-10-15：7→10，每次回合开始双方同步 +1；成长等效果增加在此之外无限制）
         public float SecondPlayerArmorBonus = 5f;        // 后手开局护甲补偿（2026-10-30 迁表：后手角色 +N 层护甲指示物；本地木桩/联机/教学开局注入共用 GameCore.SecondPlayerArmorBonus 单口）

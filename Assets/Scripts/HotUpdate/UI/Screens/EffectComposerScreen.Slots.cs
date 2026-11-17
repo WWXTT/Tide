@@ -120,7 +120,7 @@ namespace SynergyUI
                             MakeHint(slot, "该行不是引擎主干——到右侧重新选择");
                         }
                     }
-                    else MakeHint(slot, "主干为空——到右侧选择引擎行（倒计时/拼点/运势/死亡计数/元素充盈…）");
+                    else MakeHint(slot, "主干为空——到右侧选择引擎行（倒计时/拼抢/运势/死亡计数/元素充盈…）");
                     _slotZones.Add(MakeZone(slot, () =>
                     {
                         var a = FirstKind0Atom();

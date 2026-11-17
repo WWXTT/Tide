@@ -63,7 +63,7 @@ namespace CardCore
                 {
                     // 主动引擎主干（2026-11-08 规则地基定案，双选组整删）：主动声明可达面=附加诅咒/祝福
                     //（主动钉死——手动发动提示性空转，施放时已部署）+ 存量主动运势（自然缺省组保留声明
-                    //——掷骰一步点击）；其余引擎（倒计时/拼点/死亡计数/元素充盈/团结）自动钉死，转换期
+                    //——掷骰一步点击）；其余引擎（倒计时/拼抢/死亡计数/元素充盈/团结）自动钉死，转换期
                     // 已归一不会走到主动档。自动声明仍条件载体跳过（BranchEngines 事件驱动；倒计时直发）。
                     if (effect.ActivationType == EffectActivationType.Voluntary)
                     {
@@ -434,10 +434,11 @@ namespace CardCore
             await ApplyThenToSharedTargetsAsync(payload, context, fragments);
         }
 
-        /// <summary>主动引擎主干（2026-10-30 双选组主动路径——拼点/死亡计数/团结/附加诅咒·祝福；
+        /// <summary>主动引擎主干（2026-10-30 双选组主动路径——拼抢/死亡计数/团结/附加诅咒·祝福；
         /// 运势走掷骰专用口 ApplyActiveLuckTrunkAsync）：点击 → 立即评估引擎条件
-        ///（BranchEngines.EvaluateActiveCondition——副作用与自动路径同源：拼点照常展示比攻/发
-        /// ClashResolvedEvent，死亡计数只读不清，团结读注入邻接数）→ 达标发放 Then 奖励
+        ///（副作用与自动路径同源：拼抢照常双暗舍弃比费/发 ClashResolvedEvent——2026-11-18 改版起
+        /// 走异步口 BranchEngines.ResolveActiveClashAsync（人类弹窗），其余引擎走同步
+        /// EvaluateActiveCondition；死亡计数只读不清，团结读注入邻接数）→ 达标发放 Then 奖励
         ///（组合目标逐个适用，无组合目标回落奖励弹选），未达标落空播报。
         /// 附加诅咒·祝福=施放时已部署（OnCardCastResolved），手动发动为提示性空转（不重复部署）。
         /// 不走引擎发射账——主动发动受横置/次数档自理（运势主动同口径）。</summary>
@@ -455,8 +456,19 @@ namespace CardCore
                 });
                 return;
             }
-            bool hit = BranchEngines.EvaluateActiveCondition(kind, payload,
-                context.Source as Card, context.Controller, context.ResolvingEffect, out var detail);
+            bool hit; string detail;
+            if (kind == BranchEngineKind.Clash)
+            {
+                // 2026-11-18 拼抢改版：拼抢需双方暗选（人类弹窗）——同步口装不下异步，
+                // 特判走异步决斗口（代选策略/提交比费与自动路径同源）。
+                (hit, detail) = await BranchEngines.ResolveActiveClashAsync(payload, context.ResolvingEffect,
+                    context.Source as Card, context.Controller, GameCore.Instance);
+            }
+            else
+            {
+                hit = BranchEngines.EvaluateActiveCondition(kind, payload,
+                    context.Source as Card, context.Controller, context.ResolvingEffect, out detail);
+            }
             EventManager.Instance.Publish(new KeywordAppliedEvent
             {
                 Target = context.Source, Keyword = zh,

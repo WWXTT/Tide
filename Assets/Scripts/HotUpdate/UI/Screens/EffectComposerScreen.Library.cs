@@ -386,7 +386,7 @@ namespace SynergyUI
                         return lp => b != null && lp.CanBeBranchReward && !lp.IsWrongSideOnly
                                      && EngineRewardWithinCap(lp.Entry(), b);
                     }
-                    contextZh = "主干（引擎行——倒计时/拼点/运势/死亡计数/元素充盈/团结/附加诅咒·祝福）";
+                    contextZh = "主干（引擎行——倒计时/拼抢/运势/死亡计数/元素充盈/团结/附加诅咒·祝福）";
                     return lp => lp.IsEngineTrunk;
                 }
                 case ComposeMode.LimitedBranch:
@@ -901,7 +901,7 @@ namespace SynergyUI
                     }
                     else
                     {
-                        if (!payload.IsEngineTrunk) { ShowToast("自由分支主干=引擎行（倒计时/拼点/运势…）——其余原子请切并列/有限分支"); break; }
+                        if (!payload.IsEngineTrunk) { ShowToast("自由分支主干=引擎行（倒计时/拼抢/运势…）——其余原子请切并列/有限分支"); break; }
                         ReplaceBranchTrunk(InferredTrunkEntry(payload), keepBranch: false); // 引擎行自动挂 Engine 载荷
                     }
                     RefreshLibrary(keepScroll: true);
@@ -989,7 +989,7 @@ namespace SynergyUI
             {
                 int param;
                 if (ComposerCatalog.IsDerivedThresholdEngine(engineKind) || engineKind == BranchEngineKind.Countdown)
-                    param = 0; // 派生门槛（拼点/死亡计数/元素充盈）参数=死数据；倒计时 0=自动换算
+                    param = 0; // 派生门槛（拼抢/死亡计数/元素充盈）参数=死数据；倒计时 0=自动换算
                 else
                 {
                     ComposerCatalog.EngineParamRange(engineKind, out var mn, out var mx);

@@ -34,6 +34,9 @@ namespace CardCore
                 new EchoCopyHandler(),
                 new ReturnToHandHandler(),
                 new FreezeHandler(),
+                // 蛰伏（2026-11-18 蓝技能改版）：横置己方池地不产元素，下个自己准备阶段每张
+                // 兑现 1 点临时彩元素（ElementPool.OnTurnStart 发款）
+                new DormancyHandler(),
                 new HealHandler(),
                 new ModifyPowerHandler(),
                 new MorphHandler(),

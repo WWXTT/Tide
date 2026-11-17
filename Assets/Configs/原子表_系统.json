@@ -26,6 +26,33 @@
     "ManaList": null
   },
   {
+    "ID": "7e6840f3",
+    "TextHash": "34675a99",
+    "Domain": "双方战场:生物; 双方战场:结界",
+    "EnumName": "模拟",
+    "DisplayName": "变成{target}(无法复制场地光环)，附加一层变形指示物，解除时还原;发动时，按变形前后卡费用，用任意元素补齐差额",
+    "EffectType": "Morph",
+    "TargetFilter": null,
+    "Polarity": 0,
+    "MountKinds": "系统,动态费用",
+    "Tags": "换区清除型",
+    "Tier": "Dm1_5"
+  },
+  {
+    "ID": "dccd2254",
+    "TextHash": "dccd2254",
+    "Domain": "双方战场:生物; 双方战场:结界",
+    "EnumName": "变形",
+    "DisplayName": "将{target}变成引用卡（引用卡ID指向一张真实生物/结界卡，无法引用场地光环），附加一层变形指示物，解除时还原；发动主动效果按变形前后卡费用，用任意元素补齐差额",
+    "EffectType": "GrantMorph",
+    "TargetFilter": null,
+    "Polarity": 0,
+    "MountKinds": "系统,动态费用",
+    "Tags": "换区清除型",
+    "参数": "CardRef",
+    "Tier": "Dm1_5"
+  },
+  {
     "ID": "70034aee",
     "TextHash": "70034aee",
     "Domain": "双方战场:生物",
@@ -101,10 +128,22 @@
     "ManaList": null
   },
   {
+    "ID": "4b9a0393",
+    "TextHash": "95bcd690",
+    "EnumName": "拼抢",
+    "DisplayName": "自由分支·拼抢：双方从手牌各暗选舍弃一张卡（可拒绝，未弃牌视为费用0），同时公示后按己方舍弃卡的费用-对手舍弃卡的费用，差额≥x，则触发奖励（差额最大值6，抉择法术视为费用0）",
+    "EffectType": "EngineClash",
+    "TargetFilter": null,
+    "Polarity": 0,
+    "MountKinds": "引擎主干",
+    "Tags": null,
+    "ManaList": null
+  },
+  {
     "ID": "fd645778",
-    "TextHash": "1d753cf1",
+    "TextHash": "81898814",
     "EnumName": "元素充盈",
-    "DisplayName": "自由分支·元素充盈：双方使用卡牌结算后，己方可用元素-对手可用元素大于x，则触发奖励（只能自动触发，差额上限为6）",
+    "DisplayName": "自由分支·元素充盈：己方释放法术后，己方可用元素-对手可用元素大于x，则触发奖励（只能自动触发，不看回合归属，差额上限为6）",
     "EffectType": "EngineManaSurplus",
     "TargetFilter": null,
     "Polarity": 0,
@@ -114,7 +153,7 @@
   },
   {
     "ID": "83c150f2",
-    "TextHash": "83c150f2",
+    "TextHash": "97fed091",
     "EnumName": "团结",
     "DisplayName": "自由分支·团结：与此卡相邻的生物数量达到 x 时触发奖励（最大值6）",
     "EffectType": "EngineUnity",

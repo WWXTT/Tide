@@ -110,11 +110,11 @@ namespace SynergyUI
         private static readonly Color StatDownColor = new Color(1f, 0.38f, 0.32f);
         private static readonly Color StatUpColor = new Color(0.42f, 1f, 0.45f);
 
-        // 拼点配色（2026-10-20 教学二表现）：胜=金（引擎奖励语义——区别于回复绿/伤害红/消灭紫，
+        // 拼抢配色（2026-10-20 教学二表现）：胜=金（引擎奖励语义——区别于回复绿/伤害红/消灭紫，
         // 与运势等引擎成功族共用色的候选锚点）；败=灰（无彩=无奖励；正差额未达门槛同判败侧灰）。
         private static readonly Color ClashWinColor = new Color(1f, 0.78f, 0.28f);
         private static readonly Color ClashLoseColor = new Color(0.62f, 0.62f, 0.62f);
-        // 拼点/运势结果句字号：2026-10-20 用户实测整句糊满屏，双双减半（拼点 4.5→2.25·运势 6→3），
+        // 拼抢/运势结果句字号：2026-10-20 用户实测整句糊满屏，双双减半（拼抢 4.5→2.25·运势 6→3），
         // ±N 浮字缺省 6 不动（美术口径后置）。
         private const float ClashFontSize = 2.25f;
         private const float LuckRollFontSize = 3f;

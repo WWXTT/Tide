@@ -397,20 +397,21 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 拼点结算事件（2026-10-20 表现接入）：拼点引擎每次攻击宣言评估**必发**——成败两态都发。
-    /// 旧口径只有成功侧 KeywordAppliedEvent（失败零事件），表现层无从得知比拼结果；本事件补齐
-    /// 观察口：差值浮字+成败粒子（BattleFieldView.PlayClashResolvedAsync）消费，日志族不受影响。
+    /// 拼抢结算事件（2026-10-20 表现接入；2026-11-18 改版·手牌暗舍弃比费用）：拼抢引擎每次攻击宣言
+    /// 评估**必发**——成败两态都发。旧口径只有成功侧 KeywordAppliedEvent（失败零事件），表现层无从
+    /// 得知比拼结果；本事件补齐观察口：差值浮字+成败粒子（BattleFieldView.PlayClashResolvedAsync）消费，
+    /// 日志族不受影响。字段名沿用旧抽样版（协议/回放兼容）：Reveal=舍弃卡，Power=舍弃费用。
     /// </summary>
     public class ClashResolvedEvent : GameEventBase
     {
-        public Card EngineCard { get; set; }   // 拼点引擎卡（攻击方场上）
+        public Card EngineCard { get; set; }   // 拼抢引擎卡（攻击方场上）
         public Player AttackingPlayer { get; set; }
-        public Card MyReveal { get; set; }     // 攻击方展示的最高攻生物（null=手牌无生物按 0）
-        public Card TheirReveal { get; set; }  // 对手展示（null=同上）
-        public int MyPower { get; set; }
-        public int TheirPower { get; set; }
+        public Card MyReveal { get; set; }     // 攻击方舍弃的卡（null=拒绝/空手=费用0；已落墓）
+        public Card TheirReveal { get; set; }  // 对手舍弃的卡（null=同上）
+        public int MyPower { get; set; }       // 攻击方舍弃费用（ClashCostOf 口径，抉择卡取最高分支）
+        public int TheirPower { get; set; }    // 对手舍弃费用
         public int Threshold { get; set; }     // Then 锚价推导门槛
-        public bool Success { get; set; }      // 差额 ≥ 门槛
+        public bool Success { get; set; }      // 差额（封顶6）≥ 门槛
     }
 
     /// <summary>

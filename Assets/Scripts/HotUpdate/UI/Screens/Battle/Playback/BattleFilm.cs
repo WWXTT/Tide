@@ -25,7 +25,7 @@ namespace SynergyUI
         public uint LastEventId;      // 建帧时最后一条日志事件的 EventId（S2 行→帧映射：第一个 LastEventId >= line.EventId 的帧）
         public List<BattleLogLine> Lines = new();   // 本帧放行的战报行（二期 A 起建帧期填充——LiveData 随帧入列/回放时间轴预铺）
         public List<BattleFxOp> PreOps = new();     // 应用 View 之前（死亡预持等）
-        public List<BattleFxOp> Ops = new();        // 应用 View 之后（伤害/回复/拼点/飞行/浮字…）
+        public List<BattleFxOp> Ops = new();        // 应用 View 之后（伤害/回复/拼抢/飞行/浮字…）
         public CombatShot Combat;     // 攻击步的战斗演出（可空）
         public BattleInputRecord Input; // Input 帧载荷（v1 只记录/展示）
     }
@@ -86,7 +86,7 @@ namespace SynergyUI
         CounterBurst,  // 赋予指示物爆发粒子
         KeywordBurst,  // 赋予关键词爆发粒子
         DeckMark,      // 诅咒/祝福牌库标记
-        Clash,         // 拼点结果浮字
+        Clash,         // 拼抢结果浮字
         LuckRoll,      // 运势掷骰浮字
         PhaseAnnounce, // 阶段播报（HUD 阶段格）
         DrawFlyIn,     // 抽卡飞入（卡堆脉冲+扇区起点武装——轮外自然抽/轮内效果抽都录；PreOps 先于 View 建 新卡）
@@ -138,7 +138,7 @@ namespace SynergyUI
         public int CastX = -1, CastZ = -1;    // 法术位（-1=无）
         public int Reason;                    // DestroyReason / GameOverReason / PhaseType 等
         public bool Flag;                     // Success / blessing / debuff / IsAdd
-        public int D1, D2, Threshold;         // 拼点=双方战力 / 运势=骰值
+        public int D1, D2, Threshold;         // 拼抢=双方舍弃费用 / 运势=骰值
         public int Seat = -1;                 // 疲劳/抽牌/阶段播报归属
         public string Text;                   // counterType / 备注文案
         public Dictionary<int, float> Paid;   // 入场/扣费粒子实付账单（色→量；可空）

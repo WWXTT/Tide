@@ -611,7 +611,7 @@ namespace SynergyUI
         }
 
         /// <summary>引擎主干行短式正文（2026-10-09 八引擎统一定案）：「自由分支·{中文名}{x}」——
-        /// 派生门槛引擎（拼点/死亡计数/元素充盈，自平衡统一）x=奖励锚价推导门槛、倒计时声明 0 时
+        /// 派生门槛引擎（拼抢/死亡计数/元素充盈，自平衡统一）x=奖励锚价推导门槛、倒计时声明 0 时
         /// x=按奖励费换算回合（均随 Then 奖励实时变，公式经 CostDerivationService 与运行时判定同源）；
         /// 其余引擎（运势/团结/附加诅咒/祝福）x=engineParam（EngineParamRange 钳制显示）。
         /// 非引擎行/引擎身份未定义返回 null（调用方回退表行长模板——原子库列表行长文案保留完整玩法说明）。</summary>
@@ -636,7 +636,7 @@ namespace SynergyUI
             int x;
             switch (kind)
             {
-                // 派生门槛引擎（IsDerivedThresholdEngine 单源：拼点/死亡计数/元素充盈）
+                // 派生门槛引擎（IsDerivedThresholdEngine 单源：拼抢/死亡计数/元素充盈）
                 // ——2026-10-09 自平衡统一：x=Then 奖励锚价推导，随奖励计费实时变
                 case BranchEngineKind.DeathToll:
                     // 2026-11-10 改版：只在手牌累计双方生物死亡（满6）；进战场冻结，离场清零。

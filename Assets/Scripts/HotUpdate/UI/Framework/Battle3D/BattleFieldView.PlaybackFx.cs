@@ -420,7 +420,7 @@ namespace SynergyUI
             return UniTask.CompletedTask;
         }
 
-        /// <summary>拼点结果浮字（ref 版·镜像 PlayClashResolvedAsync）。</summary>
+        /// <summary>拼抢结果浮字（ref 版·镜像 PlayClashResolvedAsync）。</summary>
         public async UniTask PlayClashByRefAsync(BattleFxOp op)
         {
             var et = ResolveFxTarget(op?.Target);

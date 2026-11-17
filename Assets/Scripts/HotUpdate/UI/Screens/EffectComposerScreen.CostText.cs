@@ -590,7 +590,7 @@ namespace SynergyUI
             MakeModeChip(ComposeMode.Parallel,
                 "并列形态：最多两个槽，各放一颗原子组成效果，两原子并列生效——要给原子挂条件或引擎请切分支形态");
             MakeModeChip(ComposeMode.FreeBranch,
-                "自由分支：主干是一颗事件引擎（倒计时/拼点/运势等），事件达成时发放下方 Then 奖励——奖励在 1-6 费区间自由调整，门槛随计费推导");
+                "自由分支：主干是一颗事件引擎（倒计时/拼抢/运势等），事件达成时发放下方 Then 奖励——奖励在 1-6 费区间自由调整，门槛随计费推导");
             MakeModeChip(ComposeMode.LimitedBranch,
                 "有限分支：一颗主干原子加一个局面门槛，当前局面达标时发放 Then 奖励——不达标不奖励也不惩罚（奖励免费）");
             MakeModeChip(ComposeMode.LinkAura,

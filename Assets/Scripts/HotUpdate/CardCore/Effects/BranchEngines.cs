@@ -17,11 +17,12 @@ namespace CardCore
     /// - **运势**（2026-10-16 解绑改版；2026-10-19 双≥定案）：掷 2d6（GameRng）随 def 声明时机判定
     ///   （骰子本就随时可扔），双骰都 ≥ x（=分支费用）→ 执行奖励（无状态，每次时机事件独立判定；
     ///   x∈[1,6]，x=6 双 6 才中=1/36）。
-        /// - **拼点**（2026-10-04 改版；2026-10-09 触发改版；2026-10-19 取样改版）：**攻击宣言时**（仅攻击方——
-        ///   攻击宣言者战场上的引擎卡，OnAttackDeclared）双方各从**手牌**展示一张**生物**（自动取攻击力最高——
-        ///   双方理性策略同为最高：引擎方拉大差额、对手压缩差额，无需选择窗口；选中卡挂「展示」指示物对双方
-        ///   公开=RevealCard 原子同款口径，已展示不重复挂；手牌无生物按攻击力 0）——比**攻击力**；
-        ///   **差额 ≥ 奖励锚价合计**（大于等于）才触发，奖励按声明值结算；**无限次**（每次攻击宣言独立判定，无每回合 guard）。
+        /// - **拼抢**（2026-10-04 改版；2026-10-09 触发改版；2026-11-05 牌库随机取样；**2026-11-18 改版·手牌暗舍弃比费用**）：
+        ///   **攻击宣言时**（仅攻击方——攻击宣言者战场上的引擎卡，OnRoutedEvent·AttackDeclarationEvent）
+        ///   双方各从**手牌暗选舍弃一张卡**（可拒绝，拒绝=费用 0；AI/无头确定性代选：发起方最高费≥门槛才弃、
+        ///   应对方恒弃最高费拦截），两选收齐后**同时公示**落墓——按**己方舍弃费用−对手舍弃费用**
+        ///   （封顶 6；抉择卡费用取最高分支）**≥ 门槛**（Then 锚价推导）执行奖励；
+        ///   **无限次**（每次攻击宣言独立判定；交互异步经串行队列，无头同步完成）。
         /// - **死亡计数**（2026-09-22 定案；2026-10-09 自平衡统一；2026-11-08 阶段3 收窄）：**此卡在场
         ///   上时**计数双方生物死亡（手牌不计数）——每次生物死亡 +1 死亡计数指示物（系统层，换区清=
         ///   使用后清零）；**满值 6**，达满不再计数；计数 ≥ 门槛（Then 锚价推导）即触发奖励——[x,6] 区间
@@ -103,7 +104,7 @@ namespace CardCore
             _registered = true;
             EventManager.Instance.Subscribe<CardPutToBattlefieldEvent>(OnEnterBattlefield);
             EventManager.Instance.Subscribe<CardDestroyEvent>(OnCreatureDestroyed);
-            // 拼枪/团结已随 2026-11-08 阶段3 迁 OnRoutedEvent（时机=奖励效果时机）——
+            // 拼抢/团结已随 2026-11-08 阶段3 迁 OnRoutedEvent（时机=奖励效果时机）——
             // AttackDeclarationEvent 订阅与 OnCardCastSettled 直调均退役。
             // 倒计时 tick 已随 2026-10-26 精准切分迁 GameCore.RunStandbyAutomation 显式调用（原 TurnStartEvent 订阅退役）
         }
@@ -227,12 +228,12 @@ namespace CardCore
             }
         }
 
-        /// <summary>自动三引擎（运势/拼枪/团结）的统一事件评估口（2026-11-08 阶段3·奖励效果时机判定；
+        /// <summary>自动三引擎（运势/拼抢/团结）的统一事件评估口（2026-11-08 阶段3·奖励效果时机判定；
         /// 2026-11-10 R4：时机=外层效果头声明值，不再读引用效果时机）：
         /// GameCore.PublishEventRouted 在总线分发之后逐事件调用。时机=<see cref="RewardTimingOf"/>
         ///（def.TriggerTiming=转换器归一值——玩家在合成器选的引擎评估窗口）
         /// 映射的事件类型 == 当前事件类型才评估。归属过滤（<see cref="ExcludedByOwnership"/>）：
-        /// 拼枪仅攻击方、团结仅施放者；运势沿用双方各评估；事件无法归属时双方各评估一次。
+        /// 拼抢仅攻击方、团结仅施放者；运势沿用双方各评估；事件无法归属时双方各评估一次。
         /// 不走 TriggerPayloadFilter——载荷过滤是「来源卡自身参战」语义（伤害源==自己等），
         /// 引擎卡非战斗参与方会被误杀。</summary>
         public static void OnRoutedEvent(IGameEvent e)
@@ -303,34 +304,17 @@ namespace CardCore
 
                                 case BranchEngineKind.Clash:
                                 {
-                                    // 拼枪评估（2026-10-09 触发改版；A4 定案 2026-11-05 牌库随机生物取样）：
-                                    // 双方各从牌库随机展示一张生物（挂「展示」公开、牌库不动），差额 ≥ 门槛执行奖励。
-                                    var minePick = RandomCreatureFromDeck(player, zm, card);
-                                    var theirsPick = RandomCreatureFromDeck(player.Opponent, zm, card);
-                                    int mine = PowerOf(minePick);
-                                    int theirs = PowerOf(theirsPick);
-                                    int threshold = CostDerivationService.EngineRewardThreshold(payload.Then, def.TriggerTiming);
-                                    bool success = mine - theirs >= threshold;
-                                    EventManager.Instance.Publish(new ClashResolvedEvent // 成败两态必发（2026-10-20 表现观察口）
+                                    // 拼抢评估（2026-11-18 改版·手牌暗舍弃比费用；触发口不变=攻击宣言·仅攻击方）：
+                                    // 双方各从手牌**暗选**舍弃一张卡（可拒绝，拒绝=费用0），两选收齐后**同时公示**
+                                    // 落墓——己方舍弃费用−对手舍弃费用（封顶 ClashDiffCap）≥ 门槛（Then 锚价推导）
+                                    // 执行奖励。交互走异步链（详见 ClashJob 区）：人类经目标选择弹窗；AI/无头
+                                    // 同步代选零挂起（RequestAsync 自动路径）——无头时序与旧抽样版逐字节一致
+                                    //（训练确定性）；串行队列防同事件多载荷并发弹窗。
+                                    EnqueueClash(new ClashJob
                                     {
-                                        EngineCard = card,
-                                        AttackingPlayer = player,
-                                        MyReveal = minePick,
-                                        TheirReveal = theirsPick,
-                                        MyPower = mine,
-                                        TheirPower = theirs,
-                                        Threshold = threshold,
-                                        Success = success,
+                                        Payload = payload, Def = def, Card = card,
+                                        Player = player, Core = core, Trigger = e,
                                     });
-                                    if (success) // 2026-11-13：无单回合上限（耐久/挂载价付费）
-                                    {
-                                        EventManager.Instance.Publish(new KeywordAppliedEvent
-                                        {
-                                            Target = card, Keyword = "拼枪",
-                                            Detail = $"拼枪 {mine} vs {theirs}（我方展示{NameOf(minePick)}／对方展示{NameOf(theirsPick)}，差额 {mine - theirs} ≥ 门槛 {threshold}）：执行奖励（牌库随机取样比攻击力，牌库未动）",
-                                        });
-                                        LaunchReward(payload, def, card, player, core, e);
-                                    }
                                     break;
                                 }
 
@@ -361,13 +345,13 @@ namespace CardCore
 
         /// <summary>引擎奖励效果时机（2026-11-08 阶段3 曾解析 payload.EffectId → 引用效果
         /// TriggerTiming；**2026-11-10 R4 修订**：以效果头时机为准——def.TriggerTiming=转换器
-        /// 声明值（2026-11-14 起 OnTurnStart 不再归一，按声明值当事件窗）。运势/拼枪/团结的评估窗口由玩家
+        /// 声明值（2026-11-14 起 OnTurnStart 不再归一，按声明值当事件窗）。运势/拼抢/团结的评估窗口由玩家
         /// 在合成器外层时机选（converter/装载闸同口径），不再读引用效果时机——R4 允许主动效果
         /// 作奖励后，引用时机反钉会令事件类型永不匹配（引擎永不评估）。</summary>
         private static TriggerTiming RewardTimingOf(EffectDefinition def)
             => def != null ? def.TriggerTiming : TriggerTiming.OnStandbyPhase;
 
-        /// <summary>归属过滤（2026-11-08 阶段3）：拼枪仅攻击方（AttackDeclarationEvent）、
+        /// <summary>归属过滤（2026-11-08 阶段3）：拼抢仅攻击方（AttackDeclarationEvent）、
         /// 团结仅施放者（CardPlayEvent/CardCastSettledEvent）——事件可归属且归属方≠player 时跳过；
         /// 运势（及一切无法归属的事件）双方各评估一次。</summary>
         private static bool ExcludedByOwnership(BranchEngineKind kind, IGameEvent e, Player player)
@@ -387,27 +371,211 @@ namespace CardCore
             }
         }
 
-        /// <summary>牌库中随机一张生物卡（**拼枪取样·A4 定案 2026-11-05 回改库内随机**）：
-        /// 只读不移牌（牌库序不动）；选中卡挂「展示」指示物对双方公开（RevealRules 单源——
-        /// 二值不叠层，换区自清）；牌库无生物=null（按攻击力 0）。攻=印刷攻（GetData().Power）。</summary>
-        private static Card RandomCreatureFromDeck(Player player, ZoneManager zm, Card engineCard)
-        {
-            if (player == null || zm == null) return null;
-            var pool = new List<Card>();
-            foreach (var c in zm.GetCards(player, Zone.Deck))
-                if ((c as CardWrapper)?.GetData()?.Supertype == Cardtype.Creature)
-                    pool.Add(c);
-            if (pool.Count == 0) return null;
-            var pick = pool[GameRng.Next(0, pool.Count)];
+        // ======================================== 拼抢（2026-11-18 改版：手牌暗舍弃比费用） ========================================
 
-            Attribute.RevealRules.Reveal(pick, engineCard); // 展示口径单源（二值不叠层，换区自清）
-            return pick;
+        /// <summary>拼抢差额封顶（沿用旧抽样版口径：差额读数封顶 6——门槛 x&gt;6 为装载闸拦的死档）。</summary>
+        private const int ClashDiffCap = 6;
+
+        /// <summary>拼抢结算作业（在途串行队列载体——一次事件可能命中多张拼抢卡/多载荷，
+        /// 人类局弹窗必须一次一张，并发 RequestAsync 会叠窗）。</summary>
+        private class ClashJob
+        {
+            public BranchPayload Payload;
+            public EffectDefinition Def;
+            public Card Card;
+            public Player Player;
+            public GameCore Core;
+            public IGameEvent Trigger;
+            public int Generation; // 对局代次（ResetClashChain 自增——旧局在途作业不得污染新局）
         }
 
-        private static int PowerOf(Card card) => (card as CardWrapper)?.GetData()?.Power ?? 0;
+        private static readonly Queue<ClashJob> _pendingClashes = new Queue<ClashJob>();
+        private static bool _clashChainRunning;
+        private static int _clashGeneration;
+
+        /// <summary>对局初始化复位（2026-11-18）：静态串行链/待发施放账不随对局销毁——人类局中途退出、
+        /// 断线，或上局最后一次施放未 flush（红套→蓝套串跑实测：上局血偿残账在新局首次 flush 被消费，
+        /// 蓝充盈凭空触发一次），新局拼抢/充盈会凭空评估。GameCore.InitGame 单点调用：清队列 + 代次
+        /// 自增（旧作业见代次不符直接丢弃）+ 复位链标志 + 清施放残账。</summary>
+        public static void ResetClashChain()
+        {
+            _clashGeneration++;
+            _pendingClashes.Clear();
+            _clashChainRunning = false;
+            _pendingCastSettles.Clear();
+        }
+
+        /// <summary>拼抢入队并驱动串行链：链空闲则当场驱动（无头/AI 链路同步排干——时序与旧版
+        /// 内联评估一致）；链在跑只入队，由链尾自取。finally 复位保证异常不卡死后续拼抢。</summary>
+        private static void EnqueueClash(ClashJob job)
+        {
+            job.Generation = _clashGeneration;
+            _pendingClashes.Enqueue(job);
+            if (_clashChainRunning) return;
+            _clashChainRunning = true;
+            DrainClashChainAsync().Forget();
+        }
+
+        private static async UniTask DrainClashChainAsync()
+        {
+            try
+            {
+                while (_pendingClashes.Count > 0)
+                    await ResolveClashAsync(_pendingClashes.Dequeue());
+            }
+            finally { _clashChainRunning = false; }
+        }
+
+        /// <summary>拼抢结算（自动路径·攻击宣言）：双暗选（收集期零状态变更零公示=同时亮）→
+        /// 提交比费 → 成功播报+LaunchReward。详见 <see cref="CommitClashDuel"/>。</summary>
+        private static async UniTask ResolveClashAsync(ClashJob job)
+        {
+            if (job.Generation != _clashGeneration) return; // 旧局在途作业（ResetClashChain 已换代）
+            var zm = job.Core?.ZoneManager;
+            if (job.Player == null || zm == null) return;
+            int threshold = CostDerivationService.EngineRewardThreshold(job.Payload.Then, job.Def.TriggerTiming);
+            var (myPick, theirPick) = await CollectDuelPicksAsync(job.Player, threshold, job.Card, zm);
+            var (success, detail) = CommitClashDuel(job.Player, job.Card, threshold, myPick, theirPick, job.Core,
+                shortCircuit: myPick == null);
+            if (!success) return; // 2026-11-13：无单回合上限（耐久/挂载价付费）
+            EventManager.Instance.Publish(new KeywordAppliedEvent
+            {
+                Target = job.Card, Keyword = "拼抢",
+                Detail = $"{detail}：执行奖励（手牌暗舍弃比费用，抉择卡按最高分支费用）",
+            });
+            LaunchReward(job.Payload, job.Def, job.Card, job.Player, job.Core, job.Trigger);
+        }
+
+        /// <summary>主动档拼抢（ApplyActiveEngineTrunkAsync 特判口·2026-11-18 改版）：与自动路径
+        /// 同一双暗选+提交单源；不在此播报/发奖——调用方按主动口径播报并 ApplyThen。</summary>
+        public static async UniTask<(bool success, string detail)> ResolveActiveClashAsync(
+            BranchPayload payload, EffectDefinition def, Card card, Player player, GameCore core)
+        {
+            var zm = core?.ZoneManager;
+            if (player == null || zm == null) return (false, "拼抢：环境缺失（无玩家/无区域）");
+            int threshold = CostDerivationService.EngineRewardThreshold(payload.Then,
+                def?.TriggerTiming ?? TriggerTiming.OnStandbyPhase);
+            var (myPick, theirPick) = await CollectDuelPicksAsync(player, threshold, card, zm);
+            return CommitClashDuel(player, card, threshold, myPick, theirPick, core, shortCircuit: myPick == null);
+        }
+
+        /// <summary>双方暗选（先发起方后应对方——顺序仅为弹窗次序，**选择间零状态变更零公示**，
+        /// 先手信息不泄漏=同时亮语义）。发起方拒绝/空手→应对方免问（0 费侧差额恒 &lt; 门槛 x≥1）。</summary>
+        private static async UniTask<(Card myPick, Card theirPick)> CollectDuelPicksAsync(
+            Player initiator, int threshold, Card engineCard, ZoneManager zm)
+        {
+            var myPick = await CollectClashPickAsync(initiator, threshold, engineCard, zm, initiator: true);
+            var theirPick = myPick == null ? null
+                : await CollectClashPickAsync(initiator.Opponent, threshold, engineCard, zm, initiator: false);
+            return (myPick, theirPick);
+        }
+
+        /// <summary>单侧暗选：空手=拒绝（0费）不弹窗；AI/无头→确定性代选（<see cref="AutoClashPick"/>）；
+        /// 人类→弹窗（AllowCancel=true：取消=拒绝=费用0）。候选按费用降序预排——超时安全网
+        /// AutoSelect 取首张≈代选策略，超时行为与 AI 口径一致。</summary>
+        private static async UniTask<Card> CollectClashPickAsync(Player chooser, int threshold,
+            Card engineCard, ZoneManager zm, bool initiator)
+        {
+            var hand = zm.GetCards(chooser, Zone.Hand)
+                .Where(c => c != null && c.IsAlive).ToList();
+            if (hand.Count == 0) return null;
+            if (chooser.IsAI || TargetSelectionService.Current == null)
+                return AutoClashPick(hand, threshold, initiator);
+
+            var picked = await TargetSelectionService.RequestAsync(new TargetSelectionRequest
+            {
+                Candidates = hand.OrderByDescending(ClashCostOf).Cast<Entity>().ToList(),
+                MinCount = 1,
+                MaxCount = 1,
+                Chooser = chooser,
+                Title = initiator
+                    ? "拼抢：舍弃一张手牌参与比费（取消=未弃牌，视为费用0）"
+                    : "拼抢：对手的攻击引擎触发比费——舍弃一张手牌拦截（取消=未弃牌，视为费用0）",
+                // 视角分写（2026-11-18 修正）：发起方看「己方−对手」，应对方必须看「对手−你」——
+                // 同一句「己方−对手≥门槛触发奖励」会让防守方误以为弃高费是自己拿奖励。
+                Hint = initiator
+                    ? $"双方暗选、同时公示：己方舍弃费用−对手舍弃费用 ≥ {threshold} 触发奖励"
+                      + $"（未弃牌/抉择法术视为费用0；差额封顶{ClashDiffCap}）"
+                    : $"对手引擎：对手舍弃费用−你舍弃费用 ≥ {threshold} 时对手拿奖励——你弃得越高越能拦截"
+                      + $"（未弃牌/抉择法术视为费用0；差额封顶{ClashDiffCap}）",
+                AllowCancel = true,
+                PromptSource = engineCard,
+            });
+            return picked.OfType<Card>().FirstOrDefault(); // 空=拒绝（取消；超时已被安全网代选）
+        }
+
+        /// <summary>AI/无头代选（盲选·确定性）：候选按费用降序（并列取手牌原序）。
+        /// 发起方=最高费 ≥ 门槛才弃（对「拒绝=0费」侧也能独立成差），否则拒绝保牌；
+        /// 应对方=恒弃最高费（盲选不见对方选择，弃最高=最大化拦截覆盖），空手已在上游拦截。</summary>
+        private static Card AutoClashPick(List<Card> hand, int threshold, bool initiator)
+        {
+            var best = hand.OrderByDescending(ClashCostOf).First();
+            if (initiator && ClashCostOf(best) < threshold) return null;
+            return best;
+        }
+
+        /// <summary>拼抢比费口径（2026-11-18 用户定案）：卡面推导费（逐色进位求和——支付口径同源，
+        /// 单效果法术已是代价净费）；**抉择/多主动法术视为费用 0**（无法确定实际分支，按零费参与比费，
+        /// 2026-11-18 用户定案，写进原子行/效果文案）；生物/结界=单模式推导价（GetRuntimeCost）。</summary>
+        private static int ClashCostOf(Card card)
+        {
+            var data = (card as CardWrapper)?.GetData();
+            if (data == null) return 0;
+            if (data.Supertype == Cardtype.Spell && CostDerivationService.HasChoiceEffect(data))
+                return 0; // 抉择法术视为费用 0（2026-11-18 用户定案）
+            return ElementPaymentValidator.NormalizeBill(CardCostService.GetRuntimeCost(data)).Values.Sum();
+        }
+
+        /// <summary>拼抢提交+比费（同步单源·自动/主动两路共用）：两张一起落墓（仍在手牌才移——
+        /// 人类局选择与提交的间隙可能被其它效果移走，已离手的不再二次移动、费用照计=选择已作出）
+        /// → 差额=min(己费−对费, <see cref="ClashDiffCap"/>) ≥ 门槛 → <see cref="ClashResolvedEvent"/>
+        /// 成败两态必发（字段零改动：My/TheirReveal=舍弃卡、My/TheirPower=费用——协议/回放兼容）。
+        /// shortCircuit=发起方拒绝/空手：应对方免问，按双方 0 费收口（成败两态口径保留）。</summary>
+        private static (bool success, string detail) CommitClashDuel(Player initiator, Card engineCard,
+            int threshold, Card myPick, Card theirPick, GameCore core, bool shortCircuit)
+        {
+            int myCost = ClashCostOf(myPick);
+            int theirCost = ClashCostOf(theirPick);
+
+            CommitClashDiscard(core, initiator, myPick, engineCard);
+            CommitClashDiscard(core, initiator.Opponent, theirPick, engineCard);
+
+            if (shortCircuit)
+            {
+                EventManager.Instance.Publish(new ClashResolvedEvent
+                {
+                    EngineCard = engineCard, AttackingPlayer = initiator,
+                    MyReveal = null, TheirReveal = null,
+                    MyPower = 0, TheirPower = 0,
+                    Threshold = threshold, Success = false,
+                });
+                return (false, "拼抢：发起方未舍弃（费用0）——应对方免问，未达门槛");
+            }
+
+            int diff = Math.Min(myCost - theirCost, ClashDiffCap);
+            bool success = diff >= threshold;
+            EventManager.Instance.Publish(new ClashResolvedEvent
+            {
+                EngineCard = engineCard, AttackingPlayer = initiator,
+                MyReveal = myPick, TheirReveal = theirPick,
+                MyPower = myCost, TheirPower = theirCost,
+                Threshold = threshold, Success = success,
+            });
+            string myText = myPick != null ? $"我方舍弃{NameOf(myPick)}（费{myCost}）" : "我方拒绝（费0）";
+            string theirText = theirPick != null ? $"对手舍弃{NameOf(theirPick)}（费{theirCost}）" : "对手拒绝（费0）";
+            return (success, $"拼抢 {myCost} vs {theirCost}（{myText}／{theirText}，差额 {diff}{(success ? " ≥ " : " < ")}门槛 {threshold}）");
+        }
+
+        /// <summary>单张落墓（弃牌事件与 DiscardCardHandler 同构；Source=引擎卡）。</summary>
+        private static void CommitClashDiscard(GameCore core, Player owner, Card pick, Card source)
+        {
+            if (pick == null || pick.GetZone() != Zone.Hand) return;
+            core.ZoneManager.GetZoneContainer(owner).Move(pick, Zone.Hand, Zone.Graveyard);
+            EventManager.Instance.Publish(new CardDiscardEvent { Player = owner, Card = pick, Source = source });
+        }
 
         private static string NameOf(Card card)
-            => card != null ? $"【{(card as CardWrapper)?.GetData()?.CardName}】" : "牌库无生物(0)";
+            => card != null ? $"【{(card as CardWrapper)?.GetData()?.CardName}】" : "（未舍弃）";
 
         // ======================================== 死亡计数 / 元素充盈（2026-09-22 定案） ========================================
 
@@ -465,10 +633,11 @@ namespace CardCore
         }
 
         /// <summary>主动发动条件评估（2026-10-30 双选组主动路径——EffectExecutionEngine.ApplyActiveEngineTrunkAsync
-        /// 消费）：主动发动时**立即**评估引擎条件，返回达标与否；副作用与自动路径完全同源——
-        /// 拼点=双方手牌展示攻击力最高生物（挂「展示」指示物+发 ClashResolvedEvent 表现口，口径同
-        /// OnAttackDeclared）；死亡计数=读计数 ≥ 门槛（**不清零**——换区才清，同自动路径）；团结=注入
-        /// 邻接计数（未接线=0 恒不达标）。detail=成败播报文案（调用方负责 KeywordAppliedEvent 发布）。
+        /// 消费；**拼抢 2026-11-18 改版起主动档已特判走异步口 <see cref="ResolveActiveClashAsync"/>**，
+        /// 本同步口的拼抢分支仅作防御位=确定性代选不弹窗）：主动发动时**立即**评估引擎条件，返回达标与否；
+        /// 副作用与自动路径完全同源——拼抢=双方代选手牌暗舍弃比费用（CommitClashDuel 单源）；死亡计数=
+        /// 读计数 ≥ 门槛（**不清零**——换区才清，同自动路径）；团结=注入邻接计数（未接线=0 恒不达标）。
+        /// detail=成败播报文案（调用方负责 KeywordAppliedEvent 发布）。
         /// 运势（掷骰）/倒计时/元素充盈（仅自动）/附加诅咒·祝福（施放时部署）不经本口。</summary>
         public static bool EvaluateActiveCondition(BranchEngineKind kind, BranchPayload payload, Card card,
             Player player, EffectDefinition def, out string detail)
@@ -479,28 +648,26 @@ namespace CardCore
             {
                 case BranchEngineKind.Clash:
                 {
+                    // 2026-11-18 改版：拼抢=手牌暗舍弃比费用。同步口只跑确定性代选策略（不弹窗）——
+                    // 人类交互版由 ApplyActiveEngineTrunkAsync 特判 ResolveActiveClashAsync 承接。
                     if (player == null || core?.ZoneManager == null) return false;
                     var zm = core.ZoneManager;
-                    var minePick = RandomCreatureFromDeck(player, zm, card);
-                    var theirsPick = RandomCreatureFromDeck(player.Opponent, zm, card);
-                    int mine = PowerOf(minePick), theirs = PowerOf(theirsPick);
                     int threshold = CostDerivationService.EngineRewardThreshold(payload.Then,
                         def?.TriggerTiming ?? TriggerTiming.OnStandbyPhase); // 单原子费×宿主时机系数
-                    bool success = mine - theirs >= threshold;
-                    EventManager.Instance.Publish(new ClashResolvedEvent // 成败两态必发（表现观察口——同自动路径）
+                    var myHand = zm.GetCards(player, Zone.Hand).Where(c => c != null && c.IsAlive).ToList();
+                    var myPick = myHand.Count > 0 ? AutoClashPick(myHand, threshold, initiator: true) : null;
+                    if (myPick == null)
                     {
-                        EngineCard = card,
-                        AttackingPlayer = player,
-                        MyReveal = minePick,
-                        TheirReveal = theirsPick,
-                        MyPower = mine,
-                        TheirPower = theirs,
-                        Threshold = threshold,
-                        Success = success,
-                    });
-                    detail = $"拼枪 {mine} vs {theirs}（我方展示{NameOf(minePick)}／对方展示{NameOf(theirsPick)}，"
-                           + $"差额 {mine - theirs}{(success ? " ≥ " : " < ")}门槛 {threshold}）";
-                    return success;
+                        var (r0, d0) = CommitClashDuel(player, card, threshold, null, null, core, shortCircuit: true);
+                        detail = d0;
+                        return r0;
+                    }
+                    var oppHand = zm.GetCards(player.Opponent, Zone.Hand).Where(c => c != null && c.IsAlive).ToList();
+                    var theirPick = oppHand.Count > 0 ? AutoClashPick(oppHand, threshold, initiator: false) : null;
+                    var (result, resultDetail) = CommitClashDuel(player, card, threshold, myPick, theirPick, core,
+                        shortCircuit: false);
+                    detail = resultDetail;
+                    return result;
                 }
                 case BranchEngineKind.DeathToll:
                 {
@@ -530,7 +697,7 @@ namespace CardCore
         /// <summary>效果结算后连锁终点 flush（StackEngine.FinishResolution 稳定 break 处调用——
         /// 2026-11-06 判据七·充盈改造）：逐条补发 CardCastSettledEvent（OnCardCastSettled 观察族——
         /// 普通触发式经 TriggerEngine 入待发队列，由 FinishResolution 的 continue 再走一轮处理），
-        /// 并对每条记录做**双方**充盈评估（己方回合施放也触发己方引擎）。充盈奖励恒直发，
+        /// 并对每条记录做**双方**充盈评估（2026-11-18 第二版：**仅对手回合**——持有者自己的回合不评估）。充盈奖励恒直发，
         /// 其产生的新触发/SBA 同样由调用方下一轮收敛。先取走清单再处理——flush 内奖励若引发新施放
         /// （新账），由下一轮 flush 消化，无重入风险。2026-11-04 横置触发口（OnOpponentTappedLands）
         /// 随判据七退役：单口=使用卡牌结算后。</summary>
@@ -548,21 +715,26 @@ namespace CardCore
                 {
                     Caster = note.caster, PlayedCard = note.card, ModeIndex = note.modeIndex,
                 });
-                EvaluateManaSurplusEngines(core.Player1, core);
-                EvaluateManaSurplusEngines(core.Player2, core);
+                // 2026-11-18 用户定案（第三版·**己方释放法术后**触发）：只评估**施放者本人**，
+                // 且仅当施放物是**法术**——结界/生物（深潭碑等）施放不触发（回响自繁殖断链）；
+                // 蓝套自己的法术（潮汐/回潮）能触发自己的碑。
+                if (note.caster != null && note.card is IHasSupertype hs && hs.Supertype == Cardtype.Spell)
+                    EvaluateManaSurplusEngines(note.caster, core);
             }
         }
 
-        /// <summary>充盈评估（2026-11-06 判据七·双方；2026-11-13 条件开放为 ≥）：任一方施放结算后
-        /// 各评估一侧——引擎主=owner（与施放者无关，双方各自评估己方场上引擎），
-        /// 差=双方剩余元素总量（GetRemainingElementTotal=未横置地牌+钱包，与支付同资源口径）之差
-        /// （己−对，封顶 <see cref="SurplusCap"/>）**≥ x**（Then 锚价推导）即执行奖励；
+        /// <summary>充盈评估（2026-11-18 用户定案·第三版：**己方释放法术后**触发，不限回合）：
+        /// 由 <see cref="FlushCardCastSettled"/> 在连锁终点对「施放者本人 + 施放物是法术」调用一次——
+        /// 引擎主=owner，差=双方剩余元素总量（GetRemainingElementTotal=未横置地牌+钱包，与支付同资源口径）
+        /// 之差（己−对，封顶 <see cref="SurplusCap"/>）**≥ x**（Then 锚价推导）即执行奖励；
         /// 无每回合次数上限（2026-11-14：结界宿主每次触发扣 1 点耐久、生物宿主在挂载价 ×f 付费）；
-        /// 同卡单载荷单次。「仅对手回合」单边限制 2026-11-06 退役。</summary>
+        /// 同卡单载荷单次。历史：2026-11-06 起「双方施放·双方评估」→ 2026-11-18 定稿「己方施放法术」，
+        /// 同时解决深潭碑回响自繁殖与蓝套自触发节奏。</summary>
         private static void EvaluateManaSurplusEngines(Player owner, GameCore core)
         {
             var zm = core?.ZoneManager;
             if (owner == null || zm == null) return;
+            // 2026-11-18 第三版：不再按回合归属设闸（由调用点限定「施放者本人 + 法术」）。
             // 2026-11-04：headless 下 owner.Opponent 可能未接线 → 按座位取（沿旧口径）
             var opponent = ReferenceEquals(owner, core.Player1) ? core.Player2
                          : ReferenceEquals(owner, core.Player2) ? core.Player1 : owner.Opponent;
@@ -573,7 +745,7 @@ namespace CardCore
                 if (card == null || !card.IsAlive) continue;
                 foreach (var (def, payload) in EnginePayloadsOf(card, BranchEngineKind.ManaSurplus))
                 {
-                    // 2026-10-09 自平衡统一：门槛=Then 奖励锚价推导（与拼点同式）——奖励越贵需领先越多
+                    // 2026-10-09 自平衡统一：门槛=Then 奖励锚价推导（与拼抢同式）——奖励越贵需领先越多
                     int x = CostDerivationService.EngineRewardThreshold(payload.Then, def.TriggerTiming);
                     // 2026-11-10：先算引擎自身机制上限（充盈差值封顶 6）——x 超上限=死档，不参与判定
                     if (x > SurplusCap)
@@ -687,7 +859,7 @@ namespace CardCore
         /// 固定三引擎（倒计时/死亡计数/元素充盈，ComposerCatalog.IsActiveRewardEngine）主干触发立即生效——
         /// **忽略 tactivate**（payload.ThenActivation 与 def 发动方式均不看），奖励虽为主动效果
         ///（资格闸 EngineRewardRejectReason 钉主动档）也**不入待发队列**——直发 FireRewards，
-        /// 目标仍走结算期弹选。自动三（运势/拼枪/团结）奖励=自动效果：launch 分流恒落直发分支
+        /// 目标仍走结算期弹选。自动三（运势/拼抢/团结）奖励=自动效果：launch 分流恒落直发分支
         ///（入队段仅剩对手写 tactivate=2 数据的防御位）；附加诅咒/祝福不经此口（CurseSystem）。
         /// 2026-11-07 分支奖励效果化：双通道（EffectId 效果引用+Then 原子）——入队段引用效果
         /// 单独入队（Steps 保真· prepaid），直发段两通道一并结算。</summary>

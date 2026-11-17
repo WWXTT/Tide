@@ -27,6 +27,11 @@ namespace CardCore
         /// 归零后的下个回合开始恢复。叠加=延长（与单位冻结同口径）。</summary>
         public int FreezeLayers { get; set; }
 
+        /// <summary>蛰伏层数（2026-11-18 蓝技能改版）：蛰伏原子横置地牌并叠层（每张 1 层=待发
+        /// 1 点临时彩元素）；本持有者**下个准备阶段**（OnTurnStart 解横置后）逐层兑现并清零——
+        /// 与冻地同载体不同结算口（冻地=回合末衰减/拦重置；蛰伏=准备阶段发款）。</summary>
+        public int DormancyLayers { get; set; }
+
         public PooledCard(Card card, ManaType lockedColor)
         {
             SourceCard = card;
@@ -62,6 +67,10 @@ namespace CardCore
         /// <summary>「成长」原子累积的地牌上限加值（2026-10-15 定案：无封顶——自然上限 10 之外
         /// 的增加全部走此加值，效果叠加不设限；各自池生效不共享）。</summary>
         public int LandCapBonus { get; set; }
+
+        /// <summary>套牌专属地牌上限（2026-11-18 用户定案：蓝预组=4，其余套牌不设=0 走曲线）。
+        /// 非 0 时**覆盖**曲线+成长加值——蓝套是 2 地启动、保底 4 地的爆牌卡组。</summary>
+        public int LandCapOverride { get; set; }
 
         /// <summary>本回合系统横置次数（付费自动横置；每个全局回合重置——纯观测）</summary>
         public int TapsThisTurn { get; set; }
@@ -175,8 +184,9 @@ namespace CardCore
                && !CostDerivationService.HasChoiceEffect(data);
 
         /// <summary>
-        /// 可作地牌（**唯一判定口**，2026-11-17 收口）：资格（CanServeAsLand：三型/非衍生物/非临时复制/非抉择）
-        /// ∧ 非 0 费（含被费用指示物减到 0 费）∧ 有可锁产色。不含地牌上限/禁地令——见 GameCore 重载。
+        /// 可作地牌（**唯一判定口**）：资格（CanServeAsLand：三型/非衍生物/非临时复制/非抉择）
+        /// ∧ **非 0 费**（含被代价/费用指示物减到 0 费的运行态——0 费卡不进地牌，2026-11-18 用户确认恢复）
+        /// ∧ 有可锁产色。不含地牌上限/禁地令——见 GameCore 重载。
         /// UI 放地预检、AI 枚举、网络预判、效果过滤器全走本口，禁止各处自行拼条件。
         /// </summary>
         public static bool CanPlaceAsLand(Card card)
@@ -191,8 +201,8 @@ namespace CardCore
                && CanPlaceAsLand(card)
                && core.ElementPool.CanAddLand(owner);
 
-        /// <summary>同 CanPlaceAsLand（CardData 静态口径——网络客户端）：0 费判定不含费用指示物层
-        ///（被减到 0 的运行态由服务器 TryAddToPool 终审兜底），地牌上限由调用方按快照另判。</summary>
+        /// <summary>同 CanPlaceAsLand（CardData 静态口径——网络客户端）：0 费禁地同口径
+        ///（运行态被减到 0 由服务器 TryAddToPool 终审兜底）；地牌上限由调用方按快照另判。</summary>
         public static bool CanPlaceAsLand(CardData data)
             => data != null
                && CanServeAsLand(data)
@@ -406,6 +416,7 @@ namespace CardCore
         public int GetLandCap(Player player)
         {
             var pool = GetPool(player);
+            if (pool.LandCapOverride > 0) return pool.LandCapOverride; // 套牌专属上限（蓝预组 4）
             int cap;
             if (pool.Curve != null)
                 cap = pool.Curve.CapAt(pool.GlobalTurnIndex);
@@ -631,6 +642,20 @@ namespace CardCore
             int untapped = 0;
             foreach (var pc in turnPool.PooledCards)
                 if (pc != null && pc.IsTapped && pc.FreezeLayers <= 0) { pc.IsTapped = false; untapped++; }
+
+            // 蛰伏发款（2026-11-18 蓝技能改版）：准备阶段解横置后，逐张兑现蛰伏层——每层 1 点
+            // 临时彩元素（AddMana Any 落临时钱包，本回合可用、回合末清空）。地牌中途出池/回手
+            // 的层随载体消失（蛰伏登记不另立台账）。
+            int dormancyDue = 0;
+            foreach (var pc in turnPool.PooledCards)
+            {
+                if (pc == null || pc.DormancyLayers <= 0) continue;
+                dormancyDue += pc.DormancyLayers;
+                pc.DormancyLayers = 0;
+            }
+            if (dormancyDue > 0)
+                AddMana(turnPlayer, ManaType.Any, null, dormancyDue);
+
             return untapped;
         }
 

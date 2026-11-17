@@ -1,0 +1,33 @@
+{"step": 49920, "update": 195, "metric": "vs_script", "theme": "blue", "win_rate": 0.75, "wins": 36, "losses": 12, "draws": 0, "avg_len": 0.0, "episodes": 48}
+{"step": 49920, "update": 195, "metric": "vs_script", "theme": "green", "win_rate": 0.8958333333333334, "wins": 43, "losses": 5, "draws": 0, "avg_len": 0.0, "episodes": 48}
+{"step": 49920, "update": 195, "metric": "vs_script", "theme": "red", "win_rate": 0.14583333333333334, "wins": 7, "losses": 41, "draws": 0, "avg_len": 0.0, "episodes": 48}
+{"step": 49920, "update": 195, "metric": "vs_script_cell", "theme": "blue/P1", "win_rate": 0.7407407407407407, "wins": 20, "losses": 7, "draws": 0, "avg_len": 0.0, "episodes": 27, "threshold": 0.508, "pass": true}
+{"step": 49920, "update": 195, "metric": "vs_script_cell", "theme": "blue/P2", "win_rate": 0.7619047619047619, "wins": 16, "losses": 5, "draws": 0, "avg_len": 0.0, "episodes": 21, "threshold": 0.965, "pass": false}
+{"step": 49920, "update": 195, "metric": "vs_script_cell", "theme": "green/P1", "win_rate": 0.32, "wins": 8, "losses": 17, "draws": 0, "avg_len": 0.0, "episodes": 25, "threshold": 0.8180000000000001, "pass": false}
+{"step": 49920, "update": 195, "metric": "vs_script_cell", "theme": "green/P2", "win_rate": 0.5217391304347826, "wins": 12, "losses": 11, "draws": 0, "avg_len": 0.0, "episodes": 23, "threshold": 0.26, "pass": true}
+{"step": 49920, "update": 195, "metric": "vs_script_cell", "theme": "red/P1", "win_rate": 0.6521739130434783, "wins": 15, "losses": 8, "draws": 0, "avg_len": 0.0, "episodes": 23, "threshold": 0.665, "pass": false}
+{"step": 49920, "update": 195, "metric": "vs_script_cell", "theme": "red/P2", "win_rate": 0.6, "wins": 15, "losses": 10, "draws": 0, "avg_len": 0.0, "episodes": 25, "threshold": 0.685, "pass": false}
+{"step": 49920, "update": 195, "metric": "vs_script", "theme": "ALL", "win_rate": 0.5972222222222222, "wins": 86, "losses": 58, "draws": 0, "avg_len": 45.5, "episodes": 150}
+{"step": 49920, "update": 195, "metric": "selector", "theme": "6格最小margin", "win_rate": -0.49800000000000005, "wins": 0, "losses": 0, "draws": 0, "avg_len": 0.0, "episodes": 0}
+{"step": 99840, "update": 390, "metric": "vs_script", "theme": "blue", "win_rate": 0.4791666666666667, "wins": 23, "losses": 25, "draws": 0, "avg_len": 0.0, "episodes": 48}
+{"step": 99840, "update": 390, "metric": "vs_script", "theme": "green", "win_rate": 0.9583333333333334, "wins": 46, "losses": 2, "draws": 0, "avg_len": 0.0, "episodes": 48}
+{"step": 99840, "update": 390, "metric": "vs_script", "theme": "red", "win_rate": 0.16666666666666666, "wins": 8, "losses": 40, "draws": 0, "avg_len": 0.0, "episodes": 48}
+{"step": 99840, "update": 390, "metric": "vs_script_cell", "theme": "blue/P1", "win_rate": 0.75, "wins": 15, "losses": 5, "draws": 0, "avg_len": 0.0, "episodes": 20, "threshold": 0.508, "pass": true}
+{"step": 99840, "update": 390, "metric": "vs_script_cell", "theme": "blue/P2", "win_rate": 0.42857142857142855, "wins": 12, "losses": 16, "draws": 0, "avg_len": 0.0, "episodes": 28, "threshold": 0.965, "pass": false}
+{"step": 99840, "update": 390, "metric": "vs_script_cell", "theme": "green/P1", "win_rate": 0.4583333333333333, "wins": 11, "losses": 13, "draws": 0, "avg_len": 0.0, "episodes": 24, "threshold": 0.8180000000000001, "pass": false}
+{"step": 99840, "update": 390, "metric": "vs_script_cell", "theme": "green/P2", "win_rate": 0.4583333333333333, "wins": 11, "losses": 13, "draws": 0, "avg_len": 0.0, "episodes": 24, "threshold": 0.26, "pass": true}
+{"step": 99840, "update": 390, "metric": "vs_script_cell", "theme": "red/P1", "win_rate": 0.6190476190476191, "wins": 13, "losses": 8, "draws": 0, "avg_len": 0.0, "episodes": 21, "threshold": 0.665, "pass": false}
+{"step": 99840, "update": 390, "metric": "vs_script_cell", "theme": "red/P2", "win_rate": 0.5555555555555556, "wins": 15, "losses": 12, "draws": 0, "avg_len": 0.0, "episodes": 27, "threshold": 0.685, "pass": false}
+{"step": 99840, "update": 390, "metric": "vs_script", "theme": "ALL", "win_rate": 0.5347222222222222, "wins": 77, "losses": 67, "draws": 0, "avg_len": 67.1, "episodes": 150}
+{"step": 99840, "update": 390, "metric": "selector", "theme": "6格最小margin", "win_rate": -0.5364285714285715, "wins": 0, "losses": 0, "draws": 0, "avg_len": 0.0, "episodes": 0}
+{"step": 149760, "update": 585, "metric": "vs_script", "theme": "blue", "win_rate": 0.25, "wins": 12, "losses": 36, "draws": 0, "avg_len": 0.0, "episodes": 48}
+{"step": 149760, "update": 585, "metric": "vs_script", "theme": "green", "win_rate": 0.9375, "wins": 45, "losses": 3, "draws": 0, "avg_len": 0.0, "episodes": 48}
+{"step": 149760, "update": 585, "metric": "vs_script", "theme": "red", "win_rate": 0.3125, "wins": 15, "losses": 33, "draws": 0, "avg_len": 0.0, "episodes": 48}
+{"step": 149760, "update": 585, "metric": "vs_script_cell", "theme": "blue/P1", "win_rate": 0.6956521739130435, "wins": 16, "losses": 7, "draws": 0, "avg_len": 0.0, "episodes": 23, "threshold": 0.508, "pass": true}
+{"step": 149760, "update": 585, "metric": "vs_script_cell", "theme": "blue/P2", "win_rate": 0.56, "wins": 14, "losses": 11, "draws": 0, "avg_len": 0.0, "episodes": 25, "threshold": 0.965, "pass": false}
+{"step": 149760, "update": 585, "metric": "vs_script_cell", "theme": "green/P1", "win_rate": 0.45, "wins": 9, "losses": 11, "draws": 0, "avg_len": 0.0, "episodes": 20, "threshold": 0.8180000000000001, "pass": false}
+{"step": 149760, "update": 585, "metric": "vs_script_cell", "theme": "green/P2", "win_rate": 0.32142857142857145, "wins": 9, "losses": 19, "draws": 0, "avg_len": 0.0, "episodes": 28, "threshold": 0.26, "pass": true}
+{"step": 149760, "update": 585, "metric": "vs_script_cell", "theme": "red/P1", "win_rate": 0.5185185185185185, "wins": 14, "losses": 13, "draws": 0, "avg_len": 0.0, "episodes": 27, "threshold": 0.665, "pass": false}
+{"step": 149760, "update": 585, "metric": "vs_script_cell", "theme": "red/P2", "win_rate": 0.47619047619047616, "wins": 10, "losses": 11, "draws": 0, "avg_len": 0.0, "episodes": 21, "threshold": 0.685, "pass": false}
+{"step": 149760, "update": 585, "metric": "vs_script", "theme": "ALL", "win_rate": 0.5, "wins": 72, "losses": 72, "draws": 0, "avg_len": 46.7, "episodes": 150}
+{"step": 149760, "update": 585, "metric": "selector", "theme": "6格最小margin", "win_rate": -0.4049999999999999, "wins": 0, "losses": 0, "draws": 0, "avg_len": 0.0, "episodes": 0}

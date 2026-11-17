@@ -293,7 +293,7 @@ namespace SynergyUI
             return UniTask.CompletedTask;
         }
 
-        /// <summary>拼点演出（ClashResolvedEvent·2026-10-20 教学二表现接入）：攻击宣言期双方手牌展示
+        /// <summary>拼抢演出（ClashResolvedEvent·2026-10-20 教学二表现接入）：攻击宣言期双方手牌展示
         /// 最高攻生物（扇区同拍翻面），本演出在**引擎卡**头顶出结果句「己方x，对方x，成功/失败」
         ///（胜=金/败=灰——正差额未达门槛的惜败同判灰；粒子版因观感基本不可见已退役，美术表现后置）。
         /// 占视觉门；引擎卡入单位串行链（同单位伤害/回复排队）；引擎卡不在视图（教学介绍段/未上场）
@@ -315,7 +315,7 @@ namespace SynergyUI
 
         /// <summary>运势掷骰浮字（LuckRolledEvent·2026-10-20 定案：**不搞特效**——TMP 文本一拍）：
         /// 来源引擎卡**头顶**出「投掷结果 {d1}+{d2}，效果通过/不通过」（默认字体=PZD 中文齐备），
-        /// 通过=金／不通过=灰（拼点同款双色）。占视觉门（同单位伤害/回复串行链）；引擎卡不在
+        /// 通过=金／不通过=灰（拼抢同款双色）。占视觉门（同单位伤害/回复串行链）；引擎卡不在
         /// 视图（教学介绍段/已退场）静默返回，绝不报错。骰值细节另有战报行（KeywordApplied）。</summary>
         public async UniTask PlayLuckRollAsync(Card source, int d1, int d2, bool success,
             Func<Player, int> ownerOf)
@@ -338,7 +338,7 @@ namespace SynergyUI
             int threshold, bool success)
         {
 #if UNITY_EDITOR
-            Debug.Log($"[EffectFx] 拼点演出 己方{myPower} 对方{theirPower} 门槛{threshold}={(success ? "成功" : "失败")}"
+            Debug.Log($"[EffectFx] 拼抢演出 己方{myPower} 对方{theirPower} 门槛{threshold}={(success ? "成功" : "失败")}"
                       + "（手牌展示比攻击力）"); // 演出取证口（构建不打）
 #endif
             await FloatTextAsync(et.FloatParent, et.FloatHeight,

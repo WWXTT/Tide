@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using CardCore;
@@ -12,12 +12,137 @@ namespace CardCore.AI
     /// · 深潭碑触发回响，把**两类碑**源源不断复制进手牌（复制体当回合必须打出，否则「遗忘」到期出局）；
     /// · 碑的耐久按「每 3 次触发扣整份耐久」消耗——回响断档就会把碑打光，所以回响落点只认碑、
     ///   两类按场上数量补齐；碑阵死光后用回潮把墓地里的碑洗回牌库，再抽回来续循环。
-    /// 乱锋作控制、回潮兼防自抽干；潜行（英雄技能「隐匿」）只保护带充盈的结界，绝不给角色。
+    /// 乱锋作控制、回潮兼防自抽干；蛰伏（英雄技能，2026-11-18 替换隐匿）：充盈踩不到档时
+    /// 横置全部未横置地攒费，下个自己的准备阶段回本等量临时彩元素。
     /// </summary>
     public sealed class BlueControlStrategy : AiStrategy
     {
         public override string Key => "blue";
         public override string DisplayName => "蓝控制";
+
+        // ==================== 基础运转（2026-11-18 用户定案） ====================
+        // 蓝套=2 地启动的爆牌节奏：T1 **全局**只下 1 地、跳过所有操作（旧「1 碑+隐匿」路径已删）；
+        // T2 起 放 2 地、下 1 个结界，然后潮汐连打触发结界（抽到潮汐继续打）。
+        // 冻结/乱锋只在对手回合用（响应），冻结只冻对方地牌，乱锋只控生物。
+        private int _steleTurnStamp = -1;
+        private int _steleForcedThisTurn;
+        private readonly int[] _landTurnStamp = { -1, -1 };
+        private readonly int[] _landCountAtTurnStart = { 0, 0 };
+
+        private int LandsThisTurn(GameCore core, Player me)
+        {
+            int seat = ReferenceEquals(me, core.Player1) ? 0 : 1;
+            int turn = core.TurnEngine.TurnNumber;
+            if (_landTurnStamp[seat] != turn)
+            {
+                _landTurnStamp[seat] = turn;
+                _landCountAtTurnStart[seat] = core.ElementPool.GetPooledCards(me)?.Count ?? 0;
+            }
+            return (core.ElementPool.GetPooledCards(me)?.Count ?? 0) - _landCountAtTurnStart[seat];
+        }
+
+        /// <summary>自己第几回合（1 起）：P1 在全局 1/3/5…，P2 在 2/4/6…。</summary>
+        private static int OwnTurnIndex(GameCore core, Player me)
+        {
+            int t = core.TurnEngine.TurnNumber;
+            return ReferenceEquals(me, core.Player1) ? (t + 1) / 2 : t / 2;
+        }
+
+        /// <summary>卡是否=自己元素池里未横置的地（蛰伏目标过滤——已横置的再蛰伏无收益）。</summary>
+        private static bool IsUntappedPoolLand(GameCore core, Player me, Card c)
+        {
+            if (c == null || c.GetZone() != Zone.ElementPool) return false;
+            if (!ReferenceEquals(c.GetOwner() ?? c.GetController(), me)) return false;
+            var pooled = core.ElementPool.GetPooledCards(me)
+                .FirstOrDefault(pc => pc != null && pc.SourceCard == c);
+            return pooled != null && !pooled.IsTapped;
+        }
+
+        /// <summary>充盈 2 伤当前能不能触发：己方剩余元素 − 对方剩余元素 ≥ 门槛（默认 2）。</summary>
+        private static bool CanOverflowTrigger(GameCore core, Player me)
+        {
+            int x = BranchEngines.MaxManaSurplusThreshold(me);
+            if (x <= 0) x = 2;
+            int mine = core.ElementPool?.GetRemainingElementTotal(me) ?? 0;
+            int theirs = core.ElementPool?.GetRemainingElementTotal(me?.Opponent) ?? 0;
+            return mine - theirs >= x;
+        }
+
+        /// <summary>铺地节奏（2026-11-18 三段式）：T1 最多 1 张、T2 起最多 2 张；
+        /// **潮汐/深潭碑=启动件不铺**；到达 2 地的优先级高于留 key 牌（回潮/乱锋最后一张也照铺）。</summary>
+        public override bool ShouldLand(GameCore core, Player me, Card card)
+        {
+            // 2026-11-18 用户定案：**只有蓝预组**地牌上限 4（其余套牌走曲线 10）。
+            var bluePool = core?.ElementPool?.GetPool(me);
+            if (bluePool != null && bluePool.LandCapOverride != 4) bluePool.LandCapOverride = 4;
+
+            int turn = OwnTurnIndex(core, me);
+            int cap = turn <= 1 ? 1 : 2;
+            if (LandsThisTurn(core, me) >= cap) return false;
+
+            string name = CardNameOf(card);
+            if (name == "潮汐" || name == "深潭碑") return false; // 启动件绝不当地
+
+            // 2026-11-18 用户定案：**先到 2 地，再谈留牌**——本回合没放满时，回潮/乱锋
+            // 即使只剩 1 张也照铺（2 地达标 → 充盈能触发，收益远大于留一张控制）。
+            return base.ShouldLand(core, me, card);
+        }
+
+        /// <summary>固定操作（三段式②）：无碑先下碑（深潭碑 &gt; 潮痕碑）→ 有碑且手里有潮汐就连续触发。</summary>
+        public override Card ForcePlayCard(GameCore core, Player me)
+        {
+            if (core?.TurnEngine == null || !ReferenceEquals(core.TurnEngine.TurnPlayer, me)) return null;
+            // 2026-11-18 用户定案（**全局固定序**）：T1 只下 1 地，不强制任何出牌。
+            if (OwnTurnIndex(core, me) <= 1) return null;
+            var hand = core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>();
+            bool steleOnBoard = HasOwnOverflowEnchantment(core, me);
+
+            // T2 起每回合最多下 1 个结界（T1 只落地，见 ShouldHold 全局闸）
+            int turn = core.TurnEngine.TurnNumber;
+            if (_steleTurnStamp != turn) { _steleTurnStamp = turn; _steleForcedThisTurn = 0; }
+
+            // ① 碑：每回合 1 个（深潭碑优先，其次潮痕碑；含回响复制进手的临时碑）
+            if (_steleForcedThisTurn < 1)
+            {
+                var shen = hand.FirstOrDefault(c => c != null && CardNameOf(c) == "深潭碑"
+                                                    && !core.StackEngine.IsPendingCast(c));
+                if (shen != null) { _steleForcedThisTurn++; return shen; }
+                var chao = hand.FirstOrDefault(c => c != null && CardNameOf(c) == "潮痕碑"
+                                                    && !core.StackEngine.IsPendingCast(c));
+                if (chao != null) { _steleForcedThisTurn++; return chao; }
+            }
+
+            // ② 碑在场 → 潮汐连打触发（抽到潮汐继续打，直到用完）
+            if (steleOnBoard)
+            {
+                var cx = hand.FirstOrDefault(c => c != null && CardNameOf(c) == "潮汐"
+                                                  && !core.StackEngine.IsPendingCast(c));
+                if (cx != null) return cx;
+            }
+            return null;
+        }
+
+        private static bool HasEnemyCreature(GameCore core, Player opp)
+            => opp != null && (core.ZoneManager.GetCards(opp, Zone.Battlefield) ?? new List<Card>())
+                .Any(c => c != null && c.IsAlive && c.IsLivingUnit());
+
+        private static bool IsControlKey(Card card)
+            => HasBranchAtom(card, AtomicEffectType.Freeze)
+               || HasBranchAtom(card, AtomicEffectType.RushSickness);
+
+        private static string CardNameOf(Card c) => (c as IHasName)?.CardName ?? c?.ID;
+
+        /// <summary>对手元素池里是否有地牌（冻结的合法目标）。</summary>
+        private static bool HasEnemyPoolLand(GameCore core, Player opp)
+            => opp != null && (core.ElementPool.GetPooledCards(opp)?.Any(pc => pc?.SourceCard != null) ?? false);
+
+        /// <summary>己方场上是否已有碑（充盈结界）：优先按卡名识别（深潭碑/潮痕碑），
+        /// 原子判定兜底——`HasBranchAtom` 对"分支引擎"行不一定命中，曾导致每回合 1 碑的闸失效。</summary>
+        private static bool HasOwnOverflowEnchantment(GameCore core, Player me)
+            => (core.ZoneManager.GetCards(me, Zone.Battlefield) ?? new List<Card>())
+                .Any(c => c != null && c.IsAlive && !c.IsLivingUnit()
+                          && (CardNameOf(c) == "深潭碑" || CardNameOf(c) == "潮痕碑"
+                              || HasBranchAtom(c, AtomicEffectType.EngineManaSurplus)));
 
         /// <summary>信息轴原子（预组兼顾信息轴）：占卜看顶/展示/宣言/预言——不换场面，只换手牌质量。</summary>
         private static readonly AtomicEffectType[] InfoAxisAtoms =
@@ -37,12 +162,23 @@ namespace CardCore.AI
             // 蓝套 2026-11-13（碑阵）：充盈控制——结界（碑）铺场是第一位，回响续牌、回潮洗碑回收。
             // - 潮痕碑（充盈·2 伤）= 主制胜轴；深潭碑（充盈·回响复制）= 续航源（复制回伤害/复制两类碑）。
             // - 乱锋 = 控制；潮汐 = 过牌；回潮 = 洗碑回收 / 防自抽干。
-            // - 潜行（英雄技能）只给带充盈的结界，见 WantHeroSkill/OrderTargetCandidates。
+            // - 蛰伏（英雄技能）：充盈踩不到档时横置全部地攒费，见 WantHeroSkill/OrderTargetCandidates。
             float score = 0f;
             bool oppHasBoard = me.Opponent != null
                 && core.ZoneManager.GetCards(me.Opponent, Zone.Battlefield).Any(c => c.IsAlive);
             int hand = core.ZoneManager.GetCards(me, Zone.Hand)?.Count ?? 0;
             int myDeck = core.ZoneManager.GetCards(me, Zone.Deck)?.Count ?? 0;
+
+            // ===== 基础运转节奏（2026-11-18 用户定案）=====
+            // ① 场上没碑：先下结界（深潭碑=回响 > 潮痕碑=2伤），潮汐先收着；
+            // ② 场上有碑：潮汐连打（每张己方法术都触发充盈），新碑降权（先触发，别叠）。
+            bool steleOnBoard = HasOwnOverflowEnchantment(core, me);
+            // 寒冬：正常循环起不来（充盈触发不了）时的保底强开——优先打出，冻住对方全部地。
+            if (CardNameOf(card) == "寒冬" && !CanOverflowTrigger(core, me)) score += 900f;
+            if (IsOverflow(card))
+                score += steleOnBoard ? -600f : (HasBranchAtom(card, AtomicEffectType.EchoCopy) ? 1500f : 1200f);
+            else if (HasBranchAtom(card, AtomicEffectType.DrawCard))
+                score += steleOnBoard ? 1800f : 200f;
 
             if (IsOverflow(card))
             {
@@ -163,23 +299,18 @@ namespace CardCore.AI
             }
             return null;
         }
-        /// <summary>蓝套英雄技能「隐匿」：只在己方场上有**未潜行的带充盈结界**时发动；
-        /// 没有充盈结界就不放（绝不把潜行丢给角色/普通结界）。</summary>
+        /// <summary>蓝套英雄技能「蛰伏」（2026-11-18 改版，替换隐匿）：充盈踩不到档
+        /// （己方剩余−对方剩余 &lt; 门槛——本回合横竖触发不了）→ 蛰伏攒费：横置全部未横置地
+        /// （不产元素），下个自己的准备阶段回本等量临时彩元素。踩得到档=照常运转不蛰伏；
+        /// 没有未横置地=白发动，直接否。T1 仍不发技能（全局固定序）。</summary>
         public override bool WantHeroSkill(GameCore core, Player me)
         {
             if (!base.WantHeroSkill(core, me)) return false;
-            foreach (var c in core.ZoneManager.GetCards(me, Zone.Battlefield) ?? new List<Card>())
-            {
-                if (!IsOverflowEnchantment(c, me)) continue;
-                if (c.GetEffectiveCounterCount(CounterRules.StealthCounter) <= 0) return true;
-            }
-            return false;
+            // 2026-11-18 用户定案（**全局固定序**）：T1 只下 1 地，不发动英雄技能。
+            if (OwnTurnIndex(core, me) <= 1) return false;
+            if (CanOverflowTrigger(core, me)) return false; // 差值踩得到档：本回合继续正常花
+            return core.ElementPool.GetPooledCards(me).Any(pc => pc != null && !pc.IsTapped);
         }
-
-        /// <summary>带充盈的己方结界（无生命单位；非角色/生物）。</summary>
-        private static bool IsOverflowEnchantment(Card c, Player me)
-            => c != null && c.IsAlive && ReferenceEquals(c.GetController(), me)
-               && !c.IsLivingUnit() && IsOverflow(c);
 
         /// <summary>卡的主序列/分支里是否含指定原子（含 Then 分支）。</summary>
         private static bool HasBranchAtom(Card card, AtomicEffectType type)
@@ -296,6 +427,14 @@ namespace CardCore.AI
         /// <summary>铺地优先级：缺蓝地时蓝锁候选置顶（一天一块，先保证打断弹药）。</summary>
         public override float LandPriority(GameCore core, Player me, Card card, Func<Card, float> totalCost)
         {
+            // 2026-11-18 用户定案：冻结/乱锋多余件优先铺地（留 1 张 key，其余转费源）。
+            if (IsControlKey(card))
+            {
+                string name = CardNameOf(card);
+                int copies = (core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>())
+                    .Count(c => c != null && CardNameOf(c) == name);
+                if (copies > 1) return 20000f;
+            }
             var choices = ElementPoolSystem.GetLandColorChoices(card);
             if (choices != null && choices.Contains(ManaType.Blue)
                 && CountLands(core, me, ManaType.Blue) < BlueLandTarget)
@@ -321,6 +460,17 @@ namespace CardCore.AI
         /// </summary>
         public override bool ShouldHold(GameCore core, Player me, Card card)
         {
+            // 2026-11-18 用户定案（**全局固定序**）：T1 = 只下 1 地，跳过所有操作，直接结束回合。
+            if (OwnTurnIndex(core, me) <= 1) return true;
+
+            // 2026-11-18 用户定案：**冻结/乱锋只在对手回合用**（响应）——自己回合留手，
+            // 不当作普通解场牌打出去（冻结只冻对方地牌、乱锋只控生物，见 PickResponse/PickSpellTargets）。
+            // 例外：**寒冬**是己方回合的强开工具（T4 蛰伏 → 下回合 6 费寒冬冻住对方全部地），不留手。
+            if (CardNameOf(card) == "寒冬") return false;
+            if (HasBranchAtom(card, AtomicEffectType.Freeze)
+                || HasBranchAtom(card, AtomicEffectType.RushSickness))
+                return true;
+
             // 2026-11-04 用户定案（蓝套速度牌）：
             // · 回潮（0 费洗回）——拿到就用，不走留牌逻辑；
             // · 薄壁（减半）——对手生物已被乱锋控住时不用（它打不到角色）；
@@ -427,8 +577,8 @@ namespace CardCore.AI
                     if (atom == null) continue;
                     if (atom.Type == AtomicEffectType.ReturnToHand && bounce == null && oppHasCreature) bounce = o;
                     else if (atom.Type == AtomicEffectType.Freeze && freeze == null
-                             && HighestEnemyPower(core, opp) >= 1) freeze = o;
-                    else if (disrupt == null && oppHand >= 4 && IsDisruptAtom(atom.Type)) disrupt = o;
+                             && HasEnemyPoolLand(core, opp)) freeze = o; // 2026-11-18：有对方地牌即合格
+                    else if (disrupt == null && oppHasCreature && IsDisruptAtom(atom.Type)) disrupt = o; // 2026-11-18：有生物即合格
                     else if (atom.Type == AtomicEffectType.DealDamage && directDamage == null)
                     {
                         int dmg = atom.Value > 0 ? atom.Value : 1;
@@ -436,6 +586,11 @@ namespace CardCore.AI
                     }
                 }
             }
+
+            // 2026-11-18 用户定案：**冻结/乱锋 = 对手回合专用**——响应窗优先出手；
+            // 作为本回合己方第一张卡，还能稳定吃「若为本回合使用的第一张卡」的洗墓奖励。
+            if (disrupt != null) return disrupt;                       // 乱锋：只控生物
+            if (freeze != null && HasEnemyPoolLand(core, opp)) return freeze; // 冻结：只冻对方地牌
 
             // 组3 无实体卡专道：只在对手回合、栈顶为对手**攻击宣言**时出手（对手回合+对手发起已由前置保证）。
             // 优先级（用户定案）：① 己方角色生命 ≤7（快死）→ 必用；② 对手战场总攻击力 ≥5 → 用；
@@ -491,11 +646,13 @@ namespace CardCore.AI
             if (req.PromptAtom == AtomicEffectType.EchoCopy)
                 return list.OrderByDescending(e => EchoCopyScore(core, me, e)).ToList();
 
-            // 潜行目标（2026-11-04 用户口径）：潜行只给**带充盈的己方结界**，不给角色。
-            // 隐匿效果域已收窄到己方无生命单位（kind 3）；这里再按充盈价值排序：
-            // 潜影碑（充盈·伤害）> 深潜碑（充盈·磨牌）> 其他；已潜行的沉底。
-            if (req.PromptAtom == AtomicEffectType.GrantStealth)
-                return list.OrderByDescending(e => StealthTargetScore(e, me)).ToList();
+            // 蛰伏目标（2026-11-18 改版，替换隐匿潜行排序）：任意档自动全取——截断到
+            // **己方未横置地牌**（已横置的再蛰伏无收益，handler 也会跳过，别占目标位）。
+            if (req.PromptAtom == AtomicEffectType.Dormancy)
+                return list.OfType<Card>()
+                    .Where(c => IsUntappedPoolLand(core, me, c))
+                    .Cast<Entity>()
+                    .ToList();
 
             if (req.PromptAtom == AtomicEffectType.ReturnToHand)
                 return list.OrderByDescending(e => e is Card c && c.GetController() == opp
@@ -536,18 +693,6 @@ namespace CardCore.AI
         {
             var bill = GameActions.GetCardCost(card, modeIndex);
             return bill == null ? 0 : (int)Math.Ceiling(bill.Total - 1e-4f);
-        }
-
-        /// <summary>潜行落点：只认带充盈的己方结界；潜影碑（伤害）优先于深潜碑（磨牌），
-        /// 已经潜行的沉底（不重复喂层）。</summary>
-        private static int StealthTargetScore(Entity e, Player me)
-        {
-            if (!(e is Card c) || !IsOverflowEnchantment(c, me)) return int.MinValue;
-            int score = 1000;
-            if (HasBranchAtom(c, AtomicEffectType.DealDamage)) score += 500;
-            if (HasBranchAtom(c, AtomicEffectType.MillCard)) score += 100;
-            if (c.GetEffectiveCounterCount(CounterRules.StealthCounter) > 0) score -= 2000;
-            return score;
         }
 
         /// <summary>对面存活生物的最高攻击力（冻结「断节奏」的价值锚）。</summary>
