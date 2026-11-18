@@ -206,7 +206,7 @@ namespace CardCore
         /// 2026-10-19 订阅序修复：清零挂 TurnEnd（原 TurnStart）。GameCore 的 TurnStart 订阅
         /// （其内做回合准备抽牌）先于本服务注册（MatchStats 在 GameCore 构造后段创建）——原次序
         /// 同一事件分派内"先抽牌登记 _standbyDrawn、后清零"，刚登记即被清，DrawnInStandbyThisTurn
-        /// 恒假（教学二命运之牌是首个 settle=1 实卡，此前从未暴露）；挂 TurnEnd 语义等价
+        /// 恒假（命运之牌是首个 settle=1 实卡——2026-11-11 重编号后属教学三 advanced，旧注「教学二」为当时编号；此前从未暴露）；挂 TurnEnd 语义等价
         /// （回合层统计只在回合进行中消费）且对订阅先后序天然免疫。</summary>
         private void OnTurnEndedClear(TurnEndEvent e)
         {

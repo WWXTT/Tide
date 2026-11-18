@@ -51,7 +51,7 @@ namespace CardCore.Network
         LobbyAddAi = 129,            // 上行：AI 填位（MsgLobbyAddAi）——服务器本机回环 NetClientBrain 入座
 
         // ---- 房间就绪层（2026-10-28 开局流程改版：房主配模式+客人准备+房主开局；见 网络协议.md §12.2）----
-        RoomSettings = 130,          // 上行：房主配置模式（MsgRoomSettings：先后手方式+洗牌；仅椅位0、仅 Waiting）
+        RoomSettings = 130,          // 上行：房主配置模式（MsgRoomSettings：先后手方式+洗牌；v17 起只认房主连接 IsHostConnection——房主可落任意椅/观战位，旧「仅椅位0」口径作废；仅 Waiting）
         RoomReady = 131,             // 上行：准备 toggle（MsgRoomReady；Waiting 相位）
         RoomStart = 132,             // 上行：房主开始（空载荷；校验双方就座+客人已准备 → 进选卡组相位）
         MatchSummary = 133,          // 下行：终局摘要（MsgMatchSummary，2026-11-09 协议 v11 对局记录——

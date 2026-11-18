@@ -7,7 +7,7 @@
 # 用法：bash E2E/net.sh <命令> <A|B> [参数...]
 #   boot  A|B            — 确保模拟器实例在线（B 不存在时用 MuMuManager 拉起实例1）
 #   launch/stop A|B      — 启动/强停 Tide
-#   save-tutorial A|B    — 注入三课全胜教学存档（须先 stop）
+#   save-tutorial A|B    — 注入四课全胜教学存档（须先 stop）
 #   tap  A|B x y         — 点击
 #   text A|B "字符串"     — 输入文本（先 tap 输入框聚焦）
 #   key  A|B <keycode>   — 按键（4=BACK）

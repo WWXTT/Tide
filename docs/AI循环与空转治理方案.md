@@ -57,15 +57,16 @@
 
 1. **卡**：`深潭碑` `C_2BD6EDE2`，结界，**费用 0**，耐久 4，效果 `3442A01E`：
    「元素充盈：剩余元素差 ≥ 门槛时，回响 1：选择双方战场的一张卡，把 1 张带遗忘的临时复制加入手牌」。
-2. **复制**：`EchoCopyHandler` → [TempCopyRules.CreateTemporaryCopy](<../../Tide_train/Assets/Scripts/HotUpdate/CardCore/Attribute/TempCopyRules.cs>)
+2. **复制**：`EchoCopyHandler` → [TempCopyRules.CreateTemporaryCopy](<C:/UnityProject/Tide_train/Assets/Scripts/HotUpdate/CardCore/Attribute/TempCopyRules.cs>)
    做 **CardData 全量深克隆**（效果栏/引擎全保留），挂 1 层临时指示物后入手。
-3. **引擎**：[BranchEngines.EvaluateManaSurplusEngines](<../../Tide_train/Assets/Scripts/HotUpdate/CardCore/Effects/BranchEngines.cs>)
+3. **引擎**：[BranchEngines.EvaluateManaSurplusEngines](<C:/UnityProject/Tide_train/Assets/Scripts/HotUpdate/CardCore/Effects/BranchEngines.cs>)
    每次「卡牌结算」遍历己方战场**每一个**充盈引擎各触发一次；代码注释明说
    **2026-11-13 起「无每回合次数上限」，刹车只靠「结界每次触发扣 1 点耐久」**。
 4. **漏洞**：复制体是**新实例**（满耐久 + 新引擎），0 费打出去不消耗法力 → 充盈差值照样达标 →
    再触发 → 再复制。场上有 k 个碑，一次施放产 k 份复制 → **指数增长**。
    耐久这个刹车对"新实例"完全无效。
-5. **根治（2026-11-18 已实施，用户拍板）**：充盈复归 **「仅对手回合触发」**（= 2026-11-06 退役前的原版口径）——
+5. **根治（2026-11-18 已实施，用户拍板；同日 07:34 定稿第三版）**：充盈触发= **「己方释放法术后·仅法术」**
+   （`FlushCardCastSettled` 只评估施放者本人且仅 `Cardtype.Spell`——结界/生物施放不触发；曾短暂实行「仅对手回合」第二版后即被取代）——
    自己回合的施放不再触发己方引擎，回响链在自己回合断掉；复制量上界 = 对手回合的施放次数。见 §5.1。
 
 ### 2.2 现有三道防线为什么没挡住
@@ -94,7 +95,7 @@
 ## 3. 不变量（改动红线）
 
 1. **不动奖励**：终局 ±1 + λ=0.005 塑形不变；不引入"循环惩罚"奖励项。
-2. **不动观测/动作契约**：布局 v14 / 卡特征 116 / 动作 14 维不动 → 旧 checkpoint 可热启动。
+2. **不动观测/动作契约**：布局 v14 / 卡特征 116 / 动作 14 维不动 → 旧 checkpoint 可热启动（**2026-11-18 17:49 后此前提失效**：场地特殊化升 v15/卡槽 191，旧 checkpoint/ONNX/fixture 全部作废须重训，见 [AI训练说明.md](AI训练说明.md) §4）。
 3. **不动卡身份**：L0 必须在**引擎侧**实现；改卡面数据会让 `深潭碑` 换内容哈希 → 在 append-only
    身份池里变成"新卡"，旧权重对该卡 embedding 作废。
 4. **不动真人规则**：L1/L2 只进 headless driver（AI 对局），不影响本地对局/联机；真人侧保留墙钟。
@@ -254,7 +255,7 @@ F = hash(
 ## 6. 与本次重训（热启动）的关系
 
 - 本方案**不改** obs/动作维度、不改卡身份 → 备份的 `step 100,096` 权重可直接热启动
-  （`checkpoints/warmstart_1794909970_step100096/`）。
+  （`checkpoints/warmstart_1794909970_step100096/`）。**（2026-11-18 17:49 后失效：布局升 v15/191，须重训，不能热启动。）**
 - L0 **已改主工程并同步训练副本**；重训前仍建议按流程刷新一次副本（`make_train_copy.ps1 -Refresh`），
   刷新后记得补回 `relaunch_training.cmd` / `ygo-agent-main`。
 - 折叠（5.5）只减少重复行，不改变特征语义，不影响权重可用性。
@@ -297,7 +298,7 @@ F = hash(
 | L1 误判 | 合法长回合被指纹误伤 | 指纹只含"净变化"项；K=8 且回环需同回合内重复；上线后看 `loop_events` 是否异常 |
 | L2 截断合法回合 | 蓝铺场 + 碑阵可能接近 60 | 先跑一轮看 `max_turn_actions` 分布再调；配置项可改 |
 | 折叠改变评估可比性 | 动作表形态变了，旧 eval 数字不能直接逐格对比 | 只比 ALL 胜率与格趋势；文档记录口径变更 |
-| L0 规则复归 | 充盈只在对手回合触发 → 蓝套强度、脚本基线都变 | 这正是修复目标；§6.3 基线需重测，蓝格门槛可能随之调整 |
+| L0 规则复归 | 充盈触发时机变化（定稿=己方释放法术后·仅法术）→ 蓝套强度、脚本基线都变 | 这正是修复目标；§6.3 基线需重测，蓝格门槛可能随之调整 |
 | 热启动不兼容 | 只有在改了维度/卡身份时才会发生 | 本方案不改，风险为零；若后续要改卡面，另立"换卡身份"决策 |
 
 回滚：L0 用常量开关（`SurplusTriggersPerTurn=0` = 不限，回旧行为）；L1/L2 用 CLI/env 开关
@@ -319,7 +320,7 @@ F = hash(
 | # | 事项 | 建议值 | 状态 |
 |---|---|---|---|
 | 1 | 回合预算 | **60** | ✅ 已定（2026-11-18） |
-| 2 | L0 方案 | 充盈复归「仅对手回合触发」 | ✅ 已实施（2026-11-18，DSH） |
-| 3 | L1 停滞阈值 K / 回环缓冲 | 8 / 32 | 待确认（ZCode 计划） |
-| 4 | 剪枝粒度 | 回合级回溯（该回合全部步剔除） | 待确认（ZCode 计划） |
-| 5 | 是否同时改 `save_interval` | 20000 | 待确认 |
+| 2 | L0 方案 | 充盈触发「己方释放法术后·仅法术」（第三版；当日第二版「仅对手回合」即被取代） | ✅ 已实施（2026-11-18 `27f7c2f6d`） |
+| 3 | L1 停滞阈值 K / 回环缓冲 | 8 / 32 | ✅ 已实施（`TideHeadlessDriver.cs` LoopStallThreshold=8、FpRingCapacity=32） |
+| 4 | 剪枝粒度 | 回合级回溯（该回合全部步剔除） | ✅ 已实施（`rollout_common.py` learner=0） |
+| 5 | 是否同时改 `save_interval` | 20000 | ✅ 已实施（`train_tide_complete.py` save_interval=20_000） |

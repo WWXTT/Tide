@@ -73,7 +73,7 @@ namespace TideSim
             if (args.Length > 0 && args[0] == "--erase-all-probe")
                 return EraseAllProbe.Run();
 
-            // 手牌上限 12 / 溢出进除外区（2026-11-18 规则改版验收）
+            // 手牌上限基值 7 / 自己回合无上限（2026-11-18 规则改版验收）
             if (args.Length > 0 && args[0] == "--hand-overflow-probe")
                 return HandOverflowProbe.Run();
 

@@ -342,7 +342,7 @@ namespace CardCore
             if (stack != null)
                 hand = hand.Where(c => !(c is Card hc && stack.IsPendingCast(hc))).ToList();
 
-            // 手牌上限：规则扩展点（OCP）修改链（基值 12）。2026-11-18 规则改版：满员入手
+            // 手牌上限：规则扩展点（OCP）修改链（基值 7；自己回合中无上限）。2026-11-18 定案：满员入手
             // 已在 ZoneContainer.Move/Add 即时改投除外区，本口仅剩「上限缩水」兜底——
             // 纳川结界离场/蓝地减少把上限压到已持张数之下时，回合末仍强制选弃。
             int limit = RuleHooks.GetHandLimit(player);
@@ -583,11 +583,13 @@ namespace CardCore
             ElementPool.SetCurve(_player2,
                 p2LandCapBonus > 0 ? ResourceCurve.ChallengeLandCurve(p2LandCapBonus) : ResourceCurve.StandardLandCurve(),
                 p2LandCapBonus > 0 ? $"InitGame:挑战曲线(+{p2LandCapBonus})" : "InitGame:固定地牌槽曲线");
+            // 预组地牌上限在技能卡创建后按卡组识别（红 3 / 蓝 4 / 绿不给）。
 
             // 英雄技能（2026-10-15 改版：技能=任选一张法术，卡池生成不占卡组张数/不进牌库；
             // 合成卡组兜底回落牌库抽取；未标记/查无此卡/不合格=无技能）
             var skill1 = HeroSkillSystem.CreateSkillCard(deck1, skillCardId1);
             var skill2 = HeroSkillSystem.CreateSkillCard(deck2, skillCardId2);
+
 
             // 将卡牌加入牌库区域，设置控制者（2026-10-22 额外区配套：tags 含「衍生物」的模板卡
             // 摘出落 Zone.Extra——照英雄技能卡摘出先例，不进牌库不会被抽到，纯识别/引用面）
@@ -661,7 +663,8 @@ namespace CardCore
             Player startingPlayer = null,
             List<SynergyUI.DeckTokenBinding> tokenBindings1 = null,
             List<SynergyUI.DeckTokenBinding> tokenBindings2 = null,
-            bool ai1 = false, bool ai2 = false)
+            bool ai1 = false, bool ai2 = false,
+            int landCap1 = 0, int landCap2 = 0)
         {
             var deck1 = CardLoader.BuildDeck(deck1Data, copiesPerCard, tokenBindings1);
             var deck2 = CardLoader.BuildDeck(deck2Data, copiesPerCard, tokenBindings2);

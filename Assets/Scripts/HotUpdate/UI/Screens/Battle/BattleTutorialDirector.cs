@@ -860,14 +860,14 @@ namespace SynergyUI
 
         /// <summary>教学第一阶段（basics）通关结算（2026-10-17）：TipPanel 单键弹窗「你已完成第一阶段
         /// 的教学」，确定=回主菜单（Manager.Back，终局口径同认输键直回）。拆屏/缺预制体=null：留在
-        /// 终局画面（返回主菜单键仍可用，不自动退）。title 可覆写（2026-10-19 advanced 第二课复用）。</summary>
+        /// 终局画面（返回主菜单键仍可用，不自动退）。title 可覆写（2026-10-19 时 advanced 曾为第二课；2026-11-11 重编号后 advanced=教学三）。</summary>
         private async UniTaskVoid PromptTutorialCompleteAsync(string title = "你已完成第一阶段的教学")
         {
             if (await _showTip(title, "确定", null) == true)
                 _back();
         }
 
-        /// <summary>教学三毕业连战终局（2026-11-02 改版：末日降临 Boss 战退役——胜场记账+弹窗链）：
+        /// <summary>教学四毕业连战终局（2026-11-02 改版：Boss 战退役——胜场记账+弹窗链；2026-11-11 重编号，旧注「教学三」为当时编号）：
         /// 胜=LunzhuanGauntlet.ReportWin——满 3 场=MarkTutorialCompleted 过课+通关弹窗（确定回主菜单，
         /// 四课全胜=教学按钮隐藏/联机外露）；未满=场间弹窗（继续挑战=Replace 重入战屏重放开场：
         /// 重掷币+沿用已选卡组、对手=预组序列下一场）。败=**胜场保留**（用户定案）——「再战当前

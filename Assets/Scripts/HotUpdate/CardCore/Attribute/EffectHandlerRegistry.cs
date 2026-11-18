@@ -460,7 +460,15 @@ namespace CardCore.Attribute
             // ResolveSegmentedTargetsAsync 从行 Domain 解析（不经本口）。
             bool refAtom = atom.ReferenceAxis != null;
             var kinds = (refAtom ? atom.ReferenceKinds : atom.TargetKinds) ?? new List<int>();
-            if (kinds.Count == 0) return new List<Entity>(); // 无域原子：handler 自结算
+            if (kinds.Count == 0)
+            {
+                // 2026-11-18：牺牲/蛰伏这类**无 Domain** 的原子，作用域写死在 handler 里；
+                // 解析口不能把「无域」当空目标——有预选时直接把预选列表交给 handler，
+                // 由 handler 按自己的硬编码作用域过滤（否则策略选的 13 张会全丢）。
+                if (preselectQueue != null && preselectQueue.Count > 0)
+                    return new List<Entity>(preselectQueue);
+                return new List<Entity>(); // 无域且无预选：handler 自结算/自选
+            }
             var resolveAxis = refAtom ? atom.ReferenceAxis : atom.Axis;
 
             bool noWindow = def.ActivationType == EffectActivationType.Mandatory; // 强制类无目标选择窗口

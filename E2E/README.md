@@ -23,8 +23,10 @@ bash E2E/run.sh
 - 阶段 0 环境（设备/包版本/APK sha/git 态/画布缩放）
 - 阶段 1 冷启动（A）→ 阶段 2 菜单驻留 60s（B，段首污染检测）
 - 阶段 3 热重启（C）→ 阶段 4 BACK 键观察（D）
-- 阶段 4.5 交互流（F）：F0 注入三课全胜存档+冷启主菜单 → F1 卡组编辑器进出 →
-  F2 木桩开局 → 段末污染检测（污染=全段 INVALID，不判 PASS/FAIL）
+- 阶段 4.5 交互流（F）：F0 注入四课全胜存档+冷启主菜单 → F1 卡组编辑器进出 →
+  F2 木桩开局 → F3 联机复盘（btn-replay，2026-11-12 二期 D）→ F4 观战演出（btn-spectate，
+  2026-11-12 二期 C；F3/F4 见 CHECKLIST，当前为手动检查项，run.sh 未自动化）→
+  段末污染检测（污染=全段 INVALID，不判 PASS/FAIL）
 - 阶段 5 全局健康（G，E/W 台账合并冷+热+交互段）
 
 ## 结构
@@ -36,7 +38,9 @@ bash E2E/run.sh
   失败落 dumpsys window+截图存档）、污染检测（`scan_pollution`）、meminfo 新口径（`read_pss`）
 - `coords.sh` —— 坐标层：设计 1920×1080 → 设备像素换算（wm size 短边/1080）+ 坐标登记表
   （来源=预制体 execute_code 布局直调读数 / 代码布局常量推算，禁止截图猜坐标）
-- `assets/TutorialProgress.json` —— 三课全胜教学存档（F0 注入用，解锁 btn-deck 教学门槛）
+- `online.sh` / `net.sh` / `gate_online.sh` —— 联机/网关侧 E2E（2026-10-28/11-09 加入）
+- `assets/TutorialProgress.json` —— 四课全胜教学存档（basics/basics_plus/advanced/lunzhuan，
+  F0 注入用，解锁 btn-deck 教学门槛〔现为完成 教学三 advanced〕）
 - `reports/` —— 报告产物（gitignore，不入库）
 
 ## 新增功能 → 新增检查点（工作流）

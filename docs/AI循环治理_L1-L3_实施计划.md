@@ -1,8 +1,8 @@
 # AI 循环治理 L1–L3 实施计划（ZCode 执行）
 
-> 状态：**待执行**（2026-11-18）
+> 状态：**四阶段已全部实施并入提交**（预算/指纹/自检开关：`TideHeadlessDriver.cs`；L3-A 协议：`TideHeadlessServer.cs` + `rollout_common.py`；L3-B 折叠：`LegalActionEnumerator.cs`；见 `27f7c2f6d`/`60a517d33`。2026-11-18 审计注）
 > 依据：[AI循环与空转治理方案.md](AI循环与空转治理方案.md) §5.2–§5.6（问题、根因、指纹/预算/剪枝/折叠的定义都在那边，本文件只写"怎么做、怎么验收"）
-> 前置（已完成，**不要动**）：L0 充盈复归「仅对手回合触发」——`Assets/Scripts/HotUpdate/CardCore/Effects/BranchEngines.cs` 已改
+> 前置：L0 充盈触发=**第三版「己方释放法术后·仅法术」**（`Assets/Scripts/HotUpdate/CardCore/Effects/BranchEngines.cs`，`27f7c2f6d` 定稿；当日早先的「仅对手回合」第二版已被取代）
 > 执行方式：**一次只做一个阶段**。做完立即停手，交付「改动文件清单 + 验收输出 + 疑问」，等验收通过再进下一阶段。
 
 ---

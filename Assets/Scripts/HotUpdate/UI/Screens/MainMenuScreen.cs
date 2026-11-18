@@ -12,7 +12,7 @@ namespace SynergyUI
     /// <summary>
     /// 主菜单 —— 子界面入口（2026-10-01 预制体化：层级来自 Assets/Art/Prefab/MainUI.prefab，
     /// Build 只做按名绑定+闭包接线；title/subtitle 等静态文本由预制体烘焙）。
-    /// 教学接线（2026-10-19 三课制）：btn-teaching=纯进度路由（basics→advanced→lunzhuan 逐课推进）。
+    /// 教学接线（2026-11-11 起四课制）：btn-teaching=纯进度路由（basics→basics_plus→advanced→lunzhuan 逐课推进）。
     /// 2026-10-25 本地对战入口退役（打 AI 归木桩测试难度档承接）——IsTutorialDone 后教学按钮
     /// 隐藏，战斗入口=btn-match 联机 + btn-teststart 木桩测试。
     /// </summary>

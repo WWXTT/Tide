@@ -7,33 +7,33 @@ using CardCore.Attribute;
 namespace CardCore.AI
 {
     /// <summary>
-    /// 绿·慢速 AI（2026-11-15 按用户口径改版）：
-    /// **轮转引擎**（用户口径，手牌不够用的根因）：
-    ///   · T3 线：铺 3 地 → 小精灵（首卡，给手牌沃土 −2 绿 = 6→4）→ 祭 1 张地或场上小精灵
-    ///     （+1 彩、腾出 1 槽）→ 手牌补一块地（+1 绿）→ 3 绿 + 1 彩 = 4 费把沃土开出来；
-    ///   · T5 线（固定序，2026-11-15 用户口径）：小精灵（首卡，给**归根** −2 → 4→2 绿）→
-    ///     牺牲**场上小精灵 + 一块灰地/非绿地**（+2 彩、腾 1 地槽）→ 归根（捞回 **沃土 + 小精灵×2**）→
-    ///     两只小精灵补地（全绿 7 块）→ **沃土**（绿4 + 任意2）→ T5 结束手牌压到 T7 key（暗影豹 + 虚化）。
-    ///     T5 不留 3 费给虚化；**T7 才是留 3 费、对手回合开虚化的回合**。
-    ///     虚化**只在对手回合的响应窗贴自己**（自己回合贴 = 回合末清层白给）；
-    ///   · 关键：**牺牲腾出的槽位要用手牌立刻补回来**（否则地数掉档、牌白烧），墓地那批再用归根捞回手。
-    /// 中期：虚化（实付 3 绿，无实体钳伤害到 1）只在对**对手回合**的响应窗贴自己；枯竭**全取**（对手元素池有几块抹几块）。
-    /// 后期：暗影豹收尾；地铺到 20 后靠成长与归根维持每回合「回收 + 大生物」。
-    /// 卡组（60）：小精灵×20 / 归根×10 / 沃土×15 / 战斗母巢×10 / 系命母巢×5（虚化/暗影豹已退组）；技能=牺牲。
-    /// 胜点（2026-11-16）：母巢召唤 1/1 攻击守卫衍生物；战斗衍生物带团结4（回合末全体攻+2/血+2），
-    /// 系命衍生物带团结3（回合末赋予系命）。衍生物带遗忘，回合末结算后离场；buff 留在存活单位上。
+    /// 绿·慢速 AI（口径基准=docs/预组改造方案.md §1，2026-11-18）：
+    /// **固定序轮转引擎**（scriptTurn = 绿先手 ? TurnNumber : TurnNumber-1，一套 T1/T3/T5/T7）：
+    ///   · T1：下 1 地 → 小精灵①（首卡 → 沃土 −2）；
+    ///   · T3：下 2 地 → 小精灵②（再 −2）→ 沃土②（6−4=2 费）拉 3 张进池 → 地 6；
+    ///   · T5：下 2 地 → 沃土（6 费）拉 3 → 地 11 → 牺牲（11 地全献 → 11 彩）→ 归根（8 彩付、剩 3 彩，
+    ///     回收 15 张）→ 重铺 11 地 + 3 彩 = 14 费 → **阿格洛斯落地**（第 12 张）；
+    ///     （2026-11-18 更正：T5 不再前置小精灵首卡——11-16 的旧口径已作废，见预组方案 §1.3。）
+    ///   · T7+：有阿格洛斯=每回合 牺牲 → 归根 → 阿格洛斯；牺牲名单=场上非归根/非阿格洛斯单位+池里全部，
+    ///     只献到「够打 归根+阿格洛斯」为止（HeroSkillTargetCap，2026-11-18 定案）；没有阿格洛斯=留
+    ///     归根+小精灵+沃土，用沃土从牌库拉阿格洛斯进池走 T5 线。
+    /// 绑定硬规则：没有归根不牺牲（最终发动入口执行）；归根每回合 ≤1 张且在牺牲后；T1/T3 不牺牲。
+    /// 卡组（60，绿·慢速.json）：小精灵×19 / 沃土×19 / 归根×11 / 系命者·阿格洛斯×11（封印/枯木守卫/
+    /// 母巢/虚化已退组）；技能=牺牲（2 费，每回合一次，每献 1 张 +1 临时彩）。
+    /// 地牌上限 16（=阿格洛斯 14 + 牺牲 2）；旧「地铺到 20」口径作废。
+    /// （以下旧机制名仅作历史注记：虚化/枯竭/母巢/荒原猎兽——2026-11-16 预组重做后不在卡组。）
     /// </summary>
     public sealed class GreenRampStrategy : AiStrategy
     {
-        private const string NameSpirit = "小精灵";   // 1/1 无攻守；登场己方角色 +2 甲；首卡 → 手牌 −2 绿
-        private const string NameSprout = "萌芽";     // 成长 1 + 首卡减费
-        private const string NameBloom = "沃土";      // 成长 3；代价：一个敌方单位获得6层护甲（净 6 绿）
-        private const string NameReturn = "归根";     // 回收 3 张
+        private const string NameSpirit = "小精灵";   // 2/2；1 绿；登场己方角色 +2 甲；首卡 → 手牌 −2 绿
+        private const string NameSprout = "萌芽";     // 成长 1 + 首卡减费（历史卡名，现卡组无）
+        private const string NameBloom = "沃土";      // 6 绿；地牌上限 +3 + 从牌库拉 3 张带元素费用的卡入池；代价：敌方单位 +6 护甲
+        private const string NameReturn = "归根";     // 8 绿；墓地全部回手（效果 D1A00020；当前 count=1 断点见预组方案 §1.3.2）；地少抽 1
         private const string NameRecycle = "回收";    // 全墓地回手（2026-11-16 绿线循环）
         private const string NameSeal = "封印";       // 封印一个对方单位（绿线保命）
         private const string NameWitheredGuard = "枯木守卫"; // 2/8 守护+帷幕，优先级低于暗影豹
         private const string NameEraseLand = "枯竭";  // 抹除对方元素池地牌（2026-11-15 起=全取）
-        private const string NamePanther = "系命者 阿格洛斯"; // 12/12 攻守 系命
+        private const string NamePanther = "系命者 阿格洛斯"; // 12/8；推导费 14（灰9红2绿3）；系命+狩猎
         // 虚化 = 2026-11-15 用户口径里替换掉旧的 4 费「减半」的 3 费保命件（无实体，钳伤害到 1）。
         // 只能在对**对手回合**的响应窗贴自己；自己回合打 = 回合末掉层白给。全类只保留这一个名字。
         private const string NameVeil = "虚化";
@@ -114,7 +114,7 @@ namespace CardCore.AI
             if (IsLoopDeck(core, me) && OwnTurn(core, me) == 3) return false;
             // T5 循环：必须先打完沃土（_loopT5Bloom），再允许牺牲；否则池里的核心件会让技能抢在沃土前发动。
             if (IsLoopT5(core, me) && !_loopT5Bloom) return false;
-            // T5 全取循环：沃土打完后，先牺牲（9 次），再归根。
+            // T5 全取循环：沃土打完后，先牺牲（池 11 地全献，2026-11-18 口径；旧「9 次」为 11-15/16 费线），再归根。
             if (IsLoopT5(core, me) && _loopT5Bloom && !_loopT5Sacrificed
                 && HandCopies(core, me, NameReturn) > 0)
             {
@@ -222,7 +222,7 @@ namespace CardCore.AI
             // T3 循环卡组不牺牲。
             if (isSacrifice && IsLoopDeck(core, me) && core.TurnEngine != null
                 && OwnTurn(core, me) == 3) return false;
-            // T5 全取循环：沃土打完后，允许牺牲全部 8 地 + 小精灵。
+            // T5 全取循环：沃土打完后，允许牺牲全部池地（11 地口径）+ 小精灵。
             if (isSacrifice && IsLoopT5(core, me)
                 && _loopT5Bloom && !_loopT5Sacrificed) return true;
             // 2026-11-16：T7 母巢召唤差 1~2 点 → 允许牺牲横置地补最后几点（随后主动召唤）。
@@ -496,23 +496,30 @@ namespace CardCore.AI
             return Math.Max(1, shortfall);
         }
 
-        /// <summary>牺牲技能的目标（2026-11-18 用户定案：技能选牌归策略）——
-        /// 只献**非 key 牌**：归根、系命者 阿格洛斯 永远不进牺牲名单；数量按 HeroSkillTargetCap 截断
-        /// （T7+ 献到够打 归根 + 阿格洛斯 为止）。</summary>
+        /// <summary>牺牲技能的目标（2026-11-18 定案）：**池里的卡全献（含阿格洛斯），场上的阿格洛斯不献**。
+        /// 池里的阿格洛斯献进墓地后由归根回收、当回合再打出；场上的阿格洛斯是站场单位，留着。
+        /// 归根（无论手/池）不进牺牲名单。</summary>
         public override List<Entity> HeroSkillTargets(GameCore core, Player me, int effectIndex)
         {
             var effects = HeroSkillSystem.SkillEffectsOf(HeroSkillSystem.ResolveSkillCard(core, me));
             if (effectIndex < 0 || effectIndex >= effects.Count || effects[effectIndex]?.Id != "FXGREEN08") return null;
-            // 2026-11-18 修复：T7 之前牺牲由**引擎自动取目标**（旧 SimpleAI 也只在 TurnNumber>=7 才显式传），
-            // 策略给空表会让 T3 的「牺牲小精灵」直接失败，T3 沃土线断。
-            if (OwnTurn(core, me) < 7) return null;
+            int own = OwnTurn(core, me);
+            if (own < 5) return null; // T1/T3 引擎自动（T3 小精灵）
             string N(Card x) => (x as IHasName)?.CardName;
             var list = new List<Entity>();
-            list.AddRange((core.ZoneManager.GetCards(me, Zone.Battlefield) ?? new List<Card>())
-                .Where(x => x != null && x.IsAlive && N(x) != NameReturn && N(x) != NamePanther));
-            list.AddRange(core.ElementPool.GetPooledCards(me)
-                .Where(pc => pc?.SourceCard != null && N(pc.SourceCard) != NameReturn && N(pc.SourceCard) != NamePanther)
-                .Select(pc => (Entity)pc.SourceCard));
+            var seen = new HashSet<Card>();
+            // 场上：献除归根、场上的阿格洛斯以外的单位
+            foreach (var x in core.ZoneManager.GetCards(me, Zone.Battlefield) ?? new List<Card>())
+                if (x != null && x.IsAlive && N(x) != NameReturn && N(x) != NamePanther && seen.Add(x)) list.Add(x);
+            // 池：全献（含阿格洛斯和池里的归根副本——手里的归根不在池里，不受影响）；
+            // 包装 + 区内实际卡两路收，避免漏沃土拉的卡
+            foreach (var pc in core.ElementPool.GetPooledCards(me))
+            {
+                var c = pc?.SourceCard;
+                if (c != null && seen.Add(c)) list.Add(c);
+            }
+            foreach (var c in core.ZoneManager.GetCards(me, Zone.ElementPool) ?? new List<Card>())
+                if (c != null && seen.Add(c)) list.Add(c);
             int cap = HeroSkillTargetCap(core, me);
             if (cap >= 0 && list.Count > cap) list = list.Take(cap).ToList();
             return list;
@@ -1191,10 +1198,9 @@ namespace CardCore.AI
                 // 候选里没有小精灵就返回空表（本次不选目标，绝不退回「按分数挑」把地/手牌烧掉）。
                 if (InScriptTurn(core, me, out int scriptSac) && scriptSac == 5)
                 {
-                    // 2026-11-16 全取循环：T5 不是只祭 1 张，而是**全部横置地 + 全部小精灵**一起祭。
-                    // 6 地补到 8 地后，8 地 + 1 小精灵 = 9 次牺牲；牺牲 2 费后净 +7，付归根 8。
-                    // T5 全取循环：**全部元素池地牌 + 全部小精灵** 都要祭，不再排除核心件
-                    //（封印/归根/暗影豹当土地时也属于“地牌”，不祭掉就凑不到 8/9 次）。
+                    // 2026-11-16 全取循环（数字已按 2026-11-18 口径刷新）：T5 不是只祭 1 张，
+                    // 而是**全部池地 + 全部小精灵**一起祭——8 地补到 11 地（两次沃土各 +3）后，
+                    // 池 11 张一次献满 → 11 彩；牺牲 2 费由沃土后余费付。
                     // 用户口径：T5 牺牲 = 全部元素池地牌 + 场上小精灵（最多 1 只）。
                     // 小精灵可能已被解掉：有就 9 张，没有就 8 张；不影响后续 11 地/11 费豹。
                     var sac = list.Where(e => e is Card c && c.IsAlive && poolSet.Contains(e)).ToList();

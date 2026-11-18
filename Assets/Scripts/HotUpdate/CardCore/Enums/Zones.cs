@@ -658,8 +658,8 @@ namespace CardCore
         }
 
         /// <summary>
-        /// 手牌满员判定（2026-11-18 规则改版）：有效手牌张数 ≥ 当前上限（RuleHooks.GetHandLimit
-        /// =基值 12 + 结界仪典额外）。施放中的卡留手牌但不占上限（同回合末 EnforceHandLimitAsync 口径）。
+        /// 手牌满员判定（2026-11-18 定案）：有效手牌张数 ≥ 当前上限（RuleHooks.GetHandLimit
+        /// =基值 7 + 仪典额外；**自己回合中不判满员**，见下）。施放中的卡留手牌但不占上限（同回合末口径）。
         /// </summary>
         private bool HandAtLimit()
         {

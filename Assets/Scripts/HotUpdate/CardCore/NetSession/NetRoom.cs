@@ -17,7 +17,8 @@ namespace CardCore.Network
     /// - 房主退出=解散整房（无服务器可转移）：OnDisconnect 走 DissolveRoom，断开全部成员。
     ///   只剩 AI 的对局随宿主停机结束（DissolveRoom 顺带拆对局）。
     /// - 座位↔观战（SeatSwap）：仅 Waiting、排位房拒；释放椅位/占空位，昵称保留。
-    /// - 观战：全信息（2026-09-23 定案）——事件流不滤、快照走 fullInfo 视角；随时可进。
+    /// - 观战：快照走 fullInfo 视角（2026-09-23 定案，仍有效）；**事件流自 v18 起走 EventFeed.FxOnly
+    ///   演出白名单子集**（旧「事件流不滤」口径作废，见 NetBattleChannel）。随时可进。
     /// - 阶段迁移只由本类与对战通道（<see cref="NetBattleChannel"/>）经 EnterPhase 驱动；
     ///   对战通道不持有成员表，房间与对局生命周期解耦。
     /// - 线程：全部方法只允许逻辑线程（NetSessionServer.Pump）调用；IO 线程只入队。

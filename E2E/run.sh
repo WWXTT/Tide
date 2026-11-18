@@ -160,7 +160,7 @@ stop_capture
 adb_shell "am force-stop $PKG" >/dev/null
 sleep 2
 
-# F0-注入：三课全胜教学存档（btn-deck 有教学二完成门槛，不注入则按钮被门禁隐藏）
+# F0-注入：四课全胜教学存档（btn-deck 有 教学三〔advanced〕完成门槛，不注入则按钮被门禁隐藏）
 SAVE_SRC="$E2E_ROOT/assets/TutorialProgress.json"
 SAVE_DST="/sdcard/Android/data/$PKG/files/TutorialProgress.json"
 adb_shell "mkdir -p /sdcard/Android/data/$PKG/files" >/dev/null 2>&1
@@ -170,10 +170,10 @@ if MSYS_NO_PATHCONV=1 "$ADB" -s "$DEVICE" push "$(cygpath -w "$SAVE_SRC")" "$SAV
   if [ -n "$DEV_MD5" ] && [ "$DEV_MD5" = "$LOC_MD5" ]; then
     echo "[F0] 存档注入 OK（md5=$LOC_MD5）"
   else
-    _report FAIL F0 "三课全胜存档注入校验" "push 返回成功但 md5 不符：loc=$LOC_MD5 dev=${DEV_MD5:-（设备不可读）}"
+    _report FAIL F0 "四课全胜存档注入校验" "push 返回成功但 md5 不符：loc=$LOC_MD5 dev=${DEV_MD5:-（设备不可读）}"
   fi
 else
-  _report FAIL F0 "三课全胜存档注入" "adb push 失败：$SAVE_SRC → $SAVE_DST"
+  _report FAIL F0 "四课全胜存档注入" "adb push 失败：$SAVE_SRC → $SAVE_DST"
 fi
 
 start_capture "$OUT/f.log"

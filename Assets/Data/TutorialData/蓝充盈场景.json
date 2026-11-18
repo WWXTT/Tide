@@ -1,474 +1,457 @@
 ﻿{
-    "_说明":  "元素充盈教学式固定盘面（2026-11-06 判据七改版）：蓝方碑族充盈引擎的恰等触发/越过不触发/非施放零评估/差值滑过/己方回合自触发的行为级验证。scenario 块与 Assets/Configs/TutorialConfig2.json 的 TutorialScenario 逐字段同构，经 TutorialScenarioSeeder 静默注入（教学直入口径）。判据（2026-11-18 第二版·仅对手回合）：任一方使用卡牌、整条连锁结算完成后（CardCastSettledEvent 连锁终点补发），双方各自评估己方场上引擎（**持有者自己的回合不评估**）——己方剩余元素（未横置地+钱包）−对方剩余元素，封顶6，**恰好等于**门槛x（Then锚价自动推导，两碑x=2）才触发；每卡每回合1次；横置触发口（OnOpponentTappedLands）与「仅对手回合」单边均已随判据七退役。场景①-⑤受测回合=红（P2，firstPlayer=P2），SimpleAI(General) 走完整回合、蓝挂机；场景⑥=己方回合负例（蓝自己回合出牌→不评估）。断言在 TideSim/BlueFullnessScenarioCheck.cs（dotnet run --project TideSim -- --tutorial-scenario 红蓝两套一起跑）。",
-    "_卡表":  {
-                "C_DF45065E":  "潮痕碑（结界·耐久4·1灰·效果851A70F1：充盈 ≥ 门槛→对一个对方单位2伤；门槛x=Then锚价推导=2）",
-                "C_2BD6EDE2":  "深潭碑（结界·耐久4·1灰·效果3442A01E：充盈 ≥ 门槛→回响1：双方战场一张卡的带临时指示物(遗忘)复制加入手牌；门槛x=2）",
-                "C_138CE290":  "火苗 2/2（1灰生物，红回合的「出牌」动作；钱包付灰不横置）",
-                "C_57BA44EC":  "火灵·攻 1/1（1灰+1红——真实横置地牌付费的出牌；判据七下支付横置不再触发充盈，仅作对照牌保留在池）",
-                "C_03E4B181":  "教学·8 7/7（充盈2伤的存活读数目标/场景④攻击者）",
-                "C_DA499FAE":  "教学·3 1/1（1灰填充牌）",
-                "C_11B82155":  "教学·35（地牌载体，tokenType 锁色；场景⑥蓝方抽到即铺=剩余元素+1的确定量）"
-            },
-    "scenarios":  [
-                      {
-                          "id":  "tide-trigger-on-play",
-                          "name":  "① 潮痕碑：红出牌结算后差 2 ≥ 门槛→2伤（效果结算后触发口）",
-                          "note":  "蓝(P1)场=潮痕碑+2未横置蓝地；红(P2)0地+钱包1灰 手[火苗1灰]。红打出火苗（钱包付灰不横置）→连锁终点剩余元素差 2−0=2≥x→充盈触发，2伤落在唯一对方有生命单位=刚下场的火苗（2/2→0阵亡）。",
-                          "scenario":  {
-                                           "startTurn":  10,
-                                           "firstPlayer":  "P2",
-                                           "player":  {
-                                                          "life":  30,
-                                                          "fatigue":  0,
-                                                          "bank":  [
-                                                                       0,
-                                                                       0,
-                                                                       0,
-                                                                       0,
-                                                                       0,
-                                                                       0
-                                                                   ],
-                                                          "lands":  [
-                                                                        {
-                                                                            "card":  "C_11B82155",
-                                                                            "tokenType":  "Blue"
-                                                                        },
-                                                                        {
-                                                                            "card":  "C_11B82155",
-                                                                            "tokenType":  "Blue"
-                                                                        }
-                                                                    ],
-                                                          "units":  [
-                                                                        {
-                                                                            "card":  "C_DF45065E"
-                                                                        }
-                                                                    ],
-                                                          "hand":  [
-
-                                                                   ],
-                                                          "deck":  [
-                                                                       "C_DA499FAE",
-                                                                       "C_DA499FAE"
-                                                                   ],
-                                                          "grave":  [
-
-                                                                    ]
-                                                      },
-                                           "ai":  {
-                                                      "life":  30,
-                                                      "fatigue":  0,
-                                                      "bank":  [0,0,0,0,0,0],
-                                                      "lands":  [
-
-                                                                ],
-                                                      "units":  [
-
-                                                                ],
-                                                      "hand":  [
-                                                                   "C_CD942636"
-                                                               ],
-                                                      "deck":  [
-                                                                   "C_DA499FAE",
-                                                                   "C_DA499FAE"
-                                                               ],
-                                                      "grave":  [
-
-                                                                ]
-                                                  }
-                                       }
-                      },
-                      {
-                          "id":  "deep-echo-on-play",
-                          "name":  "② 深潭碑：红出牌结算后差 2 ≥ 门槛→回响1（临时复制入手）",
-                          "note":  "蓝(P1)场=深潭碑+2未横置蓝地；红(P2)0地+钱包1灰 手[火苗1灰]。红出火苗→连锁终点差 2−0=2≥x→充盈触发，回响1：双方战场一张卡（候选=深潭碑/火苗）的带1层临时指示物复制加入蓝手牌。",
-                          "scenario":  {
-                                           "startTurn":  10,
-                                           "firstPlayer":  "P2",
-                                           "player":  {
-                                                          "life":  30,
-                                                          "fatigue":  0,
-                                                          "bank":  [
-                                                                       0,
-                                                                       0,
-                                                                       0,
-                                                                       0,
-                                                                       0,
-                                                                       0
-                                                                   ],
-                                                          "lands":  [
-                                                                        {
-                                                                            "card":  "C_11B82155",
-                                                                            "tokenType":  "Blue"
-                                                                        },
-                                                                        {
-                                                                            "card":  "C_11B82155",
-                                                                            "tokenType":  "Blue"
-                                                                        }
-                                                                    ],
-                                                          "units":  [
-                                                                        {
-                                                                            "card":  "C_2BD6EDE2"
-                                                                        }
-                                                                    ],
-                                                          "hand":  [
-
-                                                                   ],
-                                                          "deck":  [
-                                                                       "C_DA499FAE",
-                                                                       "C_DA499FAE"
-                                                                   ],
-                                                          "grave":  [
-
-                                                                    ]
-                                                      },
-                                           "ai":  {
-                                                      "life":  30,
-                                                      "fatigue":  0,
-                                                      "bank":  [0,0,0,0,0,0],
-                                                      "lands":  [
-
-                                                                ],
-                                                      "units":  [
-
-                                                                ],
-                                                      "hand":  [
-                                                                   "C_CD942636"
-                                                               ],
-                                                      "deck":  [
-                                                                   "C_DA499FAE",
-                                                                   "C_DA499FAE"
-                                                               ],
-                                                      "grave":  [
-
-                                                                ]
-                                                  }
-                                       }
-                      },
-                      {
-                          "id":  "no-trigger-high-diff",
-                          "name":  "③ 差超过门槛仍触发（≥x 语义：6≥2）",
-                          "note":  "蓝(P1)场=潮痕碑+6未横置蓝地；红(P2)0地+钱包1灰 手[火苗1灰]。红出火苗→连锁终点差 6−0=6≥门槛2——判据 ≥x：差 6 ≥ 2 仍触发→2 伤打死火苗（差超过门槛不再豁免）。",
-                          "scenario":  {
-                                           "startTurn":  10,
-                                           "firstPlayer":  "P2",
-                                           "player":  {
-                                                          "life":  30,
-                                                          "fatigue":  0,
-                                                          "bank":  [
-                                                                       0,
-                                                                       0,
-                                                                       0,
-                                                                       0,
-                                                                       0,
-                                                                       0
-                                                                   ],
-                                                          "lands":  [
-                                                                        {
-                                                                            "card":  "C_11B82155",
-                                                                            "tokenType":  "Blue"
-                                                                        },
-                                                                        {
-                                                                            "card":  "C_11B82155",
-                                                                            "tokenType":  "Blue"
-                                                                        },
-                                                                        {
-                                                                            "card":  "C_11B82155",
-                                                                            "tokenType":  "Blue"
-                                                                        },
-                                                                        {
-                                                                            "card":  "C_11B82155",
-                                                                            "tokenType":  "Blue"
-                                                                        },
-                                                                        {
-                                                                            "card":  "C_11B82155",
-                                                                            "tokenType":  "Blue"
-                                                                        },
-                                                                        {
-                                                                            "card":  "C_11B82155",
-                                                                            "tokenType":  "Blue"
-                                                                        }
-                                                                    ],
-                                                          "units":  [
-                                                                        {
-                                                                            "card":  "C_DF45065E"
-                                                                        }
-                                                                    ],
-                                                          "hand":  [
-
-                                                                   ],
-                                                          "deck":  [
-                                                                       "C_DA499FAE",
-                                                                       "C_DA499FAE"
-                                                                   ],
-                                                          "grave":  [
-
-                                                                    ]
-                                                      },
-                                           "ai":  {
-                                                      "life":  30,
-                                                      "fatigue":  0,
-                                                      "bank":  [
-                                                                   1,
-                                                                   0,
-                                                                   0,
-                                                                   0,
-                                                                   0,
-                                                                   0
-                                                               ],
-                                                      "lands":  [
-
-                                                                ],
-                                                      "units":  [
-
-                                                                ],
-                                                      "hand":  [
-                                                                   "C_CD942636"
-                                                               ],
-                                                      "deck":  [
-                                                                   "C_DA499FAE",
-                                                                   "C_DA499FAE"
-                                                               ],
-                                                      "grave":  [
-
-                                                                ]
-                                                  }
-                                       }
-                      },
-                      {
-                          "id":  "no-trigger-no-play",
-                          "name":  "④ 红不打牌只攻击→不评估（差=2也不触发：非施放动作无评估口）",
-                          "note":  "蓝(P1)场=潮痕碑+4未横置蓝地；红(P2)2红地+场[教学·8 7/7]+空手钱包0。当前差 4−2=2**恰等于**门槛——若攻击/横置等非施放动作会评估必触发；红回合无牌可出→只做攻击（打脸7伤）→零充盈播报=评估只挂在「使用卡牌结算后」单口。",
-                          "scenario":  {
-                                           "startTurn":  10,
-                                           "firstPlayer":  "P2",
-                                           "player":  {
-                                                          "life":  30,
-                                                          "fatigue":  0,
-                                                          "bank":  [
-                                                                       0,
-                                                                       0,
-                                                                       0,
-                                                                       0,
-                                                                       0,
-                                                                       0
-                                                                   ],
-                                                          "lands":  [
-                                                                        {
-                                                                            "card":  "C_11B82155",
-                                                                            "tokenType":  "Blue"
-                                                                        },
-                                                                        {
-                                                                            "card":  "C_11B82155",
-                                                                            "tokenType":  "Blue"
-                                                                        },
-                                                                        {
-                                                                            "card":  "C_11B82155",
-                                                                            "tokenType":  "Blue"
-                                                                        },
-                                                                        {
-                                                                            "card":  "C_11B82155",
-                                                                            "tokenType":  "Blue"
-                                                                        }
-                                                                    ],
-                                                          "units":  [
-                                                                        {
-                                                                            "card":  "C_DF45065E"
-                                                                        }
-                                                                    ],
-                                                          "hand":  [
-
-                                                                   ],
-                                                          "deck":  [
-                                                                       "C_DA499FAE",
-                                                                       "C_DA499FAE"
-                                                                   ],
-                                                          "grave":  [
-
-                                                                    ]
-                                                      },
-                                           "ai":  {
-                                                      "life":  30,
-                                                      "fatigue":  0,
-                                                      "bank":  [
-                                                                   0,
-                                                                   0,
-                                                                   0,
-                                                                   0,
-                                                                   0,
-                                                                   0
-                                                               ],
-                                                      "lands":  [
-                                                                        {
-                                                                            "card":  "C_11B82155",
-                                                                            "tokenType":  "Red"
-                                                                        },
-                                                                        {
-                                                                            "card":  "C_11B82155",
-                                                                            "tokenType":  "Red"
-                                                                        }
-                                                                    ],
-                                                      "units":  [
-                                                                    {
-                                                                        "card":  "C_03E4B181"
-                                                                    }
-                                                                ],
-                                                      "hand":  [
-
-                                                               ],
-                                                      "deck":  [
-                                                                   "C_DA499FAE",
-                                                                   "C_DA499FAE"
-                                                               ],
-                                                      "grave":  [
-
-                                                                ]
-                                                  }
-                                       }
-                      },
-                      {
-                          "id":  "once-per-turn",
-                          "name":  "⑤ 同回合二连出牌：两张都触发（≥x、无每回合上限）",
-                          "note":  "蓝(P1)场=潮痕碑+3未横置蓝地；红(P2)0地+钱包2灰 手[火苗×2(各1灰)]。红连出两张：第一张结算后差 3−1=2≥2→触发（2 伤打死第一只火苗）；第二张结算后差 3−0=3≥2→再次触发（无每回合上限；第二发打碎耐久耗尽的碑）。终态：充盈播报=2、碑伤=2、红墓2火苗、场0。",
-                          "scenario":  {
-                                           "startTurn":  10,
-                                           "firstPlayer":  "P2",
-                                           "player":  {
-                                                          "life":  30,
-                                                          "fatigue":  0,
-                                                          "bank":  [
-                                                                       0,
-                                                                       0,
-                                                                       0,
-                                                                       0,
-                                                                       0,
-                                                                       0
-                                                                   ],
-                                                          "lands":  [
-                                                                        {
-                                                                            "card":  "C_11B82155",
-                                                                            "tokenType":  "Blue"
-                                                                        },
-                                                                        {
-                                                                            "card":  "C_11B82155",
-                                                                            "tokenType":  "Blue"
-                                                                        },
-                                                                        {
-                                                                            "card":  "C_11B82155",
-                                                                            "tokenType":  "Blue"
-                                                                        }
-                                                                    ],
-                                                          "units":  [
-                                                                        {
-                                                                            "card":  "C_DF45065E"
-                                                                        }
-                                                                    ],
-                                                          "hand":  [
-
-                                                                   ],
-                                                          "deck":  [
-                                                                       "C_DA499FAE",
-                                                                       "C_DA499FAE"
-                                                                   ],
-                                                          "grave":  [
-
-                                                                    ]
-                                                      },
-                                           "ai":  {
-                                                      "life":  30,
-                                                      "fatigue":  0,
-                                                      "bank":  [0,0,0,0,0,0],
-                                                      "lands":  [
-
-                                                                ],
-                                                      "units":  [
-
-                                                                ],
-                                                      "hand":  [
-                                                                   "C_CD942636",
-                                                                   "C_CD942636"
-                                                               ],
-                                                      "deck":  [
-                                                                   "C_DA499FAE",
-                                                                   "C_DA499FAE"
-                                                               ],
-                                                      "grave":  [
-
-                                                                ]
-                                                  }
-                                       }
-                      },
-                      {
-                          "id":  "own-turn-self-trigger",
-                          "name":  "⑥ 己方回合不评估（仅对手回合）：蓝自己出牌→充盈不触发（负例）",
-                          "note":  "受测回合=蓝（firstPlayer=P1）。蓝(P1)场=潮痕碑+2未横置蓝地+钱包1灰 手[火苗] 牌库[教学·8×1：7费不可打=纯占位]；红(P2)空场空手0地0钱包。蓝回合：打出火苗（钱包优先付1灰，地不动）→ 2026-11-18 定案「仅对手回合触发」：蓝是引擎持有者且当前是蓝的回合 → **不评估**；零播报零碑伤。随后火苗2/2攻击红脸（无召唤失调）→红终态28。反向证据=场景①-⑤（红回合出牌，蓝碑照常评估）。",
-                          "scenario":  {
-                                           "startTurn":  10,
-                                           "firstPlayer":  "P1",
-                                           "player":  {
-                                                          "life":  30,
-                                                          "fatigue":  0,
-                                                          "bank":  [
-                                                                       1,
-                                                                       0,
-                                                                       0,
-                                                                       0,
-                                                                       0,
-                                                                       0
-                                                                   ],
-                                                          "lands":  [
-                                                                        {
-                                                                            "card":  "C_11B82155",
-                                                                            "tokenType":  "Blue"
-                                                                        },
-                                                                        {
-                                                                            "card":  "C_11B82155",
-                                                                            "tokenType":  "Blue"
-                                                                        }
-                                                                    ],
-                                                          "units":  [
-                                                                        {
-                                                                            "card":  "C_DF45065E"
-                                                                        }
-                                                                    ],
-                                                          "hand":  [
-                                                                       "C_138CE290"
-                                                                   ],
-                                                          "deck":  [
-                                                                       "C_03E4B181"
-                                                                   ],
-                                                          "grave":  [
-
-                                                                    ]
-                                                      },
-                                           "ai":  {
-                                                      "life":  30,
-                                                      "fatigue":  0,
-                                                      "bank":  [
-                                                                   0,
-                                                                   0,
-                                                                   0,
-                                                                   0,
-                                                                   0,
-                                                                   0
-                                                               ],
-                                                      "lands":  [
-
-                                                                ],
-                                                      "units":  [
-
-                                                                ],
-                                                      "hand":  [
-
-                                                               ],
-                                                      "deck":  [
-                                                                   "C_DA499FAE",
-                                                                   "C_DA499FAE"
-                                                               ],
-                                                      "grave":  [
-
-                                                                ]
-                                                  }
-                                       }
-                      }
-                  ]
+    "_说明": "元素充盈教学式固定盘面（2026-11-18 第三版语义）：仅施放者本人释放法术、整条连锁结算后评估其场上引擎；己方剩余元素−对方剩余元素（封顶6）≥x 即触发。①③⑤⑥=蓝(P1)自己释放0费潮汐触发；②=深潭碑召唤潮痕碑；④=红只攻击不施放→零评估。断言在 TideSim/BlueFullnessScenarioCheck.cs。",
+    "_卡表": {
+        "C_DF45065E": "潮痕碑（结界·耐久4·0费·效果851A70F1：充盈 ≥ 门槛→对一个对方单位2伤；门槛x=Then锚价推导=2）",
+        "C_2BD6EDE2": "深潭碑（结界·耐久4·0费·效果3442A01E：充盈 ≥ 门槛→召唤1个潮痕碑（4耐久衍生物）；门槛x=Then锚价推导=2）",
+        "C_138CE290": "火苗 2/2（1灰生物，红回合的「出牌」动作；钱包付灰不横置）",
+        "C_57BA44EC": "火灵·攻 1/1（1灰+1红——真实横置地牌付费的出牌；判据七下支付横置不再触发充盈，仅作对照牌保留在池）",
+        "C_03E4B181": "教学·8 7/7（充盈2伤的存活读数目标/场景④攻击者）",
+        "C_DA499FAE": "教学·3 1/1（1灰填充牌）",
+        "C_11B82155": "教学·35（地牌载体，tokenType 锁色；场景⑥蓝方抽到即铺=剩余元素+1的确定量）",
+        "C_DDB09243": "潮汐（法术·0费·抽1；己方释放法术=充盈评估口）"
+    },
+    "scenarios": [
+        {
+            "id": "tide-trigger-on-play",
+            "name": "① 潮痕碑：蓝释放法术后差 2 ≥ 门槛→2伤",
+            "note": "蓝(P1)场=潮痕碑+2未横置蓝地+手[潮汐0费]；红(P2)场=教学·灰源1/1，空手。蓝回合打出潮汐（己方释放法术）→连锁终点蓝剩余2−红0=2≥x→充盈触发，2伤落在唯一对方有生命单位=教学·灰源（1/1→0阵亡）。",
+            "scenario": {
+                "startTurn": 10,
+                "firstPlayer": "P1",
+                "player": {
+                    "life": 30,
+                    "fatigue": 0,
+                    "bank": [
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "lands": [
+                        {
+                            "card": "C_11B82155",
+                            "tokenType": "Blue"
+                        },
+                        {
+                            "card": "C_11B82155",
+                            "tokenType": "Blue"
+                        }
+                    ],
+                    "units": [
+                        {
+                            "card": "C_DF45065E"
+                        }
+                    ],
+                    "hand": [
+                        "C_DDB09243"
+                    ],
+                    "deck": [
+                        "C_DA499FAE",
+                        "C_DA499FAE"
+                    ],
+                    "grave": []
+                },
+                "ai": {
+                    "life": 30,
+                    "fatigue": 0,
+                    "bank": [
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "lands": [],
+                    "units": [
+                        {
+                            "card": "C_CD942636"
+                        }
+                    ],
+                    "hand": [],
+                    "deck": [
+                        "C_DA499FAE",
+                        "C_DA499FAE"
+                    ],
+                    "grave": []
+                }
+            }
+        },
+        {
+            "id": "deep-echo-on-play",
+            "name": "② 深潭碑：蓝释放法术后差 2 ≥ 门槛→召唤潮痕碑（4耐久衍生物）",
+            "note": "蓝(P1)场=深潭碑+2未横置蓝地+手[潮汐0费]；红(P2)空场空手。蓝回合打出潮汐→连锁终点差 2−0=2≥x→充盈触发，召唤1个潮痕碑（4耐久）到蓝方战场；不产生碑伤、不复制手牌。",
+            "scenario": {
+                "startTurn": 10,
+                "firstPlayer": "P1",
+                "player": {
+                    "life": 30,
+                    "fatigue": 0,
+                    "bank": [
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "lands": [
+                        {
+                            "card": "C_11B82155",
+                            "tokenType": "Blue"
+                        },
+                        {
+                            "card": "C_11B82155",
+                            "tokenType": "Blue"
+                        }
+                    ],
+                    "units": [
+                        {
+                            "card": "C_2BD6EDE2"
+                        }
+                    ],
+                    "hand": [
+                        "C_DDB09243"
+                    ],
+                    "deck": [
+                        "C_DA499FAE",
+                        "C_DA499FAE"
+                    ],
+                    "grave": []
+                },
+                "ai": {
+                    "life": 30,
+                    "fatigue": 0,
+                    "bank": [
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "lands": [],
+                    "units": [],
+                    "hand": [],
+                    "deck": [
+                        "C_DA499FAE",
+                        "C_DA499FAE"
+                    ],
+                    "grave": []
+                }
+            }
+        },
+        {
+            "id": "no-trigger-high-diff",
+            "name": "③ 差超过门槛仍触发（≥x 语义：6≥2）",
+            "note": "蓝(P1)场=潮痕碑+6未横置蓝地+手[潮汐0费]；红(P2)场=教学·灰源1/1，空手。蓝打出潮汐→连锁终点差 6−0=6≥门槛2——判据 ≥x：仍触发→2伤打死教学·灰源。",
+            "scenario": {
+                "startTurn": 10,
+                "firstPlayer": "P1",
+                "player": {
+                    "life": 30,
+                    "fatigue": 0,
+                    "bank": [
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "lands": [
+                        {
+                            "card": "C_11B82155",
+                            "tokenType": "Blue"
+                        },
+                        {
+                            "card": "C_11B82155",
+                            "tokenType": "Blue"
+                        },
+                        {
+                            "card": "C_11B82155",
+                            "tokenType": "Blue"
+                        },
+                        {
+                            "card": "C_11B82155",
+                            "tokenType": "Blue"
+                        },
+                        {
+                            "card": "C_11B82155",
+                            "tokenType": "Blue"
+                        },
+                        {
+                            "card": "C_11B82155",
+                            "tokenType": "Blue"
+                        }
+                    ],
+                    "units": [
+                        {
+                            "card": "C_DF45065E"
+                        }
+                    ],
+                    "hand": [
+                        "C_DDB09243"
+                    ],
+                    "deck": [
+                        "C_DA499FAE",
+                        "C_DA499FAE"
+                    ],
+                    "grave": []
+                },
+                "ai": {
+                    "life": 30,
+                    "fatigue": 0,
+                    "bank": [
+                        1,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "lands": [],
+                    "units": [
+                        {
+                            "card": "C_CD942636"
+                        }
+                    ],
+                    "hand": [],
+                    "deck": [
+                        "C_DA499FAE",
+                        "C_DA499FAE"
+                    ],
+                    "grave": []
+                }
+            }
+        },
+        {
+            "id": "no-trigger-no-play",
+            "name": "④ 红只攻击不施放→不评估（蓝碑零触发）",
+            "note": "蓝(P1)场=潮痕碑+4未横置蓝地；红(P2)2红地+场[教学·8 7/7]+空手。红回合只做攻击（打脸7伤），没有任何卡牌施放→充盈评估口不触发：零播报零碑伤。",
+            "scenario": {
+                "startTurn": 10,
+                "firstPlayer": "P2",
+                "player": {
+                    "life": 30,
+                    "fatigue": 0,
+                    "bank": [
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "lands": [
+                        {
+                            "card": "C_11B82155",
+                            "tokenType": "Blue"
+                        },
+                        {
+                            "card": "C_11B82155",
+                            "tokenType": "Blue"
+                        },
+                        {
+                            "card": "C_11B82155",
+                            "tokenType": "Blue"
+                        },
+                        {
+                            "card": "C_11B82155",
+                            "tokenType": "Blue"
+                        }
+                    ],
+                    "units": [
+                        {
+                            "card": "C_DF45065E"
+                        }
+                    ],
+                    "hand": [],
+                    "deck": [
+                        "C_DA499FAE",
+                        "C_DA499FAE"
+                    ],
+                    "grave": []
+                },
+                "ai": {
+                    "life": 30,
+                    "fatigue": 0,
+                    "bank": [
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "lands": [
+                        {
+                            "card": "C_11B82155",
+                            "tokenType": "Red"
+                        },
+                        {
+                            "card": "C_11B82155",
+                            "tokenType": "Red"
+                        }
+                    ],
+                    "units": [
+                        {
+                            "card": "C_03E4B181"
+                        }
+                    ],
+                    "hand": [],
+                    "deck": [
+                        "C_DA499FAE",
+                        "C_DA499FAE"
+                    ],
+                    "grave": []
+                }
+            }
+        },
+        {
+            "id": "once-per-turn",
+            "name": "⑤ 同回合二连法术：两张都触发（≥x、无每回合上限）",
+            "note": "蓝(P1)场=潮痕碑+3未横置蓝地+手[潮汐×2]；红(P2)场=教学·灰源×2，空手。蓝连打两张潮汐：每张结算后差3≥2→各触发2伤，红墓2教学·灰源、场0。",
+            "scenario": {
+                "startTurn": 10,
+                "firstPlayer": "P1",
+                "player": {
+                    "life": 30,
+                    "fatigue": 0,
+                    "bank": [
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "lands": [
+                        {
+                            "card": "C_11B82155",
+                            "tokenType": "Blue"
+                        },
+                        {
+                            "card": "C_11B82155",
+                            "tokenType": "Blue"
+                        },
+                        {
+                            "card": "C_11B82155",
+                            "tokenType": "Blue"
+                        }
+                    ],
+                    "units": [
+                        {
+                            "card": "C_DF45065E"
+                        }
+                    ],
+                    "hand": [
+                        "C_DDB09243",
+                        "C_DDB09243"
+                    ],
+                    "deck": [
+                        "C_DA499FAE",
+                        "C_DA499FAE"
+                    ],
+                    "grave": []
+                },
+                "ai": {
+                    "life": 30,
+                    "fatigue": 0,
+                    "bank": [
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "lands": [],
+                    "units": [
+                        {
+                            "card": "C_CD942636"
+                        },
+                        {
+                            "card": "C_CD942636"
+                        }
+                    ],
+                    "hand": [],
+                    "deck": [
+                        "C_DA499FAE",
+                        "C_DA499FAE"
+                    ],
+                    "grave": []
+                }
+            }
+        },
+        {
+            "id": "own-turn-self-trigger",
+            "name": "⑥ 己方回合释放法术：自己触发（第三版语义）",
+            "note": "受测回合=蓝（firstPlayer=P1）。蓝(P1)场=潮痕碑+2未横置蓝地+手[潮汐0费]；红(P2)场=教学·灰源1/1，空手。蓝回合打出潮汐（己方释放法术）→整条连锁结算后蓝方充盈评估：差2≥x→触发2伤打死教学·灰源（2026-11-18 第三版：施放者本人+法术，不再要求对手回合）。",
+            "scenario": {
+                "startTurn": 10,
+                "firstPlayer": "P1",
+                "player": {
+                    "life": 30,
+                    "fatigue": 0,
+                    "bank": [
+                        1,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "lands": [
+                        {
+                            "card": "C_11B82155",
+                            "tokenType": "Blue"
+                        },
+                        {
+                            "card": "C_11B82155",
+                            "tokenType": "Blue"
+                        }
+                    ],
+                    "units": [
+                        {
+                            "card": "C_DF45065E"
+                        }
+                    ],
+                    "hand": [
+                        "C_DDB09243"
+                    ],
+                    "deck": [
+                        "C_03E4B181"
+                    ],
+                    "grave": []
+                },
+                "ai": {
+                    "life": 30,
+                    "fatigue": 0,
+                    "bank": [
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "lands": [],
+                    "units": [
+                        {
+                            "card": "C_CD942636"
+                        }
+                    ],
+                    "hand": [],
+                    "deck": [
+                        "C_DA499FAE",
+                        "C_DA499FAE"
+                    ],
+                    "grave": []
+                }
+            }
+        }
+    ]
 }

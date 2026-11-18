@@ -239,8 +239,17 @@ namespace CardCore.Attribute.Handlers
 
         public override void Execute(AtomicEffectInstance effect, EffectExecutionContext context)
         {
-            if (context.Targets == null) return; // 空解析=空转（不空发整卡、不入账）
-            foreach (var target in context.Targets)
+            // 无 Domain 原子：作用域写死在这里——没预选时自己选「己方元素池未横置的地」。
+            var targets = context.Targets;
+            if (targets == null || targets.Count == 0)
+            {
+                var pooled = context.ElementPool?.GetPooledCards(context.Controller);
+                targets = pooled != null
+                    ? pooled.Where(pc => pc?.SourceCard != null && !pc.IsTapped)
+                        .Select(pc => (Entity)pc.SourceCard).ToList()
+                    : new List<Entity>();
+            }
+            foreach (var target in targets)
             {
                 if (!(target is Card poolCard) || poolCard.GetZone() != Zone.ElementPool) continue;
                 // 只蛰伏效果控制者自己的地（域=己方元素池:卡，防御性双保险）

@@ -426,8 +426,20 @@ namespace SynergyUI
             var card = (core.ZoneManager.GetCards(owner, Zone.Deck) ?? new List<Card>())
                 .FirstOrDefault(c => c.ID == cardId
                     || (c.ID != null && c.ID.StartsWith(cardId + "#", StringComparison.Ordinal)));
-            if (card != null) container.Remove(card, Zone.Deck);
-            return card;
+            if (card != null)
+            {
+                container.Remove(card, Zone.Deck);
+                return card;
+            }
+
+            // 2026-11-18：衍生物模板开局被 InitGame 摘到 Extra 额外区——场景显式写在 units 的
+            // 衍生物卡（如蓝充盈的潮痕碑）从 Extra 取，不再因不在牌库而静默跳过。
+            var extra = (core.ZoneManager.GetCards(owner, Zone.Extra) ?? new List<Card>())
+                .FirstOrDefault(c => c.ID == cardId
+                    || (c.ID != null && c.ID.StartsWith(cardId + "#", StringComparison.Ordinal)));
+            if (extra != null)
+                container.Remove(extra, Zone.Extra);
+            return extra;
         }
 
         /// <summary>显式落位格是否在该玩家的单位区格集内（P1 行 1/2、P2 行 4/5；2026-10-29 P11

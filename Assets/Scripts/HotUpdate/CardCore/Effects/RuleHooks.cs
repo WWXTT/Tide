@@ -160,9 +160,9 @@ namespace CardCore
         public static void UnregisterHandLimitModifier(IHandLimitModifier modifier)
             => _handLimitModifiers.Remove(modifier);
 
-        /// <summary>玩家当前手牌上限（基值 12——2026-11-18 规则改版：常规上限最高 12 张，
-        /// 逐个套用修改链=结界给的额外上限可超出）。消费口：ZoneContainer 入手闸（满员改投
-        /// 除外区）与 GameCore.EnforceHandLimitAsync（上限缩水兜底）。</summary>
+        /// <summary>玩家当前手牌上限（基值 7——2026-11-18 定案：自己回合中无上限；
+        /// 自己回合末超 7 弃墓，对手回合中超 7 入除外区；逐个套用修改链=仪典给的额外上限）。
+        /// 消费口：ZoneContainer 入手闸与 GameCore.EnforceHandLimitAsync（回合末兜底）。</summary>
         public static int GetHandLimit(Player player)
         {
             var limit = DefaultHandLimit;

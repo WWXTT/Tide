@@ -48,6 +48,8 @@ dotnet run --project TideSim -- --games 50 --matchup red-blue --seed 20261104
 - `--matchup all|cross|mirror|red-blue|red-green|blue-green`
 - `--detail`：逐回合/逐出牌/技能/结果日志
 - `--quiet`：只打汇总
+- `--match-log`：导出与 Unity 窗口同源的 MatchLog（对账用）
+- `--lock-order`：固定排序局（预组按固定序抽牌/出牌，2026-11-15 起）
 
 回归入口（不跑对局）：
 
@@ -56,12 +58,18 @@ dotnet run --project TideSim -- --scenario          # 红快攻策略闸（血�
 dotnet run --project TideSim -- --tutorial-scenario # 固定盘面（红快攻9场景 + 蓝充盈 + 自由分支）
 dotnet run --project TideSim -- --chain-cast        # 连锁直伤：两张法术各付一次代价（1 生物时第二张效果无效）+ 参照快照
 dotnet run --project TideSim -- --deck-rule         # 卡组校验：代价×门奖励互斥（含改版前活体炸弹负例）
+dotnet run --project TideSim -- --keyword-scenario  # 教学二关键词课常驻回归口
+dotnet run --project TideSim -- --hunt-reset        # 狩猎击杀重置探针
+dotnet run --project TideSim -- --freeze-land-probe # 冻结扩地牌探针
 ```
+
+> 另有若干**临时探针参数**（`--cost-audit` / `--data-hash` / `--price-anchor` / `--green-probe` /
+> `--bloom-cost-probe` 等，标注「跑完删」），以 `TideSim/Program.cs` 实际注册为准，不在此登记。
 
 ## 预检（跑批量前自动执行）
 
 - 三套预组可读、卡表 ID 全部解析
-- 技能卡解析（红=激励 / 蓝=隐匿 / 绿=回收）
+- 技能卡解析（红=激励 / 蓝=蛰伏〔2026-11-18 替换隐匿〕 / 绿=牺牲〔旧称回收〕）
 - 策略**按预组名显式绑定**（红→RedAggro / 绿→GreenRamp / 蓝→BlueControl），不走 AutoMatch 猜测
 - 单色套非主色费告警（例如某张牌实际费用落在套牌付不起的颜色）
 

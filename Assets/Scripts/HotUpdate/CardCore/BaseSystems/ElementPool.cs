@@ -68,10 +68,6 @@ namespace CardCore
         /// 的增加全部走此加值，效果叠加不设限；各自池生效不共享）。</summary>
         public int LandCapBonus { get; set; }
 
-        /// <summary>套牌专属地牌上限（2026-11-18 用户定案：蓝预组=4，其余套牌不设=0 走曲线）。
-        /// 非 0 时**覆盖**曲线+成长加值——蓝套是 2 地启动、保底 4 地的爆牌卡组。</summary>
-        public int LandCapOverride { get; set; }
-
         /// <summary>本回合系统横置次数（付费自动横置；每个全局回合重置——纯观测）</summary>
         public int TapsThisTurn { get; set; }
 
@@ -416,7 +412,6 @@ namespace CardCore
         public int GetLandCap(Player player)
         {
             var pool = GetPool(player);
-            if (pool.LandCapOverride > 0) return pool.LandCapOverride; // 套牌专属上限（蓝预组 4）
             int cap;
             if (pool.Curve != null)
                 cap = pool.Curve.CapAt(pool.GlobalTurnIndex);

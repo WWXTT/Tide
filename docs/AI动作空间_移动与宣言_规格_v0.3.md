@@ -18,7 +18,7 @@
 | 新增 | `CardCore/Effects/InteractionParams.cs`（参数通道载体） |
 | 改 | `EffectExecutionContext` / `EffectInstance` / `PendingEffect` / `EffectExecutionEngine` / `GameActions.{PlayCard,CombatTurn,Costs}` / `MoveUnitHandler` / `ProphecyHandlerUtil.AskCardNameAsync` / `LegalActionEnumerator` / `TideObservation` / `AiStrategy` / `SimpleAI` / `tide_rl` 常量与 fixture |
 | 不改 | `ScriptedAi`（教程剧本）、联机协议、卡表/数值、UI（除 v0.2 已定的） |
-| 特征 | `NAction` 14→**17**，`LayoutVersion` 14→**15**（若 v0.2 未落，则从 12/13 一次升到 17/15） |
+| 特征 | `NAction` 14→**17**，`LayoutVersion` 升一号（**2026-11-18 审计注：原计划的 v15 已被「场地特殊化拆槽」占用〔v15/116/191，动作仍 14 维〕，本规格实施时须改用 **v16**） |
 | 验收 | 编译 + 无头探针（有展示/无展示、有空格/无空格、行枚举、SimpleAI 不白付） |
 
 ---
@@ -199,10 +199,10 @@ public static class DeclarationCandidates
 | **15** | `moveCellZ` | -1 / 0..高 | 本规格：`Interaction.MoveZ` |
 | **16** | `declaredNameIndex` | -1 / 0..15 | 本规格：候选表序号（同效果内可比；空=-1） |
 
-- `TideObservation.NAction` → **17**；`LayoutVersion` → **15**（v0.2 已落则 14→15；未落则 13→15）。
-- Python：`tide_rl/tide_features.py`：`LAYOUT_VERSION = 15`、`N_ACTION_FEATURES = 17`；
+- `TideObservation.NAction` → **17**；`LayoutVersion` 升一号（**2026-11-18 审计注：v15 号已被场地特殊化占用，实施时用 v16**；当前基线=v15/191/动作 14 维）。
+- Python：`tide_rl/tide_features.py`：`LAYOUT_VERSION` 同步升号、`N_ACTION_FEATURES = 17`；
   `export_onnx.py` fixture 补 14/15/16 三列。
-- `docs/AI训练说明.md`：冻结面改「v15 / 动作 17 维」；历史沿革加一行（移动/宣言参数 + 区域特征）。
+- `docs/AI训练说明.md`：冻结面同步改口径；历史沿革加一行（移动/宣言参数 + 区域特征）。
 
 ---
 

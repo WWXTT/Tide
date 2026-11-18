@@ -6,13 +6,16 @@ using CardCore.Attribute;
 
 namespace CardCore.AI
 {
-    /// 2026-11-13 蓝套改版（碑阵续航）：以**带充盈的结界**（潮痕碑=充盈·2伤 / 深潭碑=充盈·回响复制）
-    /// 为核心——先把结界尽量铺下去，再靠「剩余元素差恰好=门槛」反复触发充盈：
-    /// · 潮痕碑是主制胜轴（每次触发 2 伤）；
-    /// · 深潭碑触发回响，把**两类碑**源源不断复制进手牌（复制体当回合必须打出，否则「遗忘」到期出局）；
-    /// · 碑的耐久按「每 3 次触发扣整份耐久」消耗——回响断档就会把碑打光，所以回响落点只认碑、
-    ///   两类按场上数量补齐；碑阵死光后用回潮把墓地里的碑洗回牌库，再抽回来续循环。
-    /// 乱锋作控制、回潮兼防自抽干；蛰伏（英雄技能，2026-11-18 替换隐匿）：充盈踩不到档时
+    /// 蓝套（2026-11-18 卡组重做后口径：潮汐×12 / 深潭碑×8 / 乱锋×6 / 寒冬×4；回潮/潮痕碑已退组）：
+    /// 以**带充盈的深潭碑结界**为核心——T2 起放 2 地、下 1 个结界，然后潮汐连打触发结界（抽到潮汐继续打）。
+    /// · 充盈触发=第三版「己方释放法术后·仅法术」（BranchEngines，2026-11-18 定稿）——潮汐是法术，
+    ///   自己连打潮汐即可触发自己的碑；
+    /// · 判据=剩余元素差 **≥** 门槛（2026-11-13 起；旧「恰好=门槛」判据七退役）；
+    /// · 深潭碑触发召唤潮痕碑衍生物（不入手牌、无遗忘到期）——潮痕碑本体不在卡组，只经召唤出现，
+    ///   是主制胜轴；
+    /// · 碑的耐久按「每次触发 −1」消耗（2026-11-14 档位制；旧「每 3 次扣整份」退役）。
+    /// 乱锋/冻结作控制（只在对手回合响应：乱锋只控生物、冻结只冻对方地牌）；蛰伏（英雄技能，
+    /// 2026-11-18 替换隐匿）：充盈踩不到档时
     /// 横置全部未横置地攒费，下个自己的准备阶段回本等量临时彩元素。
     /// </summary>
     public sealed class BlueControlStrategy : AiStrategy
@@ -74,12 +77,11 @@ namespace CardCore.AI
         }
 
         /// <summary>铺地节奏（2026-11-18 三段式）：T1 最多 1 张、T2 起最多 2 张；
-        /// **潮汐/深潭碑=启动件不铺**；到达 2 地的优先级高于留 key 牌（回潮/乱锋最后一张也照铺）。</summary>
+        /// **潮汐/深潭碑=启动件不铺**；到达 2 地的优先级高于留 key 牌（乱锋最后一张也照铺；回潮已退组，寒冬不作地）。</summary>
         public override bool ShouldLand(GameCore core, Player me, Card card)
         {
-            // 2026-11-18 用户定案：**只有蓝预组**地牌上限 4（其余套牌走曲线 10）。
-            var bluePool = core?.ElementPool?.GetPool(me);
-            if (bluePool != null && bluePool.LandCapOverride != 4) bluePool.LandCapOverride = 4;
+            // 蓝 4 地停手线（2026-11-18 用户定案；同红 LandStop=3 的口径，策略侧钳总量）。
+            if ((core.ElementPool.GetPooledCards(me)?.Count ?? 0) >= 4) return false;
 
             int turn = OwnTurnIndex(core, me);
             int cap = core.TurnEngine.TurnNumber <= 1 ? 1 : 2;
@@ -91,7 +93,7 @@ namespace CardCore.AI
             // 寒冬：**不作地**（2026-11-18 定案——它是 4 地保底线的强开卡，当肥料吃掉就永远打不出）
             if (name == "寒冬") return false;
 
-            // 2026-11-18 用户定案：**先到 2 地，再谈留牌**——本回合没放满时，回潮/乱锋
+            // 2026-11-18 用户定案：**先到 2 地，再谈留牌**——本回合没放满时，乱锋
             // 即使只剩 1 张也照铺（2 地达标 → 充盈能触发，收益远大于留一张控制）。
             return base.ShouldLand(core, me, card);
         }
@@ -189,7 +191,7 @@ namespace CardCore.AI
             Func<Card, bool> containsHarmfulAtom, Func<Card, float> totalCost)
         {
             // 蓝套 2026-11-13（碑阵）：充盈控制——结界（碑）铺场是第一位，回响续牌、回潮洗碑回收。
-            // - 潮痕碑（充盈·2 伤）= 主制胜轴；深潭碑（充盈·回响复制）= 续航源（复制回伤害/复制两类碑）。
+            // - 潮痕碑（充盈·2 伤）= 主制胜轴；深潭碑（充盈·召唤潮痕碑）= 续航源（每次触发直接补一个衍生物）。
             // - 乱锋 = 控制；潮汐 = 过牌；回潮 = 洗碑回收 / 防自抽干。
             // - 蛰伏（英雄技能）：充盈踩不到档时横置全部地攒费，见 WantHeroSkill/OrderTargetCandidates。
             float score = 0f;
@@ -199,13 +201,13 @@ namespace CardCore.AI
             int myDeck = core.ZoneManager.GetCards(me, Zone.Deck)?.Count ?? 0;
 
             // ===== 基础运转节奏（2026-11-18 用户定案）=====
-            // ① 场上没碑：先下结界（深潭碑=回响 > 潮痕碑=2伤），潮汐先收着；
+            // ① 场上没碑：先下结界（深潭碑=召唤 > 潮痕碑=2伤），潮汐先收着；
             // ② 场上有碑：潮汐连打（每张己方法术都触发充盈），新碑降权（先触发，别叠）。
             bool steleOnBoard = HasOwnOverflowEnchantment(core, me);
             // 寒冬：正常循环起不来（充盈触发不了）时的保底强开——优先打出，冻住对方全部地。
             if (CardNameOf(card) == "寒冬" && !CanOverflowTrigger(core, me)) score += 900f;
             if (IsOverflow(card))
-                score += steleOnBoard ? -600f : (HasBranchAtom(card, AtomicEffectType.EchoCopy) ? 1500f : 1200f);
+                score += steleOnBoard ? -600f : ((HasBranchAtom(card, AtomicEffectType.EchoCopy) || HasBranchAtom(card, AtomicEffectType.SummonToken)) ? 1500f : 1200f);
             else if (HasBranchAtom(card, AtomicEffectType.DrawCard))
                 score += steleOnBoard ? 1800f : 200f;
 
@@ -213,10 +215,11 @@ namespace CardCore.AI
             {
                 bool overflowDamage = HasBranchAtom(card, AtomicEffectType.DealDamage);
                 bool overflowCopy = HasBranchAtom(card, AtomicEffectType.EchoCopy);
+                bool overflowSummon = HasBranchAtom(card, AtomicEffectType.SummonToken);
                 // 2026-11-13 蓝套改版：充盈碑=引擎本体，两张都进最高档——潮痕碑（充盈·2伤）是主制胜轴，
-                // 深潭碑（充盈·回响复制）是续航源（回响不断把两类碑补进手牌，耐久才接得上）。
+                // 深潭碑（充盈·召唤潮痕碑）是续航源（每次触发补一张衍生物，耐久才接得上）。
                 // 旧口径「深潜碑（磨牌）只作低优先填充、不围绕磨牌赢」随回响改版退役。
-                score += overflowDamage || overflowCopy ? 1200f : 450f;
+                score += overflowDamage || overflowCopy || overflowSummon ? 1200f : 450f;
             }
 
             // 控制轴：紊乱/弹回/冻结/沉默/易伤——对手有场面才值钱。
@@ -387,7 +390,7 @@ namespace CardCore.AI
 
         // ==================== 充盈碑阵（2026-11-13 蓝套改版） ====================
 
-        /// <summary>充盈碑（潮痕碑=充盈·2伤 / 深潭碑=充盈·回响复制）：带 ManaSurplus 引擎的场上卡。
+        /// <summary>充盈碑（潮痕碑=充盈·2伤 / 深潭碑=充盈·召唤潮痕碑）：带 ManaSurplus 引擎的场上卡。
         /// 判据走 CardHasAtom 同源的「主序列 + 槽级 branch.Then」扫描（手牌/战场两态同口）。</summary>
         private static bool IsFullnessMonument(Card c)
             => c != null && c.IsAlive && HasBranchAtom(c, AtomicEffectType.EngineManaSurplus);
@@ -812,3 +815,4 @@ namespace CardCore.AI
         }
     }
 }
+

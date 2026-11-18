@@ -573,7 +573,7 @@ namespace CardCore
         /// **2026-11-14 档位制**——PerTurn/Multi/Active 恒 1；Rare 读权重表行 <c>Factor</c>
         ///（=触发概率，沿续 2026-11-10 之前的概率口径；缺行/表不可读回落 TimingFactor 桶默认）。
         /// 2026-11-10 的 f=1.2^(E[N]−1) 指数曲线随本批退役——「一回合一次的期望」不再随 E[N] 加价，
-        /// 稀有档直接按概率折算。改表 Factor 即同步改计价与展示。</summary>
+        /// 稀有档直接按概率折算。改表 Factor 即同步改计价与展示（注：仅 Rare 档行 Factor 进计价——PerTurn/Multi 恒 1，改非 Rare 行 Factor 不生效）。</summary>
         public static float TimingCostFactorOf(TriggerTiming timing)
         {
             var tier = TimingWeights.TierOf(timing);

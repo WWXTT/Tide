@@ -354,9 +354,14 @@ namespace CardCore.Attribute.Handlers
             var controller = context.Controller;
             var targeted = context.Targets?.OfType<Card>().ToList();
             int fallback = effect.Value > 0 ? context.GetValueAfterModifiers(effect.Value) : 1;
-            List<Card> toRecover = (targeted != null && targeted.Count > 0)
-                ? targeted.ToList()                                   // 选了几张就回几张
-                : context.ZoneManager.GetCards(context.Controller, Zone.Graveyard).Take(fallback).ToList();
+            var graveyard = context.ZoneManager.GetCards(controller, Zone.Graveyard).ToList();
+            // 2026-11-18 定案：value=99 = 「全部」（归根）。目标选择在 count=99 时会因需要 99 张
+            // 候选而失败、整张牌不结算；这里对「全部」直接取整墓，忽略目标列表。
+            List<Card> toRecover = effect.Value >= 99
+                ? graveyard
+                : (targeted != null && targeted.Count > 0
+                    ? targeted.ToList()
+                    : graveyard.Take(fallback).ToList());
 
             foreach (var card in toRecover)
             {

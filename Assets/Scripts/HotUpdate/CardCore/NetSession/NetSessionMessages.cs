@@ -7,9 +7,9 @@ namespace CardCore.Network
     // 会话层消息（M2，2026-09-23 定案）：房间状态机 + intent 拒绝/Error 载荷。
     // 会话语义见根目录 网络协议.md §12；线格式仍走 NetworkMessage 信封 + FrameCodec 帧。
     //
-    // 流程（2026-10-28 开局流程改版：房间就绪 → 房主开局 → 战场内选卡组 → 握手 → 开战）：
-    //   连接后第一条上行必须是 JoinRoom(111)（分座/观战登记；椅位0=房主）；
-    //   Waiting：房主 RoomSettings(130) 配模式（先后手方式+洗牌）·客人 RoomReady(131) 准备 toggle；
+    // 流程（2026-10-28 开局流程改版 / v17 房主自报：房间就绪 → 房主开局 → 战场内选卡组 → 握手 → 开战）：
+    //   连接后第一条上行必须是 JoinRoom(111)（分座/观战登记；房主=IsHost 首个声明者，未声明回落椅 0 现占者——v17 起不再「椅位0=房主」）；
+    //   Waiting：房主 RoomSettings(130) 配模式（先后手方式+洗牌）·非房主 RoomReady(131) 逐座准备 toggle；
     //   房主 RoomStart(132)（门槛=双方就座+客人已准备）→ 先手按模式确定 → 广播 RoomState(121, DeckSubmit)
     //   + 30s 选卡组倒计时（DeckPickSecondsLeft 整秒推送；超时服务器替落随机预组）；
     //   双座位 DeckSubmit(110) 校验通过 → MatchManifest(120) 下发（OwnSeat=本局引擎座位）→ 开局。
@@ -21,7 +21,7 @@ namespace CardCore.Network
     //   RoomState.FirstSeatThisMatch 同时广播供 UI 展示。
     // ============================================================
 
-    /// <summary>下行：Error 帧载荷（99）。intent 拒绝 / 握手拒绝 / 房间操作拒绝共用；
+    /// <summary>下行：Error 帧载荷（Error=123，2026-10-31 阶段D 重排迁入下行段；旧草稿值 99 已废）。intent 拒绝 / 握手拒绝 / 房间操作拒绝共用；
     /// Context 标注来源（如 "IntentPlayCard" / "DeckSubmit" / "JoinRoom"），Reason 为人可读原因。
     /// Channel（v17 2026-11-11 通道拆分）：拒绝帧归属通道（NetworkChannel 值）——客户端按它把
     /// 房间拒绝投给房间事件面、对战拒绝投给对战事件面（对局中房聊等房间拒绝不进战斗提示）。</summary>

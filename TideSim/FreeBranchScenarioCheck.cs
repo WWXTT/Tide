@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -11,9 +11,11 @@ using SynergyUI;
 namespace TideSim
 {
     /// <summary>
-    /// 教学式固定盘面场景回归（2026-11-06）——自由分支·引擎主干 7 种（元素充盈已由蓝充盈场景覆盖）的
-    /// 行为级验证：倒计时（准备阶段 tick·归零直发·重挂）/ 运势（主动发动掷 2d6 双≥x）/ 拼抢（攻击宣言·
-    /// 牌库随机生物比攻·差≥门槛）/ 死亡计数（双方生物死亡累计·满值6）/ 团结（施放结算后邻接占用≥x）/
+    /// 教学式固定盘面场景回归（2026-11-06；拼抢断言 2026-11-18 随改版翻新）——自由分支·引擎主干 7 种
+    /// （元素充盈已由蓝充盈场景覆盖）的行为级验证：倒计时（准备阶段 tick·归零直发·重挂）/ 运势
+    /// （主动发动掷 2d6 双≥x）/ 拼抢（**2026-11-18 改版：攻击宣言时双方手牌暗弃一张比费用**——
+    /// 可拒绝/未弃=0、抉择法术按 0 费、差额封顶 6 ≥ 门槛；旧「牌库随机生物比攻」口径已退役）/
+    /// 死亡计数（双方生物死亡累计·满值6）/ 团结（施放结算后邻接占用≥x）/
     /// 附加诅咒·附加祝福（施放部署→抽到发作→消层）。
     /// · 盘面来自 Assets/TutorialData/自由分支场景.json（scenario 块=教学 TutorialScenario 同构，
     ///   TutorialScenarioSeeder 静默注入）。受测行动方恒红（P2，SimpleAI(General) 走完整回合）；蓝（P1）
@@ -207,6 +209,7 @@ namespace TideSim
                 supertype = nameof(Cardtype.Creature),
                 power = 1,
                 life = 1,
+                tags = new List<string> { "教学" }, // 夹具：引擎载体旧规则只告警不拦截
                 effects = new List<CardEffectData> { fx },
             };
             string cardJson = CardConfigCompact.EmitCompact(new List<CardConfigEntry> { entry });

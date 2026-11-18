@@ -10,10 +10,11 @@ namespace SynergyUI
     /// 双方卡组的**顺序即摸牌序列**（InitGame lockDeckOrder 锁牌库序：前 OpeningHandSize 张为起手、
     /// 之后逐回合摸牌恒取牌库顶）；机器人逐回合动作脚本由 ScriptedAi 按条执行；rngSeed=复现钉子
     /// （2026-10-20 定案：非 0=钉同局重放；0/缺省=每局新抽——效果随机换局不同，卡序/剧本仍确定）。
-    /// 数据：Assets/Configs/ 按课拆档（2026-10-19 三课制）：TutorialConfig.json=第一课（basics 攻防）、
-    /// TutorialConfig2.json=第二课（advanced 进阶机制）、TutorialConfig3.json=第三课（lunzhuan 毕业连战
+    /// 数据：Assets/Configs/ 按课拆档（2026-11-11 起四课制）：TutorialConfig.json=教学一（basics 攻防）、
+    /// TutorialConfig4.json=教学二（basics_plus 关键词，2026-11-09 入库）、TutorialConfig2.json=教学三
+    /// （advanced 主动效果）、TutorialConfig3.json=教学四（lunzhuan 毕业连战
     /// ——2026-11-02 改版：预组三连战，条目仅存 id/name，引导/剧本/boss 链全删），TutorialLibrary
-    /// 三档合并装载（TidePaths 寻址：编辑器直读、直改 JSON 后 Reload 免重启，
+    /// 四档合并装载（TidePaths 寻址：编辑器直读、直改 JSON 后 Reload 免重启，
     /// 真机由宿主装配进热更包——同 AtomicEffectTable 惯例）。
     /// </summary>
     [Serializable]

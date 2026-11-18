@@ -9,8 +9,9 @@ namespace CardCore
     /// 教学进度管理器（2026-10-06 教学逻辑层）：首次登录在 persistentDataPath 建档（仿
     /// ElementUnlockManager 范式：惰性单例 + TideJson + 每次变更即写、缺档回落默认并落盘），
     /// 记录已完成教学关卡。UI 层（主菜单按钮显隐）后续只读本类，不再自持进度状态。
-    /// 状态机（2026-10-19 三课制定案）：建档零进度 → 按 CourseOrder 逐课推进（basics 攻防 →
-    /// advanced 进阶机制 → lunzhuan 末日降临 Boss）→ 三课全胜=教学整体完成（IsTutorialDone，
+    /// 状态机（2026-10-19 定三课制 · 2026-11-09 加 basics_plus · 2026-11-11 重编号为四课制）：
+    /// 建档零进度 → 按 CourseOrder 逐课推进（basics 攻防 → basics_plus 关键词 → advanced 主动效果 →
+    /// lunzhuan 毕业连战〔Boss 战 2026-11-02 退役改预组三连战〕）→ 四课全胜=教学整体完成（IsTutorialDone，
     /// 主菜单教学按钮隐藏/联机入口外露——2026-10-25 本地对战按钮退役）。无任何跳过/免教学路径——教学按钮纯进度路由。
     /// （旧「结业镜像局」环节 2026-10-19 随三课制整删：finalChallengeDone 字段/MarkFinalChallengeDone/
     ///   ShouldShowFinalChallenge 全链退役，旧档多余键反序列化自动忽略，天然兼容。）
@@ -29,7 +30,8 @@ namespace CardCore
         /// 补完本课即恢复，设计使然。</summary>
         public const string BasicsPlusId = "basics_plus";
 
-        /// <summary>第三课·创作管线关卡 id（无战斗剧本——TutorialCreationFlow 走查制，
+        /// <summary>创作管线关卡 id（**已取消**——2026-10-17 退出序列；曾为旧三课制第三课，
+        /// 现行序列第三课=advanced，勿按此注记编号。无战斗剧本——TutorialCreationFlow 走查制，
         /// 不是 TutorialConfig 条目；StartTutorialBattle 对本 id 分流到 BeginLesson）。</summary>
         public const string CreationLessonId = "chuangzuo";
 
@@ -90,22 +92,22 @@ namespace CardCore
         /// <summary>进行中的教学关卡 id（null=未开始/已完成）。</summary>
         public string CurrentTutorial => _data.currentTutorial;
 
-        /// <summary>新手课程序列（CourseOrder）是否全部完成（三课全胜=教学整体完成）。</summary>
+        /// <summary>新手课程序列（CourseOrder）是否全部完成（四课全胜=教学整体完成）。</summary>
         public bool IsCourseCompleted
             => CourseOrder.All(id => _data.completedTutorials.Contains(id));
 
-        /// <summary>教学整体完成（2026-10-19 三课制：三课全胜即完成——结业镜像局环节退役）——
+        /// <summary>教学整体完成（2026-11-11 起四课制：四课全胜即完成——结业镜像局环节退役）——
         /// 主菜单解除门禁（教学按钮隐藏、联机入口外露）的判据。</summary>
         public bool IsTutorialDone => IsCourseCompleted;
 
         /// <summary>主菜单是否门禁（true=只显示教学按钮；教学未完成期间）。</summary>
         public bool ShouldGateMainMenu => !IsTutorialDone;
 
-        /// <summary>第三课创作管线走查状态（null=未开课；差集判定「新建」的开课基线+三步进度）。</summary>
+        /// <summary>创作管线走查状态（课程已取消 2026-10-17；曾为旧三课制第三课，现行第三课=advanced。null=未开课；差集判定「新建」的开课基线+三步进度）。</summary>
         public CreationLessonData Creation => _data.creation;
 
         /// <summary>下一步要开的教学关卡 id（进行中优先 → 序列中第一个未完成 → 全完成=null）。
-        /// null=新手课程已全部走完（三课全胜=IsTutorialDone，主菜单教学按钮已隐藏）。
+        /// null=新手课程已全部走完（四课全胜=IsTutorialDone，主菜单教学按钮已隐藏）。
         /// 2026-10-17 教学一改版兼容：tianji 攻防段并入 basics 第二段移出 CourseOrder——旧档残留的
         /// currentTutorial=tianji（序列外）作废，按序列首门未完成课取。</summary>
         public string NextTutorialId
@@ -135,7 +137,7 @@ namespace CardCore
             SaveAndNotify();
         }
 
-        /// <summary>第三课走查状态写入（TutorialCreationFlow 专用：检测到步骤推进时整组替换落档）。</summary>
+        /// <summary>创作管线走查状态写入（TutorialCreationFlow 专用：课程已取消；检测到步骤推进时整组替换落档）。</summary>
         public void WriteCreationState(CreationLessonData creation)
         {
             _data.creation = creation;

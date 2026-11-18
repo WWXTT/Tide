@@ -53,7 +53,7 @@
 | N1 | **全程无原生崩溃**（2026-10-24 第3阶段新增）：`E/CRASH` / `Fatal signal` / `signal 11` / `backtrace:` / `tombstone` / `Process com.WwtT.Tide (pid N) has died` 任一命中即 FAIL（cold+warm+f 合扫，idle⊂cold 不重复）。动因：22:45 跑两起漏判——首启 SIGSEGV（E/CRASH 转储刷 59058 行）与「启动完成后 54ms 即崩」，均无 Java FATAL，G1/B2/C3 全瞎。A0r 重试必须附首试崩溃证据（块数/pid/信号/Cause/栈首帧），不许只写「起步抖动」。模式噪音底=21:25 干净跑全零标定；`has died` 按包名+pid 格式限定防他 app 死亡误伤 |
 
 ### 交互流（F 段 —— 2026-10-24 第2阶段启用）
-设备准备（F0）：force-stop 后 adb push `assets/TutorialProgress.json`（三课全胜存档，解锁 btn-deck
+设备准备（F0）：force-stop 后 adb push `assets/TutorialProgress.json`（四课全胜存档——basics/basics_plus/advanced/lunzhuan，解锁 btn-deck
 教学门槛）到 `/sdcard/Android/data/com.WwtT.Tide/files/`，md5 校验落地；冷启到主菜单
 （首装/清数据会先弹隐私同意 → 点 btn-agree 再进，链路有回响断言）。
 坐标一律离线推导（`coords.sh` 登记表：预制体=execute_code 附加场景布局直调读数；

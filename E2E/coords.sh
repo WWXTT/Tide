@@ -9,7 +9,7 @@
 #       GetWorldCorners 读数（VLG 运行时排布，序列化 anchoredPosition 不可信）
 #     - 代码面板按钮 = 源码布局常量推算（PrivacyConsentDialog）
 #     - 主菜单按钮位置随教学门槛态变化（RefreshTutorialGates 显隐 + VLG 重排），
-#       本表登记「三课全胜态」（F 段注入存档后的实况）
+#       本表登记「四课全胜态」（F 段注入存档后的实况）
 #   * 每个坐标首次使用必须被 `[UI点击] <name>` 回响证实（tap_expect），无回响=坐标失效
 #     → 先重推导再重跑，不许调参试错
 #   * 画布 = CanvasScaler 1920×1080 Expand（MuMu 2560×1440 恰 16:9 → 恒 1920×1080，
@@ -20,7 +20,7 @@ UI_DEV_W=0; UI_DEV_H=0; UI_ORIENT="?"
 
 # 坐标登记表：键=脚本用名 → "dx,dy"（设计坐标系，左上原点）
 declare -A UI_COORDS=(
-  # ---- MainUI.prefab（主菜单·三课全胜态：match/deck/card/effect/teststart 五钮纵排）----
+  # ---- MainUI.prefab（主菜单·四课全胜态：match/deck/card/effect/teststart 五钮纵排）----
   # 2026-10-25 本地对战（btn-battle）退役后重推导（LoadPrefabContents+VLG 直调）：
   # menu VLG spacing=0·forceExpand·childControl=false，高 734 恒定=激活钮均分 → 五钮各 146.8。
   # 注意 btn-match 在 prefab 默认 activeSelf=0（运行时 done 态激活）——推导须显式 SetActive。
