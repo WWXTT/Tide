@@ -269,31 +269,22 @@ namespace CardCore.Editor
                            $"0 蓝地 PlayCard 拒绝（实际：{playWhy}）——不声明、不入栈");
 
                     // ⑥B 补足等量蓝地：过闸（等于放行）→ 声明+排干结算照走
-                    // （地生物锁色候选=推导费∪主动效果锚价——costList 只是显示缓存；主动效果挂
-                    // 抽卡原子=蓝锚价 → 可显式锁蓝；裸无费生物会被 TryAddToPool 以「无可锁定产色」拒）
+                    // B2（2026-11-18 0 费禁地恢复后夹具改直供）：本段测资敌代价净费与地牌闸，
+                    // 不测地牌资格——夹具地直接 PooledCards.Add 供给（旧走 TryAddToPool 的 1/1
+                    // 白板推导恒 0 费，被「0费卡不可作为地牌」拒）；0 费禁地规则由
+                    // ElementPoolSystem.CanPlaceAsLand 单测/规范总校验覆盖，不在此重复。
                     for (int i = 0; i < blueGrant; i++)
                     {
                         var landData = new CardData
                         {
                             ID = "VERIFY_GATE_LAND" + i, CardName = "闸蓝地" + i, Supertype = Cardtype.Creature,
                             Power = 1, Life = 1,
-                            Effects = new List<CardEffectData>
-                            {
-                                new CardEffectData
-                                {
-                                    Id = "VERIFY_GATE_LAND" + i + "_EFF",
-                                    TriggerTiming = (int)TriggerTiming.Activate_Active,
-                                    ActivationType = (int)EffectActivationType.Voluntary,
-                                    AtomicEffects = new List<AtomicEffectEntry> {
-                                        Atom(AtomicEffectType.DrawCard, value: 1,
-                                             kinds: new List<int> { (int)CardCore.TargetKind.OwnDeck }) },
-                                },
-                            },
                         };
                         var landCard = new CardWrapper(landData);
                         landCard.SetController(p1);
-                        Assert(core.ElementPool.TryAddToPool(landCard, p1, ManaType.Blue, out var landWhy),
-                               $"补第 {i + 1}/{blueGrant} 个蓝地入池（实际：{landWhy}）");
+                        core.ElementPool.GetPool(p1).PooledCards.Add(new CardCore.PooledCard(landCard, ManaType.Blue));
+                        Assert(GameActions.CountLands(core, p1, ManaType.Blue) == i + 1,
+                               $"补第 {i + 1}/{blueGrant} 个蓝地入池（夹具直供·CountLands 实读）");
                     }
                     Assert(GameActions.GetPayloadGateReject(core, p1, gateCard) == null,
                            $"蓝地 {blueGrant} = 蓝生成面 {blueGrant} → 过闸（等于放行）");
@@ -365,7 +356,11 @@ namespace CardCore.Editor
                     ID = id, CardName = "验证资敌卡" + id, Supertype = Cardtype.Creature,
                     // 2026-11-06 opt-in 补攻守：② 段净费=抵扣前费−代价价的关系依赖卡费有绿桶
                     //（治疗代价行色锁绿）——2026-11-14 基础属性归灰后身材不再产绿，绿色分量改由
-                    // 效果内的 Heal 原子提供（0.5 绿/点 → 进位 1 绿）。
+                    // 效果内的 Heal 原子提供。
+                    // 2026-11-18 方案①定稿（净费取证）：timing 缺省=OnPlay（Rare 0.9）下 E/K 分摊
+                    // **一次取整**（最大余数法）——Heal1 的绿 0.45 争不到余数被吸收（绿桶 0、抵扣无
+                    // 落牙）；Heal 提到 2 → 红 0.9+绿 0.9、payInt=round(1.8)=2 → 绿得 1 → 抵扣落牙
+                    //（Pre4→Net3·Applied1）。绿色分量非「0.5 绿/点直进绿桶」，须 ≥0.5 且争到取整余数。
                     AttackAbility = true, GuardAbility = true,
                     Power = 2, Life = 2,
                     Effects = new List<CardEffectData>
@@ -375,7 +370,7 @@ namespace CardCore.Editor
                             Id = id + "_EFF",
                             AtomicEffects = new List<AtomicEffectEntry>
                                 { Atom(AtomicEffectType.DealDamage, value: 1, kinds: new List<int> { (int)CardCore.TargetKind.EnemyLivingUnit }),
-                                  Atom(AtomicEffectType.Heal, value: 1) }, // 绿色分量（0.5 绿/点）——2026-11-14 身材归灰后由本原子提供
+                                  Atom(AtomicEffectType.Heal, value: 2) }, // 绿色分量（×0.9 后 0.9，一次取整争到 1 绿）
                         },
                     },
                 };
@@ -752,7 +747,12 @@ namespace CardCore.Editor
                     AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.Heal, value: 1) },
                 });
                 var greenLand = InjectCard(core, p1, greenLandData);
-                Assert(GameActions.AddToElementPool(core, p1, greenLand), "资敌段：绿主色地入池（③地牌门槛供给）");
+                // B2（2026-11-18 0 费禁地恢复后夹具改直供）：绿垫地=1/1+OnPlay Heal(绿0.5) 推导 <1
+                // 被当 0 费拒——本段测资敌净费与③地牌门槛，不测地牌资格，直供入池+zone 双账。
+                core.ElementPool.GetPool(p1).PooledCards.Add(new CardCore.PooledCard(greenLand, ManaType.Green));
+                core.ZoneManager.MoveCard(greenLand, p1, Zone.Hand, Zone.ElementPool);
+                Assert(GameActions.CountLands(core, p1, ManaType.Green) == 1,
+                       "资敌段：绿主色地入池（③地牌门槛供给·夹具直供）");
                 int greenBefore = (int)pool1.TempElements[ManaType.Green];
                 string p5Why = null;
                 bool p5Ok = core.StackEngine.GetExecutor().TryActivate(healDef, healCardC, p1,

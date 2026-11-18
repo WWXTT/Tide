@@ -107,6 +107,9 @@ namespace SynergyUI
                 foreach (var selector in rowAxis.Selectors)
                 {
                     if (selector == null) continue;
+                    // 场地特殊化 2026-11-18：赋加行（指示物/关键词）对场地空转——下拉不出场地选项
+                    //（静态拦口，与装载告警/运行时闸三面一致）；非赋加行按极性出 己方/对方/双方场地。
+                    if (grantRow && TargetRegionRules.IsFieldRegion(selector.Region)) continue;
                     // 单段轴：单侧 selector 原样；Both selector 按极性收窄成单侧（p=0 原样）。
                     // 不再产 己方/对方/双方 三个变体——双方段只出极性那一侧，单侧段不出对侧。
                     var single = new TargetAxis();
@@ -216,7 +219,7 @@ namespace SynergyUI
             bool isCounterRow = !isKeywordRow && mounts.Contains(MountKind.Counter);
             bool grantRow = isKeywordRow || isCounterRow;
             // 动态数量开放面（2026-11-14）：主干原子（槽位 allowDynamic）+ 非召唤行
-            //（召唤数量由自身 num 数量档承载）。无域行不显示本面板，无需行标拦全取。
+            //（召唤数量由 derivative 行的 value 输入承载——不是 target count 档）。无域行不显示本面板，无需行标拦全取。
             // 是否「主动效果」不在选项面拦——选中动态时若效果还是自动，自动切主动并提示
             //（动态数量必须发动时计费；结界宿主的宿主形状闸仍会拒绝）。
             bool summonRow = cfg.EnumName == nameof(AtomicEffectType.SummonToken);
@@ -239,11 +242,12 @@ namespace SynergyUI
                 bool allowsAll = TargetAxisRules.AllowsAllTarget(countAxis);
                 bool allowsMulti = countAxis != null && countAxis.Selectors.Any(s =>
                     s != null && s.Region != TargetRegion.Self
-                    && !TargetRegionRules.IsCharacter(s.Region)); // 角色域只 1（2026-11-07 定案）
+                    && !TargetRegionRules.IsCharacter(s.Region)
+                    && !TargetRegionRules.IsFieldRegion(s.Region)); // 角色域只 1（2026-11-07 定案）；场地同口径只 1（2026-11-18 场地特殊化）
                 if (!allowsAll && atom.count == 0)
                 {
                     Debug.LogWarning($"[EffectComposer] 原子 {cfg.EnumName}（{atom.refId}）不可开「全部」档"
-                                   + "（域含牌库/墓地/除外区/元素池/角色/Self——全域仅限战场/手牌）：数量已收为 1");
+                                   + "（域含牌库/墓地/除外区/元素池/角色/场地/Self——全域仅限战场/手牌）：数量已收为 1");
                     atom.count = 1;
                 }
                 if (!allowsMulti && (atom.count == 2 || atom.count == 3))
@@ -450,8 +454,8 @@ namespace SynergyUI
         }
 
         /// <summary>每原子引用卡行（derivative）——按原子表「参数」列分流：
-        /// CardRef（召唤衍生物）＝「选择卡牌」控件（点按开搜索+列表弹层，仅真实生物/结界卡
-        /// ——召唤只列生物），选中写卡 ID 进 str、已选显卡名缩略；
+        /// CardRef（召唤衍生物）＝「选择卡牌」控件（点按开搜索+列表弹层，生物/结界模板
+        /// ——2026-11-18 放宽），选中写卡 ID 进 str、已选显卡名缩略；
         /// CardRef 的变形/模拟（2026-10-30 定案·2026-11-08 落地）＝行隐藏——引用卡与发动时机
         /// 都在卡牌合成界面设置（本屏动态主干提示已注明），效果组合期不填；
         /// EffectRef（2026-11-06 附加诅咒/祝福载荷效果化）＝「选择载荷效果」控件（点按开效果库弹层
@@ -459,7 +463,7 @@ namespace SynergyUI
         /// 选中写效果 id 进 str；
         /// CardName/Dimension（检索/强夺/窃取/筛选展示/预言两行——押注行 2026-11-02 同收紧类别档）
         /// ＝战斗期弹窗接管（本行隐藏；旧预置 str 保留兼容＝战斗弹窗默认值，不再在此输入）。
-        /// 召唤衍生物保留 num 数量下拉（1-3）。槽卡与奖励卡共用。</summary>
+        /// 召唤衍生物：数量走 atom.value 输入（任意正整数），目标数量档不参与；引用卡在卡组合界面设置。槽卡与奖励卡共用。</summary>
         private void BindAtomDerivativeRow(RectTransform host, AtomicEffectEntry atom)
         {
             var row = UiKit.FindDeep(host, "derivative");
@@ -473,14 +477,21 @@ namespace SynergyUI
             bool isCardRef = cfg != null && cfg.Param == AtomicParamKind.CardRef;
             bool isEffectRef = cfg != null && cfg.Param == AtomicParamKind.EffectRef;
             bool isDeclareStr = IsDeclarationStrEntry(atom);
-            // 变形/模拟（2026-10-30 定案）：引用卡在卡牌合成界面选择——本屏行隐藏（CardRef 行中
-            // 只有召唤衍生物保留选择控件；恒 1 收值与 num 隐藏照走下方公共段）
-            bool refInCardComposer = IsGrantMorphEntry(atom) || IsImitateEntry(atom);
+            // 变形/模拟/召唤衍生物（2026-11-18）：引用卡在卡牌合成界面选择——本屏只保留召唤数量；
+            // CardRef 行中召唤不再显示选卡控件（避免效果组合期指定召唤对象）。
+            bool refInCardComposer = IsGrantMorphEntry(atom) || IsImitateEntry(atom) || isSummon;
 
             if (isCardRef && !refInCardComposer)
             {
                 row.gameObject.SetActive(true);
                 BindCardRefField(row, atom, isSummon);
+            }
+            else if (isSummon)
+            {
+                // 召唤数量=value（任意正整数，2026-11-18 用户定案）；1/2/3 档是 target count，不混用。
+                // 引用模板由卡组合界面「设置衍生物」选定，本屏不显示选卡控件。
+                row.gameObject.SetActive(true);
+                BindSummonQuantityField(row, atom);
             }
             else if (isEffectRef)
             {
@@ -495,40 +506,10 @@ namespace SynergyUI
                 row.gameObject.SetActive(false);
             }
 
+            // 召唤数量改由 InputField 输入 value（任意正整数）；1/2/3 下拉是 target count，不用于召唤。
             var numNode = UiKit.FindDeep(row, "num");
-            // 数量下拉仅召唤显示（2026-10-13 变形赋予恒 1；宣言/维度行无数量——隐藏）
-            if (numNode != null) numNode.gameObject.SetActive(isCardRef && isSummon);
-            if (!isSummon)
-            {
-                if (isCardRef) atom.value = 1; // 变形/模拟恒 1（原口径）
-                return;
-            }
-
-            var numDd = numNode?.GetComponent<TMP_Dropdown>();
-            if (numDd == null) Debug.LogError("[EffectComposer] derivative 行缺 num 下拉——召唤数量不可编；检查 EffectUI.prefab");
-            else
-            {
-                // 档位收窄 1-3（2026-10-10 定案，原 1-5）：旧档 4/5 落数据绑定时归一（>3 收 3、
-                // 其余非法值落 1），显示与数据一致后才挂监听
-                var tiers = new List<int> { 1, 2, 3 };
-                int idx = tiers.IndexOf(atom.value);
-                if (idx < 0)
-                {
-                    atom.value = atom.value > 3 ? 3 : 1;
-                    idx = tiers.IndexOf(atom.value);
-                }
-                numDd.ClearOptions();
-                numDd.AddOptions(tiers.Select(v => v.ToString()).ToList());
-                numDd.SetValueWithoutNotify(idx);
-                numDd.RefreshShownValue();
-                numDd.onValueChanged.RemoveAllListeners();
-                numDd.onValueChanged.AddListener(i =>
-                {
-                    atom.value = tiers[Mathf.Clamp(i, 0, tiers.Count - 1)];
-                    RefreshSlots();
-                });
-                UiKit.Described(numDd, "召唤数量（1-3）：一次召唤几个衍生物——每个都是独立实例，战场满位时后续入墓。");
-            }
+            if (numNode != null) numNode.gameObject.SetActive(false);
+            if (isCardRef && !isSummon) atom.value = 1; // 变形/模拟恒 1（原口径）
         }
 
         /// <summary>只读输入位点按接线（2026-11-08 修复）：InputField 节点已挂 TMP_InputField
@@ -550,6 +531,31 @@ namespace SynergyUI
 
         /// <summary>CardRef 行选择控件（2026-10-31 阶段C）：InputField 退化为只读显示位
         ///（已选=卡名缩略+ID，未选=占位提示），点按本体开卡牌选择弹层。</summary>
+        /// <summary>召唤数量输入（2026-11-18）：走 atom.value（任意正整数），与 target count 的
+        /// 1/2/3 档完全分开——效果组合期不选召唤对象，只改数量/时机。</summary>
+        private void BindSummonQuantityField(RectTransform row, AtomicEffectEntry atom)
+        {
+            var field = UiKit.FindDeep(row, "InputField")?.GetComponentInChildren<TMP_InputField>(true);
+            if (field == null)
+            {
+                Debug.LogError("[EffectComposer] derivative 行缺 InputField——召唤数量不可编；检查 EffectUI.prefab");
+                return;
+            }
+            field.gameObject.SetActive(true);
+            field.readOnly = false;
+            field.interactable = true;
+            field.contentType = TMP_InputField.ContentType.IntegerNumber;
+            int value = Mathf.Max(1, atom.value);
+            field.SetTextWithoutNotify(value.ToString());
+            field.onValueChanged.RemoveAllListeners();
+            field.onValueChanged.AddListener(text =>
+            {
+                if (int.TryParse(text, out var v) && v >= 1) atom.value = v;
+            });
+            UiKit.Described(field, "召唤数量（value）：任意正整数——一次召唤几个衍生物；"
+                                   + "这里的 1/2/3 不是目标数量档（target count），两者独立。");
+        }
+
         private void BindCardRefField(RectTransform row, AtomicEffectEntry atom, bool creatureOnly)
         {
             var idField = UiKit.FindDeep(row, "InputField")?.GetComponentInChildren<TMP_InputField>(true);
@@ -564,7 +570,7 @@ namespace SynergyUI
             BindInputFieldTap(idField, () => OpenCardRefPicker(atom, creatureOnly,
                 () => RefreshCardRefField(idField, atom.str, creatureOnly)));
             UiKit.Described(idField, creatureOnly
-                ? "选择卡牌（召唤衍生物）：指向一张真实生物卡——实例=该卡全参数复制、恒落战场。"
+                ? "选择卡牌（召唤衍生物）：指向一张真实生物/非场地结界卡——实例=该卡全参数复制、恒落战场。"
                   + "未选则保存被拦（与装载期校验同口径）。"
                 : "选择卡牌（变形/模拟/诅咒/祝福载荷）：指向一张真实生物或结界卡——选中写卡 ID 进原子。"
                   + "未选则保存被拦（与装载期校验同口径）。");
@@ -579,22 +585,21 @@ namespace SynergyUI
                 : "");
             if (field.placeholder is TMP_Text ph)
                 ph.text = string.IsNullOrEmpty(str)
-                    ? (creatureOnly ? "（未选——点此选择生物卡）" : "（未选——点此选择生物/结界卡）")
+                    ? (creatureOnly ? "（未选——点此选择生物/非场地结界卡）" : "（未选——点此选择生物/非场地结界卡）")
                     : (picked == null ? $"[断链] {str}" : $"（点此重选·现 {str}）");
         }
 
-        /// <summary>卡牌选择弹层（2026-10-31 阶段C）：搜索 + 列表（仅真实生物/结界卡——
-        /// 剔除衍生物模板与教学卡；召唤只列生物）。选中写 atom.str 并刷新槽位摘要。</summary>
+        /// <summary>卡牌选择弹层（2026-10-31 阶段C；2026-11-18 放宽）：
+        /// 召唤/变形模板可生物或结界；模板不再排除衍生物模板/教学/训练，费用不再要求 ≥1；
+        /// 仍要求不带代价且不嵌套引用卡槽（TokenTemplateCandidateOk 单源）。</summary>
         private UiKit.Modal _cardRefModal;
 
         private void OpenCardRefPicker(AtomicEffectEntry atom, bool creatureOnly, Action onPicked)
         {
             if (_cardRefModal != null) { _cardRefModal.Close(); _cardRefModal = null; } // 重复点开=换卡窗
-            // 召唤/变形槽原子（2026-10-31 三条过滤）：候选叠加费≥1·无代价·不嵌套（与卡面衍生物槽
-            // 选卡器同源 DeckTokenSupport.TokenTemplateCandidateOk——两入口口径一致；诅咒/祝福载荷不动）
             bool tokenSlotAtom = IsSummonTokenEntry(atom) || IsGrantMorphEntry(atom);
             var rowName = AtomicEffectTable.GetByHashId(atom?.refId)?.DisplayName ?? "引用卡";
-            var modal = UiKit.ModalBox(Root, $"选择卡牌——{rowName}{(creatureOnly ? "（仅生物）" : "（生物/结界）")}",
+            var modal = UiKit.ModalBox(Root, $"选择卡牌——{rowName}（{(tokenSlotAtom ? "生物/非场地结界" : (creatureOnly ? "仅生物" : "生物/结界"))}）",
                 width: 660f, height: 600f);
             _cardRefModal = modal;
 
@@ -617,8 +622,9 @@ namespace SynergyUI
                     UnityEngine.Object.Destroy(scroll.Content.GetChild(i).gameObject);
                 string key = (searchField.text ?? "").Trim();
                 var candidates = CardSorter.Sort(CardCatalog.LoadAll()
-                        .Where(c => CardRefCandidateOk(c, creatureOnly))
-                        .Where(c => !tokenSlotAtom || DeckTokenSupport.TokenTemplateCandidateOk(c, creatureOnly))
+                        .Where(c => tokenSlotAtom
+                            ? DeckTokenSupport.TokenTemplateCandidateOk(c, creatureOnly)
+                            : CardRefCandidateOk(c, creatureOnly))
                         .Where(c => string.IsNullOrEmpty(key)
                                     || (c.CardName ?? "").Contains(key, StringComparison.OrdinalIgnoreCase)
                                     || (c.ID ?? "").Contains(key, StringComparison.OrdinalIgnoreCase)))
@@ -656,9 +662,9 @@ namespace SynergyUI
             Rebuild();
         }
 
-        /// <summary>选择器候选资格（2026-10-31 阶段C）：真实生物/结界卡——剔除衍生物模板
-        ///（IsTokenTemplate）、教学卡与训练卡（2026-11-03 分家：训练池不可见）；召唤衍生物只收
-        /// 生物（装载期 ValidateMountHosts 同口径）。</summary>
+        /// <summary>选择器候选资格（2026-10-31 阶段C；2026-11-18 召唤/变形改走
+        /// TokenTemplateCandidateOk）：非召唤/变形引用卡——剔除衍生物模板（IsTokenTemplate）、
+        /// 教学卡与训练卡（2026-11-03 分家：训练池不可见）。</summary>
         private static bool CardRefCandidateOk(CardData card, bool creatureOnly)
         {
             if (card == null || string.IsNullOrEmpty(card.ID) || card.IsTokenTemplate) return false;

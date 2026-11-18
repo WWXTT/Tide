@@ -6,9 +6,10 @@ using CardCore.Attribute;
 namespace CardCore
 {
     /// <summary>
-    /// 目标区域（目标域重做 P0，2026-11-05 定案·docs/目标域契约.md）：22 token =
-    /// 自己 + 3侧"角色" + 3侧×6区。**无发动区**（E1-1/S3b：反制=响应绑定栈顶，不走目标域）。
-    /// 角色是**区域**（Player 实体），不是类别；枚举不参与序列化；只许尾部追加、永不重排。
+    /// 目标区域（目标域重做 P0，2026-11-05 定案·docs/目标域契约.md）：25 token =
+    /// 自己 + 3侧"角色" + 3侧×6区 + 3侧"场地"（场地特殊化 2026-11-18）。**无发动区**
+    ///（E1-1/S3b：反制=响应绑定栈顶，不走目标域）。角色/场地是**区域**（Player 实体/场地卡），
+    /// 不是类别；枚举不参与序列化；只许尾部追加、永不重排。
     /// </summary>
     public enum TargetRegion
     {
@@ -38,6 +39,13 @@ namespace CardCore
         EnemyCharacter = 20,
         /// <summary>双方角色</summary>
         BothCharacter = 21,
+        // ---- 场地特殊化（2026-11-18）：场地=区域词元（场地卡），对标角色——无类别段、不与类别组合 ----
+        /// <summary>己方场地（该侧场地卡——区域 selector，不得带类别；只能经场地词元到达）</summary>
+        OwnField = 22,
+        /// <summary>对方场地</summary>
+        EnemyField = 23,
+        /// <summary>双方场地（双人局上限 2 候选）</summary>
+        BothField = 24,
     }
 
     /// <summary>区域侧别（角色/区域的分解维；四人局扩展位=Opposing 的席位解析，非新增侧别）。</summary>
@@ -46,6 +54,17 @@ namespace CardCore
         Own = 0,
         Opposing = 1,
         Both = 2,
+    }
+
+    /// <summary>区域槽位类型（场地特殊化 2026-11-18）：Zone=None 从「自己/角色」两义扩到
+    /// 「自己/角色/场地」三义——Slot 是消歧单源（IsCharacter/IsFieldRegion 都从这里判，
+    /// 不再靠 Zone==None 推断，防场地被当成角色域）。</summary>
+    public enum RegionSlot
+    {
+        Self = 0,      // 自己=源卡（特殊 selector）
+        Zone = 1,      // 功能区取件（Zone+Side 消费）
+        Character = 2, // 角色=Player 实体（无类别段）
+        Field = 3,     // 场地=该侧场地卡（无类别段——场地特殊化新增）
     }
 
     /// <summary>
@@ -60,14 +79,16 @@ namespace CardCore
             public readonly string Zh;
             public readonly Zone Zone;
             public readonly RegionSide Side;
-            public Row(TargetRegion region, string zh, Zone zone, RegionSide side)
-            { Region = region; Zh = zh; Zone = zone; Side = side; }
+            public readonly RegionSlot Slot;
+            public Row(TargetRegion region, string zh, Zone zone, RegionSide side, RegionSlot slot = RegionSlot.Zone)
+            { Region = region; Zh = zh; Zone = zone; Side = side; Slot = slot; }
         }
 
-        // ---- 唯一真相表（22 token = 自己 + 3侧角色 + 3侧×6区；无发动区）----
+        // ---- 唯一真相表（25 token = 自己 + 3侧角色 + 3侧×6区 + 3侧场地；无发动区；
+        //      场地特殊化 2026-11-18：场地三 token Zone=None + Slot=Field，取件=该侧场地卡）----
         private static readonly Row[] Rows =
         {
-            new Row(TargetRegion.Self,             "自己",       Zone.None,         RegionSide.Own), // 特殊：源卡，Zone/Side 不消费
+            new Row(TargetRegion.Self,             "自己",       Zone.None,         RegionSide.Own,     RegionSlot.Self), // 特殊：源卡，Zone/Side 不消费
             new Row(TargetRegion.OwnBattlefield,   "己方战场",   Zone.Battlefield,  RegionSide.Own),
             new Row(TargetRegion.EnemyBattlefield, "对方战场",   Zone.Battlefield,  RegionSide.Opposing),
             new Row(TargetRegion.BothBattlefield,  "双方战场",   Zone.Battlefield,  RegionSide.Both),
@@ -86,9 +107,12 @@ namespace CardCore
             new Row(TargetRegion.OwnElementPool,   "己方元素池", Zone.ElementPool,  RegionSide.Own),
             new Row(TargetRegion.EnemyElementPool, "对方元素池", Zone.ElementPool,  RegionSide.Opposing),
             new Row(TargetRegion.BothElementPool,  "双方元素池", Zone.ElementPool,  RegionSide.Both),
-            new Row(TargetRegion.OwnCharacter,     "己方角色",   Zone.None,         RegionSide.Own),    // 角色=区域（Player 实体）
-            new Row(TargetRegion.EnemyCharacter,   "对方角色",   Zone.None,         RegionSide.Opposing),
-            new Row(TargetRegion.BothCharacter,    "双方角色",   Zone.None,         RegionSide.Both),
+            new Row(TargetRegion.OwnCharacter,     "己方角色",   Zone.None,         RegionSide.Own,     RegionSlot.Character), // 角色=区域（Player 实体）
+            new Row(TargetRegion.EnemyCharacter,   "对方角色",   Zone.None,         RegionSide.Opposing, RegionSlot.Character),
+            new Row(TargetRegion.BothCharacter,    "双方角色",   Zone.None,         RegionSide.Both,    RegionSlot.Character),
+            new Row(TargetRegion.OwnField,         "己方场地",   Zone.None,         RegionSide.Own,     RegionSlot.Field), // 场地=区域（该侧场地卡）
+            new Row(TargetRegion.EnemyField,       "对方场地",   Zone.None,         RegionSide.Opposing, RegionSlot.Field),
+            new Row(TargetRegion.BothField,        "双方场地",   Zone.None,         RegionSide.Both,    RegionSlot.Field),
         };
 
         private static readonly Dictionary<string, Row> ByZh = new Dictionary<string, Row>(StringComparer.Ordinal);
@@ -121,9 +145,19 @@ namespace CardCore
         public static string ZhNameOf(TargetRegion region)
             => ByRegion.TryGetValue(region, out var row) ? row.Zh : region.ToString();
 
-        /// <summary>是否角色区域（selector 取件=Player 实体；不得带类别）。</summary>
+        /// <summary>是否角色区域（selector 取件=Player 实体；不得带类别）。场地特殊化后按
+        /// RegionSlot 判（Zone=None 已三义：自己/角色/场地——不再靠 Zone 推断）。</summary>
         public static bool IsCharacter(TargetRegion region)
-            => ByRegion.TryGetValue(region, out var row) && row.Zone == Zone.None && row.Region != TargetRegion.Self;
+            => ByRegion.TryGetValue(region, out var row) && row.Slot == RegionSlot.Character;
+
+        /// <summary>是否场地区域（场地特殊化 2026-11-18：selector 取件=该侧场地卡；不得带类别；
+        /// 场地只能经场地词元到达——类别域一律不命中，见 EntityCategoryRules.Matches）。</summary>
+        public static bool IsFieldRegion(TargetRegion region)
+            => ByRegion.TryGetValue(region, out var row) && row.Slot == RegionSlot.Field;
+
+        /// <summary>区域 → 槽位类型（R1 消歧单源：Zone=None 的判断一律改读本口）。</summary>
+        public static RegionSlot SlotOf(TargetRegion region)
+            => ByRegion.TryGetValue(region, out var row) ? row.Slot : RegionSlot.Zone;
 
         /// <summary>区域 → 功能区（Self/角色 = None——不走区取件）。</summary>
         public static Zone ZoneOf(TargetRegion region)
@@ -154,18 +188,19 @@ namespace CardCore
     }
 
     /// <summary>
-    /// 目标类别（目标域重做 P0）：4 token——卡=区域内全选（不按卡型滤）；场地=结界子类
-    /// （IsFieldCard 标记，不入类别）；**无地牌类别**（地牌=元素池区域内的卡）；**无角色类别**
-    /// （角色是区域 selector）。Flags：多类别并集；Card 位=该 selector 不按卡型过滤。
+    /// 目标类别（目标域重做 P0）：4 token——卡=区域内全选（不按卡型滤）；**场地不是类别**
+    ///（场地特殊化 2026-11-18：场地卡不命中任何类别位——含 Card 全选位，只经场地区域词元到达）；
+    /// **无地牌类别**（地牌=元素池区域内的卡）；**无角色类别**（角色是区域 selector）。
+    /// Flags：多类别并集；Card 位=该 selector 不按卡型过滤。
     /// </summary>
     [Flags]
     public enum TargetCategory : int
     {
         None = 0,
         Creature = 1 << 0,     // 生物（Supertype==Creature——含池内生物型地牌，按卡型判）
-        Enchantment = 1 << 1,  // 结界（Supertype==Enchantment；场地卡=本类子集）
+        Enchantment = 1 << 1,  // 结界（Supertype==Enchantment，不含场地卡）
         Spell = 1 << 2,        // 法术（Supertype==Spell）
-        Card = 1 << 3,         // 卡=区域内全选（该位出现即不按卡型滤）
+        Card = 1 << 3,         // 卡=区域内全选（该位出现即不按卡型滤——仍不命中场地）
         All = Creature | Enchantment | Spell | Card,
     }
 
@@ -220,9 +255,13 @@ namespace CardCore
         public static TargetCategory Of(Entity entity)
             => entity is Card card ? SupertypeCategoryOf(card) : TargetCategory.None;
 
-        /// <summary>卡型（Supertype→Flags；正式三型之外=None，仅「卡」类别可选）。</summary>
+        /// <summary>卡型（Supertype→Flags；正式三型之外=None，仅「卡」类别可选）。
+        /// 场地特殊化 2026-11-18：场地卡恒 None——场地不是类别，只经场地区域词元到达。</summary>
         public static TargetCategory SupertypeCategoryOf(Card card)
         {
+            // 场地退出 :生物/:结界/:卡（含 Card 全选位）——**仅战场上的场地**（场地特殊化是「不算战场单位」；
+            // 手牌/牌库/墓地里的场地卡仍是普通结界卡，可被弃牌/检索/回收类域取到，2026-11-18 验收修复）
+            if (card.IsFieldCard() && card.GetZone() == Zone.Battlefield) return TargetCategory.None;
             if (!(card is IHasSupertype t)) return TargetCategory.None;
             switch (t.Supertype)
             {
@@ -233,19 +272,24 @@ namespace CardCore
             }
         }
 
-        /// <summary>类别命中（Card 位=全选；None 类别集恒 false）。</summary>
+        /// <summary>类别命中（Card 位=全选；None 类别集恒 false）。场地特殊化 2026-11-18：
+        /// 场地卡在任何类别集（含 Card 全选位）下恒 false——场地只经场地区域词元到达。</summary>
         public static bool Matches(Entity entity, TargetCategory categories)
         {
+            // 场地：先于 Card 位短路（:卡 亦不命中）——仅战场场地；区外（手/牌库/墓）仍按卡型匹配
+            if (entity is Card f && f.IsFieldCard() && f.GetZone() == Zone.Battlefield) return false;
             if ((categories & TargetCategory.Card) != 0) return true;
             return (Of(entity) & categories) != 0;
         }
 
-        /// <summary>场地=结界子类标记（CardExtensions.IsFieldCard 单源；光环上限已实现，不重做）。</summary>
+        /// <summary>场地卡标记转发（CardExtensions.IsFieldCard 单源；2026-11-18 起场地非结界子类
+        /// ——不命中任何类别位，本口仅供标记查询，不再表达类别归属）。</summary>
         public static bool IsFieldSubclass(Card card) => card != null && card.IsFieldCard();
     }
 
     /// <summary>单个目标选择器：区域 + 类别并集（契约：selector := region (":" category ("," category)*)?）。
-    /// 自己/角色 selector 恒 Card（无类别段——取件不看卡型）；卡区域 selector 必带类别。</summary>
+    /// 自己/角色 selector 恒 Card（无类别段——取件不看卡型）；场地 selector 恒 None（无类别段——
+    /// 场地不经类别，Categories=None 防混合轴类别过滤被 Card 位白名单化）；卡区域 selector 必带类别。</summary>
     public sealed class TargetSelector
     {
         public TargetRegion Region;
@@ -263,7 +307,8 @@ namespace CardCore
 
         public string Zh => string.Join("；", Selectors.Select(s =>
             TargetRegionRules.ZhNameOf(s.Region)
-            + (TargetRegionRules.IsCharacter(s.Region) || s.Region == TargetRegion.Self
+            + (TargetRegionRules.IsCharacter(s.Region) || TargetRegionRules.IsFieldRegion(s.Region)
+               || s.Region == TargetRegion.Self
                 ? "" : ":" + TargetCategoryRules.ZhOf(s.Categories))));
     }
 
@@ -303,8 +348,10 @@ namespace CardCore
                 var selector = new TargetSelector { Region = region };
                 if (parts.Length == 2)
                 {
-                    // 带类别段：自己/角色 selector 不得带类别（契约规则 1）
-                    if (region == TargetRegion.Self || TargetRegionRules.IsCharacter(region)) return false;
+                    // 带类别段：自己/角色/场地 selector 不得带类别（契约规则 1；场地特殊化 2026-11-18：
+                    // 场地是区域词元不是类别——与类别组合（"己方场地:结界"）非法，错误可见不静默）
+                    if (region == TargetRegion.Self || TargetRegionRules.IsCharacter(region)
+                        || TargetRegionRules.IsFieldRegion(region)) return false;
                     var cats = TargetCategory.None;
                     foreach (var rawCat in parts[1].Split(','))
                     {
@@ -316,9 +363,15 @@ namespace CardCore
                 }
                 else
                 {
-                    // 无类别段：卡区域 selector 必须带类别（契约规则 2）——自己/角色例外（恒 Card）
-                    if (region != TargetRegion.Self && !TargetRegionRules.IsCharacter(region)) return false;
-                    selector.Categories = TargetCategory.Card;
+                    // 无类别段：卡区域 selector 必须带类别（契约规则 2）——自己/角色/场地例外。
+                    // 场地特殊化：场地 selector 的 Categories 必须置 None（不是默认 Card）——
+                    // 否则混合轴里场地 selector 的 Card 位会让类别过滤对所有候选白名单化
+                    //（Matches 见到 Card 位恒 true，见 TargetAxisResolver.GetCandidates）。
+                    if (region != TargetRegion.Self && !TargetRegionRules.IsCharacter(region)
+                        && !TargetRegionRules.IsFieldRegion(region)) return false;
+                    selector.Categories = TargetRegionRules.IsFieldRegion(region)
+                        ? TargetCategory.None
+                        : TargetCategory.Card;
                 }
                 result.Selectors.Add(selector);
             }
@@ -404,6 +457,30 @@ namespace CardCore
                     }
                     continue;
                 }
+                if (TargetRegionRules.IsFieldRegion(s.Region))
+                {
+                    // 场地 selector 按侧别收窄（场地特殊化 2026-11-18）——不走区域映射
+                    //（ZoneOf=None，下方 ownZones/enemyZones 扫描不适用）：kind 3（己方无生命
+                    // 单位）=场地的己方区级视图、4=对方视图；1/2（有生命）不授场地侧别。
+                    // 双方场地=双许留/单许改写单侧/全无删（与角色同式）。
+                    bool fieldOwn = kinds.Contains((int)TargetKind.OwnNonLivingUnit);
+                    bool fieldEnemy = kinds.Contains((int)TargetKind.EnemyNonLivingUnit);
+                    switch (TargetRegionRules.SideOf(s.Region))
+                    {
+                        case RegionSide.Both:
+                            if (fieldOwn && fieldEnemy) result.Selectors.Add(s);
+                            else if (fieldOwn) result.Selectors.Add(new TargetSelector { Region = TargetRegion.OwnField, Categories = s.Categories });
+                            else if (fieldEnemy) result.Selectors.Add(new TargetSelector { Region = TargetRegion.EnemyField, Categories = s.Categories });
+                            break; // 双侧皆无授权 → 删
+                        case RegionSide.Own:
+                            if (fieldOwn) result.Selectors.Add(s);
+                            break;
+                        case RegionSide.Opposing:
+                            if (fieldEnemy) result.Selectors.Add(s);
+                            break;
+                    }
+                    continue;
+                }
                 var zone = TargetRegionRules.ZoneOf(s.Region);
                 var side = TargetRegionRules.SideOf(s.Region);
                 bool ownOk = ownZones.Contains(zone);
@@ -468,7 +545,11 @@ namespace CardCore
                 {
                     Region = TargetRegionRules.IsCharacter(s.Region)
                         ? (p > 0 ? TargetRegion.OwnCharacter : TargetRegion.EnemyCharacter)
-                        : (p > 0 ? OwnOf(s.Region) : EnemyOf(s.Region)),
+                        : TargetRegionRules.IsFieldRegion(s.Region)
+                            // 场地特殊化 2026-11-18：场地显式映射（OwnOf/EnemyOf 按 Zone+Side 扫描，
+                            // Zone=None 会误命中 Self——不得走）
+                            ? (p > 0 ? TargetRegion.OwnField : TargetRegion.EnemyField)
+                            : (p > 0 ? OwnOf(s.Region) : EnemyOf(s.Region)),
                     Categories = s.Categories,
                 });
             }
@@ -489,11 +570,13 @@ namespace CardCore
 
         /// <summary>全域（count=0）合法域（2026-11-07 定案）：仅**战场/手牌**——这两处目标数量可预测
         ///（一般 3~5 个），1/2/3/全部合理；牌库/墓地/除外区/元素池取全域会严重超模（如磨牌全磨对手牌库），
-        /// 只允许 1/2/3；角色（Player）与 Self 不进全域。要求全部 selector 都是战场/手牌。</summary>
+        /// 只允许 1/2/3；角色（Player）与 Self 不进全域。场地（ZoneOf=None 天然不含）同角色口径
+        /// 不进全域——显式排除防回归（场地特殊化 2026-11-18）。</summary>
         public static bool AllowsAllTarget(TargetAxis axis)
             => axis != null && axis.Selectors.Count > 0 && axis.Selectors.All(s =>
                 s != null && s.Region != TargetRegion.Self
                 && !TargetRegionRules.IsCharacter(s.Region)
+                && !TargetRegionRules.IsFieldRegion(s.Region)
                 && (TargetRegionRules.ZoneOf(s.Region) == Zone.Battlefield
                     || TargetRegionRules.ZoneOf(s.Region) == Zone.Hand));
 
@@ -562,6 +645,7 @@ namespace CardCore
         {
             LiveResolutions++;
             var result = new List<Entity>();
+            var fieldCards = new List<Card>(); // 场地候选（单独收集，类别过滤后并入——场地特殊化 2026-11-18）
             if (axis == null || context == null || context.Controller == null || context.ZoneManager == null)
                 return result;
 
@@ -579,6 +663,22 @@ namespace CardCore
                     result.AddRange(SidesOf(selector.Region, context.Controller).Where(p => p != null));
                     continue;
                 }
+                if (TargetRegionRules.IsFieldRegion(selector.Region))
+                {
+                    // 场地特殊化 2026-11-18：场地候选=该侧战场区里的场地卡（每侧至多 1 张，
+                    // 异常多张取首张——与 BoardState.FieldCardOf 同口径）；空场侧 0 候选；
+                    // 双人局「双方场地」上限 2。单独收集——类别过滤之后并入（见下方说明）。
+                    foreach (var side in SidesOf(selector.Region, context.Controller))
+                    {
+                        if (side == null) continue;
+                        Card fieldCard = null;
+                        foreach (var card in context.ZoneManager.GetCards(side, Zone.Battlefield))
+                            if (card != null && card.IsFieldCard()) { fieldCard = card; break; }
+                        if (fieldCard != null && fieldCard.IsAlive && !fieldCards.Contains(fieldCard))
+                            fieldCards.Add(fieldCard);
+                    }
+                    continue;
+                }
                 var zone = TargetRegionRules.ZoneOf(selector.Region);
                 // 施放中的卡不得成为任何手牌域目标（含自己的代价）——单口同口径：
                 // TargetFilterSystem.GetZoneCards（旧 kinds 路径）同款剔除（IsPendingCast 单口）。
@@ -594,6 +694,9 @@ namespace CardCore
                         // 战场标死未送墓的卡照常入候选（2026-11-05 用户定案，与旧 kinds 路径
                         // TargetFilterSystem.CreaturesOf 同口径：救回机制——治疗解标死——需要
                         // 死亡窗口内的卡仍可被选中；出手可行性归速度门，不归候选域）。
+                        // 场地特殊化：战场上的场地卡只经场地词元到达——战场区扫描剔场地（含 ":卡" 全选，
+                        // 类别过滤对 Card 位不启用，剔场地必须在取件层收口）；手牌/牌库/墓地等区照常（2026-11-18 验收修复）
+                        if (zone == Zone.Battlefield && card.IsFieldCard()) continue;
                         if (pendingCastStack != null && pendingCastStack.IsPendingCast(card)) continue;
                         result.Add(card);
                     }
@@ -604,8 +707,11 @@ namespace CardCore
             // 类别过滤（契约 §1：类别只作用于卡区域 selector 的取件）——角色实体不经类别；
             // 源卡仅当 axis **含 Self selector** 时豁免（Self=源卡不看类别——无 Self selector 的域
             // 不得把源卡放行，否则「己方战场:结界」会漏进源生物）。
+            // 场地特殊化：场地 selector 不参与类别过滤（启用条件与逐实体白名单两处都豁免）——
+            // 其 Categories=None 会误开过滤/误清候选；场地候选在过滤**之后**并入。
             if (axis.Selectors.Any(s => s.Region != TargetRegion.Self
                                         && !TargetRegionRules.IsCharacter(s.Region)
+                                        && !TargetRegionRules.IsFieldRegion(s.Region)
                                         && (s.Categories & TargetCategory.Card) == 0))
             {
                 bool selfInAxis = axis.Selectors.Any(s => s.Region == TargetRegion.Self);
@@ -615,9 +721,14 @@ namespace CardCore
                     if (selfInAxis && ReferenceEquals(e, context.Source)) return false; // 仅 Self 域豁免源卡
                     return !axis.Selectors.Any(s =>
                         s.Region != TargetRegion.Self && !TargetRegionRules.IsCharacter(s.Region)
+                        && !TargetRegionRules.IsFieldRegion(s.Region)
                         && EntityCategoryRules.Matches(e, s.Categories));
                 });
             }
+
+            // 场地候选并入（类别过滤之后——场地不经类别；区扫描已剔场地故无重复）。
+            foreach (var f in fieldCards)
+                result.Add(f);
 
             // 突袭紊乱：不可指角色（旧 GetCandidates 域层末端同口径）
             if (CardCore.Attribute.KeywordRules.HasRushSickness(context.Source))

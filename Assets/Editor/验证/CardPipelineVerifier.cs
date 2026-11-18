@@ -96,8 +96,50 @@ namespace CardCore.Editor
         }
 
 
+        /// <summary>验证器专用手牌上限解除（B1·2026-11-18 手牌上限改版夹具适配）：+64 使入手闸
+        /// 恒不过限——大量 InjectCard/container.Add 把卡塞进**非回合方**手牌（起手 7=上限 7，
+        /// 满员即被「改投除外区」吞掉，26 项级联红）。规则本身另有专项覆盖：
+        /// NetProtocolLoopbackVerifier §3b（缩水兜底）与 TideSim --hand-overflow-probe（改投除外区）。</summary>
+        private sealed class VerifierHandLimitRelief : IHandLimitModifier
+        {
+            public int Modify(Player p, int currentLimit) => currentLimit + 64;
+        }
+
         [MenuItem("Tools/端到端验证")]
         public static void RunVerification()
+        {
+            // B1：注册→主体→finally 注销（异常也不泄漏进编辑器常驻注册表）
+            var relief = new VerifierHandLimitRelief();
+            RuleHooks.RegisterHandLimitModifier(relief);
+            var prevWarningFilter = CardCore.TideLog.WarningFilter;
+            CardCore.TideLog.WarningFilter = IsExpectedFixtureWarning;
+            CardCore.TideLog.ResetSuppressedWarnings();
+            try { RunVerificationCore(); }
+            finally
+            {
+                var suppressed = CardCore.TideLog.SuppressedWarnings;
+                CardCore.TideLog.WarningFilter = prevWarningFilter;
+                RuleHooks.UnregisterHandLimitModifier(relief);
+                if (suppressed > 0)
+                    Debug.Log($"[Verify] 测试夹具预期告警 {suppressed} 条（已抑制，仅验证器作用域）");
+            }
+        }
+
+        /// <summary>验证器夹具预期告警（2026-11-18）：夹具故意触发旧数据/负例/引擎阈值等
+        /// 转换器·计费·运行时告警——只在 RunVerification 作用域内抑制并计数；
+        /// 真实卡表/运行时告警不在 allowlist，照常可见。</summary>
+        private static bool IsExpectedFixtureWarning(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return false;
+            if (text.Contains("VERIFY_") || text.Contains("TT_")) return true;
+            if (text.Contains("验证充盈死档")) return true;
+            if (text.Contains("原子 Heal（极性 1，域 [2]）违反内容契约")) return true;
+            foreach (var name in new[] { "火球术", "古树守卫", "灰色哨兵", "抉择试作", "链接光环测试" })
+                if (text.Contains("卡 (" + name + ")")) return true;
+            return false;
+        }
+
+        private static void RunVerificationCore()
         {
             _pass = 0;
             _fail = 0;
@@ -432,6 +474,37 @@ namespace CardCore.Editor
             Assert(!core.ElementPool.AddCardToPool(token, p1), "地牌资格：衍生物/副本临时卡（裸 Card）拒绝");
             if (nonCreature != null)
                 Assert(!GameActions.AddToElementPool(core, p1, nonCreature), "地牌资格：魔法等非生物超类拒绝");
+            // 0 费禁地（2026-11-18 恢复）：净费 0 但锁色候选非空的卡（主动效果锚价开格、锚价不入卡费）
+            // 才命中本闸——白板生物推导 0 但运行口径有底灰不触发；形态取自 15:06 生产证据
+            // （闸蓝地被「0费卡不可作为地牌」拒）。本套件与 TideSim/LandEligibilityProbe（潮汐断言）
+            // 是此规则的自动化反证口（资敌/闸蓝地夹具已改直供不再走业务闸，B2）。
+            var freeLandData = new CardData
+            {
+                ID = "VERIFY_FREE_LAND", CardName = "零费蓝地", Supertype = Cardtype.Creature, Power = 1, Life = 1,
+                Effects = new List<CardEffectData>
+                {
+                    new CardEffectData
+                    {
+                        Id = "VERIFY_FREE_LAND_EFF",
+                        TriggerTiming = (int)TriggerTiming.Activate_Active,
+                        ActivationType = (int)EffectActivationType.Voluntary,
+                        AtomicEffects = new List<AtomicEffectEntry>
+                            { Atom(AtomicEffectType.DrawCard, value: 1,
+                                   kinds: new List<int> { (int)CardCore.TargetKind.OwnDeck }) },
+                    },
+                },
+            };
+            var freeLand = new CardWrapper(freeLandData);
+            freeLand.SetController(p1);
+            core.ZoneManager.GetZoneContainer(p1).Add(freeLand, Zone.Hand);
+            Assert(CardCore.ElementPoolSystem.GetLandColorChoices(freeLand).Count > 0,
+                   "0 费禁地前置：零费蓝地锁色候选非空（主动效果锚价开格=蓝）——拒因只能是 0 费");
+            Assert(!CardCore.ElementPoolSystem.CanPlaceAsLand(freeLand),
+                   "0 费禁地：资格口 CanPlaceAsLand 拒（净费 0——IsFreeCastCard）");
+            Assert(!core.ElementPool.TryAddToPool(freeLand, p1, ManaType.Blue, out var freeLandWhy)
+                   && freeLandWhy != null && freeLandWhy.Contains("0费"),
+                   $"0 费禁地：权威校验口 TryAddToPool 拒且原因含「0费」（实际：{freeLandWhy}）");
+            core.ZoneManager.MoveCard(freeLand, p1, Zone.Hand, Zone.Graveyard); // 段界卫生
 
             // T1 地牌选 ≥2 指示物的生物（总费用=指示物总量）：T3「回合开始恢复」断言要求
             // T1 地牌产一次后仍在池——1 指示物地产出即耗尽离池。2026-09-20 确定性修复：

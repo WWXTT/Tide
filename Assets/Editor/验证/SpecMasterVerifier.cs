@@ -238,9 +238,9 @@ namespace CardCore.Editor.Tests
             }
             c1.Line($"代价减费上限 ≤{EffectComposerScreen.CostDiscountCap}：扫卡 {scanned} 张（挂代价 {withCost} 张）"
                      + (c1.Fail ? "" : " 无超限"));
-            c2.Line($"有限分支减费区间 1~{EffectComposerScreen.LimitedBranchFeeCap}（Then 奖励费值口径，逐效果单源 BranchRewardCapViolationOf）"
+            c2.Line($"有限分支减费区间 0~{EffectComposerScreen.LimitedBranchFeeCap}（Then 奖励费值口径，逐效果单源 BranchRewardCapViolationOf）"
                      + (c2.Fail ? "" : " 无越界"));
-            c3.Line($"自由分支减费区间 1~{EffectComposerScreen.FreeBranchFeeCap}（同上单源）" + (c3.Fail ? "" : " 无越界"));
+            c3.Line($"自由分支减费区间 0~{EffectComposerScreen.FreeBranchFeeCap}（同上单源）" + (c3.Fail ? "" : " 无越界"));
             c4.Line($"「并列两个效果/分支 + 代价」互斥（同一效果只能三选一）" + (c4.Fail ? "" : " 无违规"));
             c5.Line($"光环类（结界门槛/仪典行）+ 代价互斥" + (c5.Fail ? "" : " 无违规"));
         }
@@ -597,3 +597,4 @@ namespace CardCore.Editor.Tests
              : (e as IHasName)?.CardName ?? "?";
     }
 }
+

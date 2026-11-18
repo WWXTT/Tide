@@ -944,28 +944,6 @@
       "hash": "EA244D01"
     },
     {
-      "id": "C_3CFC2A32",
-      "cardName": "训练·集群统领",
-      "supertype": "Creature",
-      "attackAbility": true,
-      "guardAbility": true,
-      "power": 2,
-      "life": 2,
-      "costList": [
-        2.0,
-        0.0,
-        0.0,
-        0.0
-      ],
-      "tags": [
-        "训练池"
-      ],
-      "effectIds": [
-        "293ECF43"
-      ],
-      "hash": "DD13C4A5"
-    },
-    {
       "id": "C_E5EBDFE5",
       "cardName": "训练·灾祸刻印",
       "supertype": "Spell",
@@ -1293,24 +1271,6 @@
       "hash": "F99C5671"
     },
     {
-      "id": "C_977D4944",
-      "cardName": "封印",
-      "supertype": "Spell",
-      "tags": [
-        "训练池"
-      ],
-      "effectIds": [
-        "35628BEB"
-      ],
-      "costList": [
-        0.0,
-        0.0,
-        3.0,
-        0.0
-      ],
-      "hash": "977D4944"
-    },
-    {
       "id": "C_AE694D08",
       "cardName": "训练·再生卫队",
       "supertype": "Creature",
@@ -1445,6 +1405,25 @@
         "8C78A716"
       ],
       "hash": "541E6CD6"
+    },
+    {
+      "id": "C_3CFC2A32",
+      "cardName": "训练·集群统领",
+      "supertype": "Enchantment",
+      "durability": 2,
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "训练池"
+      ],
+      "effectIds": [
+        "293ECF43"
+      ],
+      "hash": "367212CB"
     },
     {
       "id": "C_38BEA1AD",

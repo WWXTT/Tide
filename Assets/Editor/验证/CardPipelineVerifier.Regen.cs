@@ -340,6 +340,7 @@ namespace CardCore.Editor
             RemapTutorialAtomRefs(noRenames);   // 空映射＝无操作，保留与全量入口同序
             RegenTutorialAndPresetTables();     // 教学池 + 三套预组
             RegenTrainingTables(noRenames);     // 训练池
+            RunDiscountExclusiveAudit();        // 费用推导收尾：减费三选一自动汇报（只报不改）
         }
 
         /// <summary>原子表 ID 台账（2026-11-05 定案：**ID 冻结**，取代旧的「ID=sha256(DisplayName) 重推」）。

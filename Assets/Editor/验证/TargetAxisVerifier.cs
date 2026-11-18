@@ -11,14 +11,16 @@ namespace CardCore.Editor.Tests
 {
     /// <summary>
     /// 目标域契约校验（目标域重做 P0，2026-11-05·docs/目标域契约.md 唯一真相源）：
-    /// ■ ① 词表：22 区域 token（自己+3侧角色+3侧×6区；角色 Zone=None；无发动区）
-    ///   + 4 类别 token（卡/生物/结界/法术；无角色/地牌类别）。
-    /// ■ ② 契约解析：合法样例（多 selector/类别并集/自己/角色）全过；
-    ///   非法全拒——裸 X方、卡区域无类别、角色/自己带类别、发动区、坏 token、空段。
+    /// ■ ① 词表：25 区域 token（自己+3侧角色+3侧×6区+3侧场地（2026-11-18 场地特殊化：
+    ///   Zone=None+Slot=Field，不与类别组合）；无发动区）
+    ///   + 4 类别 token（卡/生物/结界/法术；无角色/地牌类别；场地不命中任何类别位）。
+    /// ■ ② 契约解析：合法样例（多 selector/类别并集/自己/角色/场地）全过；
+    ///   非法全拒——裸 X方、卡区域无类别、角色/自己带类别、场地带类别、发动区、坏 token、空段。
     /// ■ ③ 区域收窄：entry.kinds 收窄区域**与角色 selector 侧别**（契约 §5：1/2 生命单位授角色
     ///   侧别、3/4 不授予；紊乱样例：双方战场:生物 + kind[2] → 对方战场:生物；Both 双侧保持；
-    ///   无交删 selector；空 kinds 不收窄）。
-    /// ■ ④ 候选取件（夹具）：selector 逐类正确性（生物/结界/法术/卡/角色/自己/属性 Filter）。
+    ///   无交删 selector；空 kinds 不收窄；场地按 3/4 侧别收窄、1/2 删空）。
+    /// ■ ④ 候选取件（夹具）：selector 逐类正确性（生物/结界/法术/卡/角色/自己/属性 Filter/
+    ///   场地词元与混合轴豁免——:结界/:卡 不含场地）。
     /// ■ ⑤ 全表守卫：153 行（2026-11-05 硬切 B2：全体两行已删）——新语法合法/无目标二分；
     ///   光环行（21）恒「双方」前缀 Domain（2026-11-06 定案：表价=对称双方，单侧属实例方向）。
     /// ■ ⑥ 生产链证据：converter 新 Domain 产轴+收窄 + executor 结算 LiveResolutions&gt;0。
@@ -94,13 +96,13 @@ namespace CardCore.Editor.Tests
 
         private static void SectionWords()
         {
-            // 22 区域 token = 自己 + 3侧角色 + 3侧×6区
-            var regionTokens = new List<string> { "自己", "己方角色", "对方角色", "双方角色" };
+            // 25 区域 token = 自己 + 3侧角色 + 3侧×6区 + 3侧场地（场地特殊化 2026-11-18）
+            var regionTokens = new List<string> { "自己", "己方角色", "对方角色", "双方角色", "己方场地", "对方场地", "双方场地" };
             foreach (var side in new[] { "己方", "对方", "双方" })
                 foreach (var zone in new[] { "战场", "手牌", "牌库", "墓地", "除外区", "元素池" })
                     regionTokens.Add(side + zone);
-            Check("1", TargetRegionRules.Count == 22, $"区域词表行数 {TargetRegionRules.Count} ≠ 22");
-            Check("1", regionTokens.Distinct().Count() == 22, "真相表存在重复 token");
+            Check("1", TargetRegionRules.Count == 25, $"区域词表行数 {TargetRegionRules.Count} ≠ 25");
+            Check("1", regionTokens.Distinct().Count() == 25, "真相表存在重复 token");
             foreach (var token in regionTokens)
             {
                 bool ok = TargetRegionRules.TryParse(token, out var region);
@@ -110,7 +112,7 @@ namespace CardCore.Editor.Tests
             }
             // 3侧×6区 覆盖恰 18；角色三 token Zone=None 且 IsCharacter；Self Zone=None 且非角色
             var regions = Enum.GetValues(typeof(TargetRegion)).Cast<TargetRegion>().ToList();
-            Check("1", regions.Count == 22, $"枚举成员数 {regions.Count} ≠ 22");
+            Check("1", regions.Count == 25, $"枚举成员数 {regions.Count} ≠ 25");
             foreach (var side in new[] { RegionSide.Own, RegionSide.Opposing, RegionSide.Both })
                 foreach (var zone in new[] { Zone.Battlefield, Zone.Hand, Zone.Deck, Zone.Graveyard, Zone.Exile, Zone.ElementPool })
                 {
@@ -122,9 +124,18 @@ namespace CardCore.Editor.Tests
                     $"角色区域 {ch} 应 Zone=None 且 IsCharacter");
             Check("1", TargetRegionRules.ZoneOf(TargetRegion.Self) == Zone.None && !TargetRegionRules.IsCharacter(TargetRegion.Self),
                 "Self 应 Zone=None 且非角色");
+            // 场地三 token（2026-11-18）：Zone=None + Slot=Field——非角色、非区取件
+            foreach (var fld in new[] { TargetRegion.OwnField, TargetRegion.EnemyField, TargetRegion.BothField })
+                Check("1", TargetRegionRules.ZoneOf(fld) == Zone.None && TargetRegionRules.IsFieldRegion(fld)
+                           && !TargetRegionRules.IsCharacter(fld) && TargetRegionRules.SlotOf(fld) == RegionSlot.Field,
+                    $"场地区域 {fld} 应 Zone=None 且 IsFieldRegion（非角色）");
+            Check("1", TargetRegionRules.SideOf(TargetRegion.OwnField) == RegionSide.Own
+                       && TargetRegionRules.SideOf(TargetRegion.EnemyField) == RegionSide.Opposing
+                       && TargetRegionRules.SideOf(TargetRegion.BothField) == RegionSide.Both,
+                "场地三 token 侧别应为 己/对/双");
             Check("1", regions.All(r => TargetRegionRules.ZoneOf(r) != Zone.Activation), "存在映射发动区的区域 token（应无）");
-            foreach (var bad in new[] { "", null, "己方", "双方", "双方发动区", "战场", "角色", "己方角色:生物" })
-                Check("1", !TargetRegionRules.TryParse(bad, out _), $"TryParse('{bad}') 应拒绝（裸X方/发动区/带类别形态）");
+            foreach (var bad in new[] { "", null, "己方", "双方", "双方发动区", "战场", "角色", "己方角色:生物", "场地" })
+                Check("1", !TargetRegionRules.TryParse(bad, out _), $"TryParse('{bad}') 应拒绝（裸X方/发动区/带类别形态/裸场地）");
             Check("1", TargetRegionRules.TryParse(" 己方战场 ", out var trimmed) && trimmed == TargetRegion.OwnBattlefield,
                 "TryParse 应容忍首尾空白");
 
@@ -159,6 +170,11 @@ namespace CardCore.Editor.Tests
                 ("自己; 双方手牌:卡", "自己；双方手牌:卡"),
                 (" 双方战场 : 生物 , 结界 ； 对方元素池 : 卡 ", "双方战场:生物,结界；对方元素池:卡"), // 空格容忍
                 ("己方墓地:法术", "己方墓地:法术"),
+                // 场地特殊化（2026-11-18）：场地=区域词元（无类别段、不拼 ":卡"）
+                ("己方场地", "己方场地"),
+                ("对方场地", "对方场地"),
+                ("双方场地", "双方场地"),
+                ("双方场地; 己方墓地:法术", "双方场地；己方墓地:法术"),
             };
             foreach (var (domain, expectZh) in legal)
             {
@@ -178,6 +194,7 @@ namespace CardCore.Editor.Tests
                          "双方战场:生物;;双方角色", "；双方战场:生物",                 // 空段
                          "双方战场:生物:", "双方战场::生物", "双方战场:生物:结界",      // 冒号形态
                          "双方战场:生物, ", "不存在的区域:生物",                       // 坏 token
+                         "己方场地:结界", "双方场地:卡", "场地",                       // 场地特殊化：场地禁与类别笛卡尔积/裸场地
                          "", "   ",
                      })
                 Check("2", !TargetAxisRules.TryParseDomain(bad, out _), $"非法域 '{bad}' 应拒绝");
@@ -262,6 +279,33 @@ namespace CardCore.Editor.Tests
                 Check("3", narrowed.Selectors.Count == 1 && narrowed.Selectors[0].Region == TargetRegion.EnemyGraveyard,
                     $"墓地收窄应 → 对方墓地:法术（kinds[10]=EnemyGraveyard；实 {narrowed.Zh}）");
             }
+
+            // 场地收窄（2026-11-18 场地特殊化）：kind 3/4=场地区级视图；1/2（有生命）不授场地侧别
+            ok = TargetAxisRules.TryParseDomain("双方场地", out var fieldAxis);
+            Check("3", ok, "场地行域解析失败");
+            if (ok)
+            {
+                var fEnemy = TargetAxisRules.NarrowByKinds(fieldAxis, new List<int> { 4 });
+                Check("3", fEnemy.Selectors.Count == 1 && fEnemy.Selectors[0].Region == TargetRegion.EnemyField
+                           && fEnemy.Selectors[0].Categories == TargetCategory.None,
+                    $"场地收窄：双方场地+kinds[4] 应 → 对方场地（实 {fEnemy.Zh}）");
+                var fOwn = TargetAxisRules.NarrowByKinds(fieldAxis, new List<int> { 3 });
+                Check("3", fOwn.Selectors.Count == 1 && fOwn.Selectors[0].Region == TargetRegion.OwnField,
+                    $"场地收窄：双方场地+kinds[3] 应 → 己方场地（实 {fOwn.Zh}）");
+                var fNone = TargetAxisRules.NarrowByKinds(fieldAxis, new List<int> { 1 });
+                Check("3", fNone.Selectors.Count == 0,
+                    $"场地收窄：双方场地+kinds[1]（生命单位不授场地侧别）应删空（实 {fNone.Zh}）");
+                var fBoth = TargetAxisRules.NarrowByKinds(fieldAxis, new List<int> { 3, 4 });
+                Check("3", fBoth.Selectors.Count == 1 && fBoth.Selectors[0].Region == TargetRegion.BothField,
+                    "场地收窄：双方场地+kinds[3,4] 应保持双方场地");
+                // 极性收窄：BothField 显式映射（不走 OwnOf/EnemyOf 的 Zone+Side 扫描）
+                var fPol = TargetAxisRules.NarrowByPolarity(fieldAxis, -1f);
+                Check("3", fPol.Selectors.Count == 1 && fPol.Selectors[0].Region == TargetRegion.EnemyField,
+                    $"场地极性收窄：双方场地+p=-1 应 → 对方场地（实 {fPol.Zh}）");
+                var fPolOwn = TargetAxisRules.NarrowByPolarity(fieldAxis, 1f);
+                Check("3", fPolOwn.Selectors.Count == 1 && fPolOwn.Selectors[0].Region == TargetRegion.OwnField,
+                    $"场地极性收窄：双方场地+p=+1 应 → 己方场地（实 {fPolOwn.Zh}）");
+            }
         }
 
         // ======================================== ④ 候选取件（夹具） ========================================
@@ -279,9 +323,29 @@ namespace CardCore.Editor.Tests
 
             // 双方战场:生物 = 双方场上存活生物
             AssertCount(ctx, "双方战场:生物", p1Creatures + p2Creatures, "双方战场:生物");
-            // 己方战场:结界 = 己方场上结界（场地=结界子类同命中）
-            AssertCount(ctx, "己方战场:结界", p1Enchants + zm.GetCards(p1, Zone.Battlefield).Count(c => c.IsAlive && c.IsFieldCard()),
-                "己方战场:结界（含场地子类）");
+            // 己方战场:结界 = 己方场上**非场地**结界（场地特殊化 2026-11-18：场地退出类别域——只经场地词元到达）
+            AssertCount(ctx, "己方战场:结界", p1Enchants, "己方战场:结界（不含场地）");
+            // 对方战场:卡 不含场地（:卡 亦不命中场地——P4 定案）
+            int p2Units = zm.GetCards(p2, Zone.Battlefield).Count(c => !c.IsFieldCard());
+            AssertCount(ctx, "对方战场:卡", p2Units, "对方战场:卡（不含场地）");
+            // 场地词元取件：夹具双方各 1 张场地（p2 场地由夹具落位）
+            var ownField = Resolve(ctx, "己方场地");
+            Check("4", ownField.Count == 1 && ownField[0] is Card ofc && ofc.IsFieldCard(),
+                $"己方场地应恰 1 场地卡（实 {ownField.Count}）");
+            var enemyField = Resolve(ctx, "对方场地");
+            Check("4", enemyField.Count == 1 && enemyField[0] is Card efc && efc.IsFieldCard()
+                       && !ReferenceEquals(efc, ownField.FirstOrDefault()),
+                $"对方场地应恰 1 场地卡（对方侧；实 {enemyField.Count}）");
+            var bothFields = Resolve(ctx, "双方场地");
+            Check("4", bothFields.Count == 2 && bothFields.All(e => e is Card bf && bf.IsFieldCard()),
+                $"双方场地应恰 2 场地卡（实 {bothFields.Count}）");
+            // 空场侧 0 候选：p2 视角「己方场地」在未上场地时为 0（夹具已双侧上场地，本断言以
+            // 混合轴验证类别过滤豁免——场地+带类别 selector 并存时场地候选不被剔）
+            var mixedAxis = Parse("双方场地; 己方战场:生物");
+            var mixed = mixedAxis != null ? TargetAxisResolver.GetCandidates(mixedAxis, ctx) : new List<Entity>();
+            Check("4", mixed.Count(e => e is Card mc && mc.IsFieldCard()) == 2
+                       && mixed.Count(e => e is Card mc && !mc.IsFieldCard() && IsType(mc, Cardtype.Creature)) == p1Creatures,
+                $"混合轴「双方场地;己方战场:生物」应=2 场地+{p1Creatures} 己方生物（实 {mixed.Count}）");
             // 双方角色 = 2 个 Player
             var chars = Resolve(ctx, "双方角色");
             Check("4", chars.Count == 2 && chars.All(e => e is Player), $"双方角色应恰 2 Player（实 {chars.Count}）");
@@ -467,7 +531,8 @@ namespace CardCore.Editor.Tests
             var deck2 = new List<CardData>();
             for (int i = 0; i < 8; i++) { deck1.Add(creatureTpl); deck2.Add(creatureTpl); }
             for (int i = 0; i < 2 && enchantTpl != null; i++) { deck1.Add(enchantTpl); deck2.Add(enchantTpl); }
-            if (fieldTpl != null) deck1.Add(fieldTpl);
+            // 场地特殊化（2026-11-18）：双侧各 1 张场地（候选断言 双方场地=2 / 空场侧=0 的前提）
+            if (fieldTpl != null) { deck1.Add(fieldTpl); deck2.Add(fieldTpl); }
             while (deck1.Count < 17) deck1.Add(fillerTpl);
             while (deck2.Count < 16) deck2.Add(fillerTpl);
             core.InitGame(CardLoader.BuildDeck(deck1, 1), CardLoader.BuildDeck(deck2, 1));
@@ -482,6 +547,11 @@ namespace CardCore.Editor.Tests
             if (fieldCard != null)
                 zm.MoveCard(fieldCard, p1,
                     zm.IsCardInZone(fieldCard, p1, Zone.Hand) ? Zone.Hand : Zone.Deck, Zone.Battlefield);
+            var fieldCard2 = zm.GetCards(p2, Zone.Deck).FirstOrDefault(c => c.IsFieldCard())
+                             ?? zm.GetCards(p2, Zone.Hand).FirstOrDefault(c => c.IsFieldCard());
+            if (fieldCard2 != null)
+                zm.MoveCard(fieldCard2, p2,
+                    zm.IsCardInZone(fieldCard2, p2, Zone.Hand) ? Zone.Hand : Zone.Deck, Zone.Battlefield);
             foreach (var p in new[] { p1, p2 })
             {
                 var deck = zm.GetCards(p, Zone.Deck).ToList();
@@ -533,7 +603,8 @@ namespace CardCore.Editor.Tests
 
             var selfEnt = (Entity)selfCard;
             note = $"卡名快照：生物={creatureTpl.CardName} 结界={(enchantTpl != null ? enchantTpl.CardName : "无")} 填充={fillerTpl.CardName}"
-                 + $"｜场地={(fieldCard != null ? "已上p1战场" : "缺失!")}｜法术探针={(_spellCard != null ? "已挂p2手牌" : "缺失!")}"
+                 + $"｜场地p1={(fieldCard != null ? "已上" : "缺失!")}｜场地p2={(fieldCard2 != null ? "已上" : "缺失!")}"
+                 + $"｜法术探针={(_spellCard != null ? "已挂p2手牌" : "缺失!")}"
                  + $"｜Self={(selfEnt != null ? $"己方受伤生物 {selfEnt.GetLife()}/{selfEnt.GetMaxLife()}" : "缺失!")}";
 
             return new EffectExecutionContext

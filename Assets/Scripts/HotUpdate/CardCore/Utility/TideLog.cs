@@ -27,6 +27,18 @@ namespace CardCore
             set => _sink = value;
         }
 
+        /// <summary>验证器专用告警过滤器（2026-11-18）：返回 true=抑制并计数。
+        /// 仅 CardPipelineVerifier 的测试夹具作用域装配；生产/运行时保持 null，不隐藏真实告警。
+        /// 用途：夹具故意触发转换器/计费/引擎告警（VERIFY_*/TT_*/旧内联卡）时清空控制台噪声。</summary>
+        public static Func<string, bool> WarningFilter;
+
+        private static int _suppressedWarnings;
+
+        /// <summary>当前作用域已抑制的告警数（验证器汇报用）。</summary>
+        public static int SuppressedWarnings => _suppressedWarnings;
+
+        public static void ResetSuppressedWarnings() => _suppressedWarnings = 0;
+
         public static void Info(object message) => Write(TideLogLevel.Info, message);
         public static void Warn(object message) => Write(TideLogLevel.Warning, message);
         public static void Error(object message) => Write(TideLogLevel.Error, message);
@@ -34,6 +46,11 @@ namespace CardCore
         private static void Write(TideLogLevel level, object message)
         {
             var text = message?.ToString() ?? "null";
+            if (level == TideLogLevel.Warning && WarningFilter != null && WarningFilter(text))
+            {
+                _suppressedWarnings++;
+                return;
+            }
             var sink = _sink;
             if (sink != null)
             {

@@ -8,9 +8,10 @@ using SynergyUI;
 namespace TideSim
 {
     /// <summary>
-    /// 手牌上限 / 溢出进除外区 探针（2026-11-18 规则改版验收）：
-    /// 规则口径 = 手牌上限基值 12（RuleHooks.DefaultHandLimit / ValueSystemConfig GameRules.DefaultHandLimit），
-    /// 到上限后「新加入手牌的卡不进手牌、改投除外区」（ZoneContainer.Add/Move 同口）。
+    /// 手牌上限 / 溢出进除外区 探针（2026-11-18 规则改版验收；同日 27f7c2f6 后按「7/回合方」定案改口径）：
+    /// 规则口径 = 手牌上限基值 7（RuleHooks.DefaultHandLimit / ValueSystemConfig GameRules.DefaultHandLimit），
+    /// **自己回合可溢出**（HandAtLimit 对回合方恒 false）；只有**非回合方**到达上限后
+    /// 「新加入手牌的卡不进手牌、改投除外区」（ZoneContainer.Add/Move 同口）。
     /// 用法：dotnet run --project TideSim -- --hand-overflow-probe
     /// </summary>
     internal static class HandOverflowProbe
@@ -29,50 +30,65 @@ namespace TideSim
         public static int Run()
         {
             CardCatalog.LoadAll();
-            Console.WriteLine("【手牌上限 12 / 溢出进除外区 探针】");
+            Console.WriteLine("【手牌上限 7 / 回合方溢出豁免·非回合方改投除外区 探针】");
             var core = Setup();
             try
             {
-                var p1 = core.Player1;
+                // 回合方/非回合方按当前对局实际归属取（不硬编码先手是谁）
+                var turnPlayer = core.TurnEngine.TurnPlayer;
+                Assert(turnPlayer != null, "开局有回合方（TurnEngine.TurnPlayer 非空）");
+                var foe = ReferenceEquals(turnPlayer, core.Player1) ? core.Player2 : core.Player1;
+                Console.WriteLine($"    · 回合方 = {turnPlayer.Name}，非回合方 = {foe.Name}");
                 var zm = core.ZoneManager;
-                var container = zm.GetZoneContainer(p1);
+                var foeContainer = zm.GetZoneContainer(foe);
 
-                int limit = RuleHooks.GetHandLimit(p1);
-                Assert(limit == 12, $"手牌上限基值 = 12（实际 {limit}）");
-                int hand0 = zm.GetCards(p1, Zone.Hand).Count;
-                int exile0 = zm.GetCards(p1, Zone.Exile).Count;
-                Console.WriteLine($"    · 开局手牌 {hand0} 张，除外区 {exile0} 张");
+                int limit = RuleHooks.GetHandLimit(foe);
+                Assert(limit == 7, $"手牌上限基值 = 7（实际 {limit}）");
+                int foeHand0 = zm.GetCards(foe, Zone.Hand).Count;
+                int foeExile0 = zm.GetCards(foe, Zone.Exile).Count;
+                Console.WriteLine($"    · 非回合方开局手牌 {foeHand0} 张，除外区 {foeExile0} 张");
 
-                // ① 抽到正好上限
-                int need = limit - hand0;
+                // ① 回合方溢出豁免：自己回合不限，连抽超上限全留手牌、零除外
+                int ownHand0 = zm.GetCards(turnPlayer, Zone.Hand).Count;
+                int ownOver = limit - ownHand0 + 3;
+                int ownDrawn = 0;
+                for (int i = 0; i < ownOver; i++)
+                    if (zm.DrawCard(turnPlayer) != null) ownDrawn++;
+                Assert(ownDrawn == ownOver, $"回合方连抽 {ownOver} 张全成功（实际 {ownDrawn}）");
+                Assert(zm.GetCards(turnPlayer, Zone.Hand).Count == ownHand0 + ownOver,
+                    $"回合方手牌 {ownHand0}+{ownOver} 全留手牌（实际 {zm.GetCards(turnPlayer, Zone.Hand).Count}）——超上限 {limit} 不投");
+                Assert(zm.GetCards(turnPlayer, Zone.Exile).Count == 0, "回合方除外区 0（自己回合可溢出）");
+
+                // ② 非回合方抽到正好上限：到上限未超，不投
+                int need = limit - foeHand0;
                 int drawnOk = 0;
                 for (int i = 0; i < need; i++)
-                    if (zm.DrawCard(p1) != null) drawnOk++;
-                Assert(drawnOk == need, $"抽 {need} 张即可到上限 {limit}（实际成功 {drawnOk}）");
-                Assert(zm.GetCards(p1, Zone.Hand).Count == limit, $"手牌 = {limit}");
-                Assert(zm.GetCards(p1, Zone.Exile).Count == exile0, $"此阶段除外区不增加（{exile0}）");
+                    if (zm.DrawCard(foe) != null) drawnOk++;
+                Assert(drawnOk == need, $"非回合方抽 {need} 张即可到上限 {limit}（实际成功 {drawnOk}）");
+                Assert(zm.GetCards(foe, Zone.Hand).Count == limit, $"非回合方手牌 = {limit}");
+                Assert(zm.GetCards(foe, Zone.Exile).Count == foeExile0, $"此阶段除外区不增加（{foeExile0}）");
 
-                // ② 再抽一张：应进除外区
-                var extra = zm.DrawCard(p1);
+                // ③ 再抽一张：应进除外区
+                var extra = zm.DrawCard(foe);
                 Assert(extra != null, "满手后仍能抽牌（返回卡对象）");
-                Assert(zm.GetCards(p1, Zone.Hand).Count == limit, $"手牌仍为 {limit}（实际 {zm.GetCards(p1, Zone.Hand).Count}）");
-                Assert(zm.GetCards(p1, Zone.Exile).Count == exile0 + 1, $"除外区 +1（{exile0} → {zm.GetCards(p1, Zone.Exile).Count}）");
+                Assert(zm.GetCards(foe, Zone.Hand).Count == limit, $"手牌仍为 {limit}（实际 {zm.GetCards(foe, Zone.Hand).Count}）");
+                Assert(zm.GetCards(foe, Zone.Exile).Count == foeExile0 + 1, $"除外区 +1（{foeExile0} → {zm.GetCards(foe, Zone.Exile).Count}）");
                 Assert(extra != null && extra.GetZone() == Zone.Exile, $"溢出卡落点 = 除外区（实际 {extra?.GetZone()}）");
 
-                // ③ 腾出一格后再抽：回手牌，除外区不变
-                var outCard = zm.GetCards(p1, Zone.Hand).Last();
-                container.Move(outCard, Zone.Hand, Zone.Graveyard);
-                var back = zm.DrawCard(p1);
+                // ④ 腾出一格后再抽：回手牌，除外区不变
+                var outCard = zm.GetCards(foe, Zone.Hand).Last();
+                foeContainer.Move(outCard, Zone.Hand, Zone.Graveyard);
+                var back = zm.DrawCard(foe);
                 Assert(back != null && back.GetZone() == Zone.Hand, $"腾格后抽牌回手牌（落点 {back?.GetZone()}）");
-                Assert(zm.GetCards(p1, Zone.Hand).Count == limit, $"手牌回到 {limit}");
-                Assert(zm.GetCards(p1, Zone.Exile).Count == exile0 + 1, "除外区不再增加");
+                Assert(zm.GetCards(foe, Zone.Hand).Count == limit, $"手牌回到 {limit}");
+                Assert(zm.GetCards(foe, Zone.Exile).Count == foeExile0 + 1, "除外区不再增加");
 
-                // ④ Add 路径（无源区新落位：衍生物/临时复制/偷取）同样受闸
-                var fromDeck = (zm.GetCards(p1, Zone.Deck) ?? new List<Card>()).FirstOrDefault();
+                // ⑤ Add 路径（无源区新落位：衍生物/临时复制/偷取）同样受闸
+                var fromDeck = (zm.GetCards(foe, Zone.Deck) ?? new List<Card>()).FirstOrDefault();
                 Assert(fromDeck != null, "牌库还有卡可用于 Add 路径测试");
                 if (fromDeck != null)
                 {
-                    container.Add(fromDeck, Zone.Hand);
+                    foeContainer.Add(fromDeck, Zone.Hand);
                     Assert(fromDeck.GetZone() == Zone.Exile, $"Add 路径满手同样改投除外区（落点 {fromDeck.GetZone()}）");
                 }
             }
@@ -88,8 +104,9 @@ namespace TideSim
             var core = GameCore.Instance;
             var deck1 = new List<CardData>();
             var deck2 = new List<CardData>();
+            // 双方各 30：回合方连抽 10 / 非回合方抽 9+Add 1，都得够抽不疲劳
             for (int i = 0; i < 30; i++) deck1.Add(CardCatalog.GetById(CardId));
-            deck2.Add(CardCatalog.GetById(CardId));
+            for (int i = 0; i < 30; i++) deck2.Add(CardCatalog.GetById(CardId));
 
             core.InitGame(deck1, deck2, copiesPerCard: 1, rngSeed: RngSeed, lockDeckOrder: true,
                 skipOpeningDraw: true, deferStart: true, ai1: true, ai2: true);

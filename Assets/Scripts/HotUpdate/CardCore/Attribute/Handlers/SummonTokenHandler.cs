@@ -90,11 +90,17 @@ namespace CardCore.Attribute.Handlers
                 return;
             }
 
-            // 2026-09-11 定案：{衍生物} = 指向一张真实生物卡——任何衍生物都是某张真实卡的实例，
-            // 身份/观测/计价全走真实卡数据。模板非生物卡 → 拒绝（构筑校验另有拦截，此处运行时兜底）。
+            // 2026-09-11 定案：{衍生物} = 指向一张真实卡——任何衍生物都是某张真实卡的实例，
+            // 身份/观测/计价全走真实卡数据。2026-11-18 放宽：模板可为生物或结界；
+            // 其他类型 → 拒绝（构筑校验另有拦截，此处运行时兜底）。
             // 2026-09-13 修复：真实链路（CardCatalog.GetById）返回裸 CardData——不实现 IHasSupertype
             // （仅 CardWrapper 实现），is 判定恒 false 导致全游戏 SummonToken 静默空转；改属性直判。
             var templateSupertype = template is IHasSupertype ht ? ht.Supertype : template.Supertype;
+            if (template.IsField)
+            {
+                TideLog.Warn($"[SummonTokenHandler] 衍生物模板 {templateId} 是场地结界，跳过（场地卡不能作衍生物模板）");
+                return;
+            }
             if (templateSupertype != Cardtype.Creature && templateSupertype != Cardtype.Enchantment)
             {
                 TideLog.Warn($"[SummonTokenHandler] 衍生物模板 {templateId} 既不是生物也不是结界，跳过");

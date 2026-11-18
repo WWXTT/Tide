@@ -179,7 +179,11 @@ namespace CardCore
                                      "（数据错误——胜利宣判不可主动发动），按主动处理保留");
                 else if (activationType != EffectActivationType.Mandatory)
                 {
-                    TideLog.Warn($"[CardEffectConverter] 卡 {sourceCardId} 效果 {def.Id} 含 DeclareVictory 原子，" +
+                    // Mandatory 的枚举值是 0，与「未声明」的 data.ActivationType=0 无法区分：
+                    // 未显式声明（0）时静默归一为 Mandatory（胜利宣判语义固定，不算数据矛盾）；
+                    // 只有显式写 Automatic(1)/Voluntary(2) 才告警（那才是真数据错误）。
+                    if (data.ActivationType > 0)
+                        TideLog.Warn($"[CardEffectConverter] 卡 {sourceCardId} 效果 {def.Id} 含 DeclareVictory 原子，" +
                                      $"ActivationType={activationType} 覆写为 Mandatory（胜利宣判一律强制）");
                     activationType = EffectActivationType.Mandatory;
                     def.ActivationType = activationType;
@@ -705,10 +709,11 @@ namespace CardCore
                               || (axis.Selectors.Count > 0
                                   && axis.Selectors.All(s => s != null
                                       && (s.Region == TargetRegion.Self
-                                          || TargetRegionRules.IsCharacter(s.Region))));
+                                          || TargetRegionRules.IsCharacter(s.Region)
+                                          || TargetRegionRules.IsFieldRegion(s.Region)))); // 场地特殊化：场地域数量档恒 1（每侧至多 1 张）
             if ((effectiveCount == 2 || effectiveCount == 3) && singleOnly)
             {
-                TideLog.Warn($"[CardEffectConverter] 原子 {type}（行 {entry.refId}）域仅角色/Self"
+                TideLog.Warn($"[CardEffectConverter] 原子 {type}（行 {entry.refId}）域仅角色/场地/Self"
                              + "——目标数量已收为 1");
                 effectiveCount = 1;
             }
@@ -785,6 +790,9 @@ namespace CardCore
         private static BranchPayload ConvertBranchPayload(BranchEntryData data, string atomStr = null)
         {
             if (data == null) return null;
+            // 幽灵分支（2026-11-18）：null 经序列化会物化成 settle=0 的默认 BranchEntryData；
+            // 这是已知的空载荷占位，不是坏数据——静默丢弃，不再刷“越界”告警。
+            if (BranchEntryRules.IsPhantom(data)) return null;
             var settle = (BranchSettleKind)data.settle;
             if (!Enum.IsDefined(typeof(BranchSettleKind), settle))
             {

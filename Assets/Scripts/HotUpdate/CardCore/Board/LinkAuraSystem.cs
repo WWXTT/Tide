@@ -129,9 +129,12 @@ namespace GameBoard
 
         /// <summary>光环关键词（Boolean 语义：光环期间视为持有，不参与 GetKeywordCount 重复叠加计数）。
         /// Entity 签名（2026-10-07）：角色经箭头指向角色格的关键词光环同样命中——
-        /// **2026-11-05 角色通道下线：Player 入参恒 false**（BonusOf Player 分支已注释）。</summary>
+        /// **2026-11-05 角色通道下线：Player 入参恒 false**（BonusOf Player 分支已注释）。
+        /// 场地特殊化（2026-11-18）：场地恒 false——箭头光环投递的关键词对场地读取为假
+        ///（AddKeyword 咽喉同拦，本口是 live-query 读数侧）。</summary>
         public static bool HasAuraKeyword(Entity entity, string keyword)
         {
+            if (CardCore.FieldRules.IsField(entity as Card)) return false;
             var bonus = BonusOf(entity);
             return bonus != null && bonus.Keywords.Contains(keyword);
         }

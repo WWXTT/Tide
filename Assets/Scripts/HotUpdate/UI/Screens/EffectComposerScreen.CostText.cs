@@ -432,7 +432,7 @@ namespace SynergyUI
                 TargetCount = def.TargetCount,
                 RandomTarget = def.RandomTarget,
                 TargetDomain = def.TargetDomain,
-                PerAtomTargets = def.PerAtomTargets,   // 对称减半逐原子口径（2026-10-09）：分账不回落共享臂
+                PerAtomTargets = def.PerAtomTargets,   // 逐原子口径（2026-10-09）：分账不回落共享臂
                 Effects = new List<AtomicEffectInstance> { atom },
             };
 

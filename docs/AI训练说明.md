@@ -192,7 +192,7 @@ FSP 口径；开启后日志/config 标注 `fsp=true`，`info.fsp=True`。
 | 冻结项 | 说明 |
 |---|---|
 | **卡表 + 原子表**（含所有 ID） | 观测编码的是卡 ID；重推工具会改 ID（例：火炬 `C_93E8DDD1`）→ 训练数据作废 |
-| **布局版本** | `TideObservation.LayoutVersion`（C#）与 `tide_features.LAYOUT_VERSION`（Python）必须一致，当前 **v14 / 动作 14 维 / 卡特征 116**（2026-11-15 晚多色回退后双侧回退对齐，TCP 冒烟握手实证） |
+| **布局版本** | `TideObservation.LayoutVersion`（C#）与 `tide_features.LAYOUT_VERSION`（Python）必须一致，当前 **v15 / 动作 14 维 / 卡特征 116 / 卡槽 191**（2026-11-18 场地特殊化拆槽：场地专用槽 [189]/[190]、战场槽只含单位——旧 checkpoint/ONNX/fixture 全部作废，须重导 fixture 重训） |
 | **AI 决策代码** | `AiStrategy` / `SimpleAI` / `LegalActionEnumerator` |
 | **规则与费用推导** | 影响回报分布 = 换环境 |
 
@@ -236,7 +236,7 @@ FSP 口径；开启后日志/config 标注 `fsp=true`，`info.fsp=True`。
    红方逐格基线与 +15pp 门槛见 §0.2（阶段一已扩为「模型执三套 × 先/后手」6 格，见 §0.1）。
 4. **取样池口径**：reset 日志「训练池 85 张」；随机 30 张 0 纯教学卡（[`训练池覆盖矩阵.md`](训练池覆盖矩阵.md) §0 P0-C）。
 5. **关键词完整性**：15 印刷 + 1 登场授予（无实体登场自获 / 再生登场获得）；`CardLoader` 0 悬空（矩阵 §2）。
-6. **Python 编码器同步**：`LAYOUT_VERSION=14` / `N_CARD_FEATURES=116`（多色回退后口径），与 C# 握手通过（冒烟已证）。
+6. **Python 编码器同步**：`LAYOUT_VERSION=15` / `N_CARD_FEATURES=116` / `MAX_CARDS=191`（2026-11-18 场地特殊化拆槽口径），与 C# 握手通过（冒烟已证）。
 
 ## 7. 训练中怎么判断「有没有在学」
 

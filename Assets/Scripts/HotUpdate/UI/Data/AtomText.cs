@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using CardCore;
@@ -187,8 +187,9 @@ namespace SynergyUI
             foreach (var s in axis.Selectors)
             {
                 var region = TargetRegionRules.ZhNameOf(s.Region);
-                if (s.Region == TargetRegion.Self || TargetRegionRules.IsCharacter(s.Region))
-                { parts.Add(region); continue; }             // 自己 / X方角色（无类别段·无量词）
+                if (s.Region == TargetRegion.Self || TargetRegionRules.IsCharacter(s.Region)
+                    || TargetRegionRules.IsFieldRegion(s.Region))
+                { parts.Add(region); continue; }             // 自己 / X方角色 / X方场地（无类别段·无量词——场地特殊化 2026-11-18）
                 var zone = TargetRegionRules.ZoneOf(s.Region);
                 if (zone == Zone.Hand || zone == Zone.Deck)
                 { parts.Add(region); continue; }             // 手牌/牌库：纯区域词（量词与「的卡」由模板语境承载）
@@ -231,15 +232,17 @@ namespace SynergyUI
             return TargetAxisRules.NarrowByPolarity(axis, cfg?.Polarity ?? 0f);
         }
 
-        /// <summary>全取面积轴（全部档名词用）：有效轴剔 自己/角色 selector（角色默认不参与
-        /// 全取——与 ResolveAtomTargetsAsync 全取路径同口径）；无面积 selector 返回 null。</summary>
+        /// <summary>全取面积轴（全部档名词用）：有效轴剔 自己/角色/场地 selector（角色默认不参与
+        /// 全取——与 ResolveAtomTargetsAsync 全取路径同口径；场地每侧至多 1 张、数量档恒 1，
+        /// 不进全取——场地特殊化 2026-11-18）；无面积 selector 返回 null。</summary>
         private static TargetAxis AreaAxisOf(AtomicEffectConfig cfg, AtomicEffectEntry atom)
         {
             var eff = EffectiveAxisOf(cfg, atom);
             if (eff == null) return null;
             var area = new TargetAxis { Filter = eff.Filter };
             foreach (var s in eff.Selectors)
-                if (s != null && s.Region != TargetRegion.Self && !TargetRegionRules.IsCharacter(s.Region))
+                if (s != null && s.Region != TargetRegion.Self && !TargetRegionRules.IsCharacter(s.Region)
+                    && !TargetRegionRules.IsFieldRegion(s.Region))
                     area.Selectors.Add(s);
             return area.Selectors.Count > 0 ? area : null;
         }
@@ -359,7 +362,7 @@ namespace SynergyUI
                 var tplCard = CardCatalog.GetById(atom.str);
                 string tokenName = tplCard != null ? tplCard.CardName
                     : string.IsNullOrEmpty(atom.str) ? "未指定模板" : atom.str;
-                body = body.Replace("{衍生物}=字符串参数指向一张真实生物卡，实例=该卡全参数复制", tokenName)
+                body = body.Replace("{衍生物}=字符串参数指向一张真实生物/结界卡，实例=该卡全参数复制", tokenName)
                            .Replace("{衍生物}", tokenName);
             }
             // 数值随机（RandomAmplitude&gt;0）：区间文本「x至x」已表达随机语义（2026-10-09 句式定案）——不再冠「随机」前缀
@@ -672,3 +675,4 @@ namespace SynergyUI
                ?? new List<AtomicEffectInstance>();
     }
 }
+

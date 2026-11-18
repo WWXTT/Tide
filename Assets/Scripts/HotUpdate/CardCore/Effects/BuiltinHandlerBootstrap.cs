@@ -239,6 +239,7 @@ namespace CardCore
             AtomicEffectType.EngineCurseOnDraw,
             AtomicEffectType.EngineBlessingOnDraw,
             AtomicEffectType.EngineUnity, // 团结（2026-10-20 效果序位换轴·复用其表行 83c150f2）
+            AtomicEffectType.EngineDeathToll, // 2026-11-10 退役出自由分支（枚举留旧号兼容；无表行/处理器）
 
             // 退役枚举墓碑位于 2026-10-30 枚举收拢时随成员一并删除（刺探/扰魔/毒刺/额外元素/
             // 湮灭原子/采掘/摒弃/冰晶/梦魇/光合作用/手牌序位——全仓卡牌/教学/效果表零引用，

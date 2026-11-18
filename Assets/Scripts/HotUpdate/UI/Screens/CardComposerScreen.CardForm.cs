@@ -135,18 +135,18 @@ namespace SynergyUI
                 OpenDerivePicker(target);
             });
             Describe(btn, (target.IsMorph ? "变形" : "召唤衍生物") + "槽：点按从卡表选模板卡——候选须"
-                + (target.IsMorph ? "生物/结界" : "生物") + "·费≥1·不带代价、自身不含衍生物/变形（不可嵌套）；选中即写进效果引用");
+                + "生物/非场地结界·不带代价、自身不含衍生物/变形（不可嵌套）；选中即写进效果引用");
         }
 
-        /// <summary>衍生物模板选卡器（卡表全量+三条过滤+搜索）：选中写原子 str=定义期直绑
+        /// <summary>衍生物模板选卡器（卡表全量+无代价/不嵌套过滤+搜索）：选中写原子 str=定义期直绑
         ///（运行时解析=实例绑定→原子 str，同 SummonTokenHandler.ResolveBoundTemplateId）。</summary>
         private void OpenDerivePicker(DeckTokenSupport.TokenSlot slot)
         {
             if (_deriveModal != null) { _deriveModal.Close(); _deriveModal = null; } // 重复点开=换卡窗
-            bool creatureOnly = !slot.IsMorph; // 召唤=仅生物；变形=生物/结界
+            bool creatureOnly = false; // 2026-11-18：召唤/变形模板均可生物或结界
             var kindZh = slot.IsMorph ? "变形" : "召唤衍生物";
             var modal = UiKit.ModalBox(Root,
-                $"选择模板卡——{kindZh}（{(creatureOnly ? "仅生物" : "生物/结界")}·费≥1·无代价·不可嵌套）",
+                $"选择模板卡——{kindZh}（生物/非场地结界·无代价·不可嵌套）",
                 width: 660f, height: 600f);
             _deriveModal = modal;
 
@@ -196,7 +196,7 @@ namespace SynergyUI
                 }
                 UiKit.Label("count", scroll.Content,
                     candidates.Count == 0
-                        ? "（无匹配卡——候选须为费≥1、无代价、不含衍生物/变形的真实卡）"
+                        ? "（无匹配卡——候选须为生物/非场地结界、无代价、不含衍生物/变形）"
                         : shown < candidates.Count ? $"共 {candidates.Count} 张，仅列前 {cap} 张——用搜索缩小范围"
                         : $"共 {candidates.Count} 张", 12, UiStyle.TextHint);
             }

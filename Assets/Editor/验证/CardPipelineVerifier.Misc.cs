@@ -1180,11 +1180,11 @@ namespace CardCore.Editor
                    && System.Math.Abs(RedOf(TimingDef(TriggerTiming.OnDraw)) - 5f) < 1e-4f
                    && System.Math.Abs(RedOf(TimingDef(TriggerTiming.OnDealDamage)) - 5f) < 1e-4f,
                    "P9-5 效果锚价=原价（红5，不乘 f——f 移出效果层）");
-            Assert(System.Math.Abs(MountOf(TimingDef(TriggerTiming.OnPlay), Cardtype.Creature) - 1f) < 1e-4f
+            Assert(System.Math.Abs(MountOf(TimingDef(TriggerTiming.OnPlay), Cardtype.Creature) - WantF(TriggerTiming.OnPlay)) < 1e-4f
                    && System.Math.Abs(MountOf(TimingDef(TriggerTiming.OnDestroy), Cardtype.Creature) - WantF(TriggerTiming.OnDestroy)) < 1e-4f
                    && System.Math.Abs(MountOf(TimingDef(TriggerTiming.OnDraw), Cardtype.Enchantment) - 1f) < 1e-4f
                    && System.Math.Abs(MountOf(TimingDef(TriggerTiming.OnDestroy), Cardtype.Enchantment) - 1f) < 1e-4f,
-                   $"P9-5a 宿主挂载：生物——一回合一次×1、稀有×概率（被破坏 {WantF(TriggerTiming.OnDestroy):0.###}）；结界×1");
+                   $"P9-5a 宿主挂载：生物——一回合一次×1、稀有×概率（登场 {WantF(TriggerTiming.OnPlay):0.###}（2026-11-16 迁 Rare）/被破坏 {WantF(TriggerTiming.OnDestroy):0.###}）；结界×1");
             Assert(System.Math.Abs(MountOf(TimingDef(TriggerTiming.OnAttack), Cardtype.Creature) - 1f) < 1e-4f
                    && System.Math.Abs(MountOf(TimingDef(TriggerTiming.OnBlockDeclare), Cardtype.Creature) - 1f) < 1e-4f
                    && System.Math.Abs(MountOf(TimingDef(TriggerTiming.OnTap), Cardtype.Creature) - 1f) < 1e-4f
@@ -1224,35 +1224,29 @@ namespace CardCore.Editor
             TestP9ConfigDefaultAudit();
         }
 
-        /// <summary>内容审计（**2026-11-14 档位制**）：教学/预组+训练全表——
+        /// <summary>内容审计（**2026-11-14 档位制**；2026-11-18 定案：引擎载荷分支删除）：
+        /// 教学/预组+训练全表——
         /// ①生物 + 一回合多次（Multi）→ Error（结界专属，每次触发耐久 −1）；
-        /// ②生物 + 引擎载荷 → Error（引擎无触发上限，只有结界能用耐久买次数——2026-11-13 收口）；
-        /// ③结界 + 生物动作族（攻/守/横置/重置 4 值）→ Error。
+        /// ②结界 + 生物动作族（攻/守/横置/重置 4 值）→ Error。
+        /// 「生物+引擎载荷」不再作独立违规面（2026-11-13 收口曾以遗留债上限 22 计数、11-18 一度抬 26——
+        /// 均作废）：团结/拼抢等引擎宿主是现行定案设计，其滥用面由时机档位闸（①）与挂载价承担；
+        /// 装载期 CardLoader 的引擎告警保留（提示性，不拦截）。
         /// 一回合一次（含 OnTurnStart）与稀有两档对生物/结界全开（法术仅登场另拦）。
         /// 与装载期 CardLoader.ValidateCreatureShape / ValidateEnchantShape 同口径，
         /// 命中点名。附 35 行「时机×生物/结界可挂」矩阵打印（CreatureCanTakeTiming 单源——验收用）。</summary>
         private static void AssertHostTimingAudit()
         {
             var hits = new List<string>();
-            int legacyEngineFixtures = 0; // 2026-11-13 引擎宿主收口遗留（教学/训练夹具；上限 22，见检查点注释）
-            const int LegacyEngineFixtureCap = 22;
             void Scan(string cardsPath, string fxPath, string label)
             {
                 if (!File.Exists(cardsPath) || !File.Exists(fxPath)) return;
                 var fxRoot = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(fxPath));
                 var timing = new Dictionary<string, int>();  // effectId → timing（缺省 0=OnPlay）
-                var engine = new HashSet<string>();          // 含引擎载荷（branch.settle==3）的效果 id
                 foreach (var e in (fxRoot["items"] as Newtonsoft.Json.Linq.JArray
                          ?? new Newtonsoft.Json.Linq.JArray()).OfType<Newtonsoft.Json.Linq.JObject>())
                 {
                     string eid = (string)e["id"];
                     timing[eid] = (int?)e["timing"] ?? 0;
-                    foreach (var p in e.Descendants().OfType<Newtonsoft.Json.Linq.JProperty>())
-                        if (p.Name == "settle" && (int)p.Value == (int)CardCore.BranchSettleKind.Engine)
-                        {
-                            engine.Add(eid);
-                            break;
-                        }
                 }
                 var cardsRoot = Newtonsoft.Json.Linq.JObject.Parse(File.ReadAllText(cardsPath));
                 foreach (var c in (cardsRoot["cards"] as Newtonsoft.Json.Linq.JArray)
@@ -1269,18 +1263,6 @@ namespace CardCore.Editor
                         if (t == (int)TriggerTiming.Activate_Active || t == (int)TriggerTiming.Activate_Instant
                             || t == (int)TriggerTiming.Activate_Response)
                             continue;
-                        // ② 生物 + 引擎载荷（2026-11-13 收口：引擎无上限触发，只有结界有耐久对价）
-                        //    2026-11-14：教学/训练池的引擎载体夹具是收口遗留债（教学内容待重做，见
-                        //    docs/循环控制盘点_v0.1.md §11）——只告警不失败，并以 22 为上限防新增；
-                        //    玩家池/新增夹具仍按硬违规点名。
-                        if (creature && engine.Contains(id))
-                        {
-                            legacyEngineFixtures++;
-                            Debug.LogWarning($"[P9-7 遗留夹具] {label} {(string)c["cardName"]}({(string)c["id"]}) 效果 {id}"
-                                             + $" timing={(TriggerTiming)t}——生物+引擎载荷（2026-11-13 收口遗留，"
-                                             + $"上限 {LegacyEngineFixtureCap}；教学内容待重做）");
-                            continue;
-                        }
                         // ① 生物 + 一回合多次（Multi——结界专属；CreatureCanTakeTiming 单源）
                         if (creature && !CardCore.EffectEligibility.CreatureCanTakeTiming((TriggerTiming)t))
                             hits.Add($"{label} {(string)c["cardName"]}({(string)c["id"]}) 效果 {id} timing={(TriggerTiming)t}"
@@ -1299,11 +1281,10 @@ namespace CardCore.Editor
             Scan(SynergyUI.CardDataPaths.TrainingFileIn("TrainingCards.json"),
                  SynergyUI.CardDataPaths.TrainingFileIn("TrainingEffects.json"), "训练");
             foreach (var h in hits) Debug.LogError($"[P9-7 内容审计] 宿主+时机不合规：{h}");
-            Assert(hits.Count == 0 && legacyEngineFixtures <= LegacyEngineFixtureCap,
-                   $"P9-7 内容审计（2026-11-14 档位制）：教学/训练全表无「生物+一回合多次时机」、"
-                   + $"无「结界+生物动作族 4 值」；生物+引擎载荷=收口遗留夹具只告警不失败"
-                   + $"（新违规 {hits.Count}；遗留 {legacyEngineFixtures}/{LegacyEngineFixtureCap}）"
-                   + "——生物改挂一回合一次/稀有或改宿主为结界；结界改挂一回合一次/稀有/一回合多次）");
+            Assert(hits.Count == 0,
+                   $"P9-7 内容审计（2026-11-14 档位制；引擎载荷分支 2026-11-18 删除）：教学/训练全表"
+                   + $"无「生物+一回合多次时机」、无「结界+生物动作族 4 值」（违规 {hits.Count}"
+                   + "——生物改挂一回合一次/稀有；结界改挂一回合一次/稀有/一回合多次）");
 
             // ---- 35 行「时机×宿主」可挂矩阵（CreatureCanTakeTiming / 结界=!生物动作族 单源） ----
             var sb = new System.Text.StringBuilder();

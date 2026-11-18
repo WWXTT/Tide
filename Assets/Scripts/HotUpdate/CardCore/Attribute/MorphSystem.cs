@@ -141,7 +141,8 @@ namespace CardCore.Attribute
                 self._isTapped = false;
                 if (self.GetCounterCount(CounterRules.DurabilityCounter) <= 0)
                     self.AddCounters(CounterRules.DurabilityCounter,
-                        CardCompositionCost.TotalDurabilityOf(clone));
+                        CardCompositionCost.TotalDurabilityOf(clone),
+                        kind: Attribute.CounterGrantKind.Init); // 场地特殊化：初始化档——不过场地指示物闸
             }
 
             // 变形指示物（中性 Resident，层恒 1）：解除口=换区/净化清（ClearCounters 钩子）

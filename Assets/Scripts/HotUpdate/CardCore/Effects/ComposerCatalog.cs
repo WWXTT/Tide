@@ -476,13 +476,19 @@ namespace CardCore
         /// 2026-10-23 有限分支入表：门槛行随主干排除一并出局（位 8）。
         /// 2026-10-24 动态费用位：临摹/变形赋予挂位 9 排除出奖励——补差随局内动态情况，
         /// 奖励入价锚定在构筑期无法覆盖；主干照旧。
-        /// 2026-10-31 召唤衍生物入列（表行已挂位 9）：模板费随引用卡绑定浮动——同排除出奖励。
+        /// 2026-10-31 召唤衍生物曾入列；2026-11-18 退出（引用卡填入后费用即定，可作奖励）。
         ///（2026-10-31 P12「充能行排除出奖励」已随 2026-11-05 充能系统动作化改版失效——充能行已删。）
         /// （2026-10-13 晚「主动发动」位已删：动态计价原子触发式预付与主动现付同额同源
         ///（ResolveTemplate→ContentPriceOf）——主动/自动自由选择。）</summary>
         public static bool CanBeRewardRow(Attribute.AtomicEffectConfig row)
             => CanBeTrunkRow(row) && !HasMountBit(row, MountKind.EngineTrunk)
                && !HasMountBit(row, MountKind.DynamicCost);
+
+        /// <summary>独立原子（2026-11-18 用户定案，留扩展口）：无 Domain、不能与其他效果组合，
+        /// 但仍需在「并列效果」库可见并可编辑自身时机/数量。现仅召唤衍生物；
+        /// 未来同类无域原子在此登记（UI 的槽封锁/库屏蔽/落槽清空均读本谓词）。</summary>
+        public static bool IsStandaloneAtomRow(Attribute.AtomicEffectConfig row)
+            => row != null && row.EnumName == nameof(AtomicEffectType.SummonToken);
 
         // ========================================（充能识别族已删） ========================================
         // IsChargeAtom/IsChargeRow/IsChargeEffect/HasChargeEffect 整族随 2026-11-05 改版删除；

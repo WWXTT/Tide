@@ -320,10 +320,12 @@ namespace CardCore
 
         /// <summary>参数化添加关键词（2026-10-07 值化 + 2026-10-08 不叠加 + 2026-10-09 全轨取代）：
         /// 实例值与生效次数入台账（Value≤0 兜底 1；Limit 1/2/3，-1=无限）；
-        /// 同关键词**无论轨别**新实例取代旧实例（旧条目移除、新条目入账，不叠加）。</summary>
+        /// 同关键词**无论轨别**新实例取代旧实例（旧条目移除、新条目入账，不叠加）。
+        /// 场地特殊化（2026-11-18）：效果授予（非 Printed 轨）对场地空转——咽喉兜底，不写层不发事件。</summary>
         public static void AddKeyword(this Entity entity, string keyword, KeywordLane lane, Entity source, int value, int limit)
         {
             if (entity == null) return;
+            if (CardCore.FieldRules.BlocksKeywordGrant(entity, lane)) return; // 场地：关键词效果无效（印刷轨不拦）
             if (!entity._keywords.Contains(keyword))
                 entity._keywords.Add(keyword);
             for (int i = entity._keywordGrants.Count - 1; i >= 0; i--)
@@ -437,6 +439,12 @@ namespace CardCore
             {
                 var side = entity is Player p ? p : (entity as Card)?.GetController() ?? (entity as Card)?.GetOwner();
                 var spec = Attribute.CounterRules.Find(counterType);
+
+                // 场地特殊化（2026-11-18 最前闸）：指示物效果对场地无效——效果类正量一律 0 落账
+                //（护甲/圣盾/耐久增加等同收）；引擎初始化（Init：入场耐久）与负量（移除/扣耐久）不拦。
+                // 必须排在禁疗令/破败/绝缘体/铭刻之前（否则铭刻 +1 先落账）。
+                if (kind == Attribute.CounterGrantKind.Effect && CardCore.FieldRules.BlocksCounterGrant(entity))
+                    return 0;
 
                 // 禁疗令扩版（2026-11-06）：受光环影响一方的角色与单位不能添加护甲——与「不能回复生命」
                 //（Heal 咽喉）同光环同侧收口；护甲正量投放全经此咽喉（护甲原子/活体护甲同收），
@@ -776,6 +784,9 @@ namespace CardCore.Attribute
     {
         /// <summary>常规投放（默认档）：过全部获得闸</summary>
         Effect,
+        /// <summary>引擎初始化（场地特殊化 2026-11-18）：入场耐久等引擎主干驱动——不属「赋予」，
+        /// 不过场地/禁疗令等效果闸（EquipRules.OnEnterBattlefield / MorphSystem 初始化走此档）。</summary>
+        Init,
     }
 
     /// <summary>绝缘体生效判定（2026-11-09 用户定案：「能加，但效果无效」的唯一判据）。

@@ -49,9 +49,75 @@ namespace CardCore
         /// priceAsPermanent（三轨制 2026-09-09）：法术宿主置 true——魔法卡赋予全是设置类
         /// （永久直改），**计价按永久效果档估算**；运行时支付路径不传（默认 false，按实例持续）。
         /// </summary>
+        /// <summary>分支结构硬闸（2026-11-18）：一条效果最多一个分支（自由/有限互斥），
+        /// 分支 Then/Else 内不得再嵌套分支。返回违规描述（空=合规）。费用推导/装载共用。</summary>
+        public static List<string> BranchStructureViolations(EffectDefinition effect)
+        {
+            var hits = new List<string>();
+            if (effect == null) return hits;
+
+            int branchCount = 0;
+            void Walk(AtomicEffectInstance atom, bool insideBranch, string path)
+            {
+                if (atom == null) return;
+                var branch = atom.Branch;
+                if (branch != null)
+                {
+                    branchCount++;
+                    if (insideBranch)
+                        hits.Add($"效果 {effect.Id}：分支嵌套（{path} 的 Then/Else 内又挂分支）");
+                    foreach (var t in branch.Then ?? new List<AtomicEffectInstance>())
+                        Walk(t, true, path + ".then");
+                }
+                if (atom.SubEffects != null)
+                    foreach (var sub in atom.SubEffects)
+                        Walk(sub, insideBranch, path + ".sub");
+            }
+
+            void WalkStep(RuntimeEffectStep step, string path)
+            {
+                if (step == null) return;
+                if (step.Atomic != null) Walk(step.Atomic, false, path);
+                if (step.Choices != null)
+                    for (int i = 0; i < step.Choices.Count; i++)
+                    {
+                        var list = step.Choices[i];
+                        if (list == null) continue;
+                        for (int j = 0; j < list.Count; j++)
+                            WalkStep(list[j], $"{path}.choice{i}.{j}");
+                    }
+            }
+
+            if (effect.Steps != null && effect.Steps.Count > 0)
+            {
+                for (int i = 0; i < effect.Steps.Count; i++)
+                    WalkStep(effect.Steps[i], $"step{i}");
+            }
+            else if (effect.Effects != null)
+            {
+                for (int i = 0; i < effect.Effects.Count; i++)
+                    Walk(effect.Effects[i], false, $"atom{i}");
+            }
+
+            if (branchCount > 1)
+                hits.Add($"效果 {effect.Id}：挂了 {branchCount} 个分支（自由/有限分支只能挂一个）");
+            return hits;
+        }
+
         public static ElementCost DeriveElementCosts(EffectDefinition effect, int modeIndex = 0,
             IReadOnlyList<int> dynamicCounts = null)
         {
+            // 分支结构硬闸（2026-11-18 用户定案）：一条效果最多挂一个分支（自由/有限互斥），
+            // 且分支载荷的 Then/Else 里不得再嵌套分支。费用推导口直接报错（非告警），
+            // 返回空费——装载端 CardLoader 同步拒绝整卡。
+            var branchHits = BranchStructureViolations(effect);
+            if (branchHits.Count > 0)
+            {
+                foreach (var h in branchHits)
+                    TideLog.Error($"[CostDerivation] {h}——费用推导拒绝（分支自由/有限只能挂一个，不能嵌套）");
+                return new ElementCost();
+            }
+
             // 动态数量（2026-11-14）：声明期收集结果先行落进原子（base×N 计价与执行同源）——
             // 幂等；未传（构筑预览/AI 估值）= 未解析，按 base×1 计。
             ApplyDynamicCounts(effect, dynamicCounts);
@@ -164,7 +230,7 @@ namespace CardCore
                 : effect.TargetDomain;
 
         /// <summary>计价域（2026-10-09 逐原子目标制）：逐原子模式按**该原子自身域**计价——
-        /// 错边拆分/对称减半/无目标数量豁免都吃域侧别，喂共享并集会让单侧原子误判成双侧（虚减半）；
+        /// 错边拆分/无目标数量豁免都吃域侧别，喂共享并集会让单侧原子误判成双侧；
         /// 共享口径（header 声明）照旧用组合域。域原样不极性过滤（与解析域/旧单原子口径一致）。</summary>
         private static List<int> PricingDomain(EffectDefinition effect, AtomicEffectInstance atom, List<int> shared)
             => effect != null && effect.PerAtomTargets
@@ -568,12 +634,6 @@ namespace CardCore
 
             // 发动速度计价已退役（2026-10-19：速度特化法术专属=类特性非溢价——旧 ×1.5/×2 档随拆）。
 
-            // 双方同时作用减半（2026-10-03 用户定案）：效果同时作用于双方——
-            // 双侧域 + 全取档/显式多目标（双方全体恢复/双方各消灭一生物）——计费 ×0.5（对称面让利）；
-            // 规则光环不在此列（2026-10-29 去对称让利：表价即实价，无论作用范围）；双侧域单体任选一侧不減。
-            if (IsSymmetricBothSides(atom, def, domain))
-                amount *= SymmetricDiscountFactor;
-
             return amount;
         }
 
@@ -594,32 +654,6 @@ namespace CardCore
                 atom.Branch = b;
             }
         }
-        /// <summary>双方同时作用减半系数（2026-10-03 用户定案；2026-10-05 迁表 CardCost.SymmetricDiscountFactor）。</summary>
-        public static float SymmetricDiscountFactor => ValueSystemConfigManager.Instance.GetOrCreateConfig().CardCostConfig.SymmetricDiscountFactor;
-
-        /// <summary>
-        /// 是否「同时作用双方」（2026-10-03 用户定案减半口径；2026-10-09 逐原子目标制修订；
-        /// 2026-10-29 去对称让利——规则光环臂整删，表价即实价）：
-        /// - 双侧域（SideLock=0 且域非空）且 全取档（SelectionModeRules.IsTakeAll）——域内全收
-        ///   必然覆盖双方，让利成立；
-        /// - 旧共享目标数据（PerAtomTargets=false，header 声明作用范围）保留显式多目标减半臂
-        ///   （有效数量≥2——「双方各一」语义）。
-        /// 规则光环（ModifyGameRule·无目标域）不再参与（2026-10-29 定案：对称仪典表价直接落
-        /// 实价 3/6 档——对称面让利在表侧兑现，计价侧恒全价）；无目标域的其余原子恒 false。
-        /// 逐原子目标制（PerAtomTargets=true，2026-10-09）数量 1/2/3=弹窗任选 N 个——是否跨侧
-        /// 运行时才知，**不再按数量≥2 判对称减半**（旧口径曾令双侧域伤害 1/2/3 档经 ×1.5/×2 再 ×0.5
-        /// 后费用全等——目标数量计价失效根因）。
-        /// 单侧锁（可按最优边全价）与双侧域单体任选一侧均不減。
-        /// </summary>
-        public static bool IsSymmetricBothSides(AtomicEffectInstance atom, EffectDefinition def, List<int> domain)
-        {
-            if (domain == null || domain.Count == 0) return false;
-            if (SideLock(domain) != 0) return false;
-            if (SelectionModeRules.IsTakeAll(def != null ? def.SelectionMode : 0)) return true;
-            return def != null && !def.PerAtomTargets
-                   && (atom != null ? atom.EffectiveTargetCount(def) : def.TargetCount) >= 2;
-        }
-
         /// <summary>遗忘行（GrantTemporary·极性−1·白2）——衍生物召唤「负面指示物补偿」的表驱动真源
         ///（2026-10-12 裁决：补偿=该行**单层基准费用**/只，原写死 −1灰 退役；后续遗忘改价自动跟随；
         /// 行缺失=null → 补偿 0）。计价与公式展开（ComputeAtomBaseAmount / BaseExprOf）共用此口。</summary>
@@ -868,8 +902,8 @@ namespace CardCore
         /// <summary>单原子计价公式展开（效果合成器顶栏费用预览——把参与变量写全，如
         /// 「基准1红×5×数量档1.5」）：数值真源仍是 ComputeAtomCost，本口只展开显示构成——
         /// 基准量＋逐段系数链（系数=1 不列），分档判定复用同一批 primitives
-        ///（BaseExprOf 各分档 / QuantityFactor / IsSymmetricBothSides），不另立计价口径。
-        /// 系数顺序与 ComputeAtomCost 管线一致：基准内系（量级/表乘数/持续/控制/赋予档）→数量档→双方减半
+        ///（BaseExprOf 各分档 / QuantityFactor），不另立计价口径。
+        /// 系数顺序与 ComputeAtomCost 管线一致：基准内系（量级/表乘数/持续/控制/赋予档）→数量档
         ///（触发档已随 2026-10-30 无上限定案删除；时机档随 2026-11-13 宿主分叉改版退出锚价——
         /// 生物宿主挂载时由卡层 ×f，结界宿主改由耐久 −1/次；错边拆分已随黑白获得经济删除，2026-10-28 P1）。
         /// 基准内的乘法在数值侧折叠为一次 round（ComputeAtomBaseAmount），展开链只作显示——
@@ -896,8 +930,6 @@ namespace CardCore
             else AddFactor(factors, "数量档", n);
             // 时机档已随 2026-11-13 定案退出效果锚价：锚价=原价；f 只在**生物卡挂载**时由卡层乘
             //（HostMountFactor），结界卡改由耐久每次触发 −1——本展开不再列时机档。
-            if (IsSymmetricBothSides(atom, def, domain))
-                AddFactor(factors, "双方减半", SymmetricDiscountFactor);
             return (baseExpr, factors);
         }
 

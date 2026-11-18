@@ -27,6 +27,10 @@ namespace CardCore.Attribute.Handlers
         {
             foreach (var target in context.Targets)
             {
+                // 场地特殊化（2026-11-18）：关键词效果对场地无效——不写层、不发 KeywordEvent（空转跳过；
+                // 咽喉兜底在 EntityEffectExtensions.AddKeyword，本口先跳省事件）。
+                if (CardCore.FieldRules.BlocksKeywordGrant(target, KeywordLane.Temp)) continue;
+
                 // 关键词三轨（2026-11-07 系统特判）：**效果层关键词=赋予通道（Temp：驱散清/换区清）**——
                 // 不论目标是来源自己还是他人、来源是生物还是角色；卡牌组合界面直加的本体关键词走
                 // CardData.Keywords→Printed（装载期，免疫驱散），不经本 handler。

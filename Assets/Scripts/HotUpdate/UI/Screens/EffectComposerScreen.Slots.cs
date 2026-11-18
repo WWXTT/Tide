@@ -28,12 +28,24 @@ namespace SynergyUI
             {
                 case ComposeMode.Parallel:
                 {
+                    // 独立效果（2026-11-18：召唤衍生物等）：只保留该原子一槽，关闭第二槽/屏蔽右侧库。
+                    bool standalone = HasStandaloneAtom();
+                    if (standalone)
+                    {
+                        var solo = _graph.steps.FirstOrDefault(s => s?.kind == 0 && s.atomic != null
+                            && ComposerCatalog.IsStandaloneAtomRow(AtomicEffectTable.GetByHashId(s.atomic.refId)));
+                        _graph.steps.Clear();
+                        if (solo != null) _graph.steps.Add(new EffectStepData { kind = 0, atomic = solo.atomic });
+                        _selSlot = SelKind.Parallel;
+                        _selSlotIndex = 0;
+                    }
                     // 并列（2026-10-23 五分类回归纯并列）：两槽原子、无分支——分支两形态独立成 chip
                     // 减费三选一（2026-11-02）：宿主已挂代价 → 并列封锁单槽（并列添加两个效果与代价互斥；
                     // 第二槽不可选中/不可再填——已填原子卡保留删除通道可清）
                     bool costLock = HostHasCost();
                     RectTransform firstEmptySlot = null;
-                    for (int i = 0; i < ParallelSlotCount; i++)
+                    int slotCount = standalone ? 1 : ParallelSlotCount;
+                    for (int i = 0; i < slotCount; i++)
                     {
                         int idx = i;
                         bool slotBlocked = costLock && i >= 1;
@@ -48,6 +60,8 @@ namespace SynergyUI
                             if (step.kind == 0 && step.atomic != null)
                                 MakeAtomCard(slot, step.atomic, idx, SelKind.Parallel);
                             else MakeReadonlyStepBadge(slot, step); // 抉择等只读
+                            if (standalone)
+                                MakeHint(slot, "独立效果：其他槽已关闭、右侧原子已屏蔽——只能改本效果时机/数量");
                         }
                         else
                         {

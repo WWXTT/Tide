@@ -545,7 +545,7 @@ namespace CardCore.AI.NeuralEnv
             var phase = core.TurnEngine.CurrentPhase.Phase;
             int turn = core.TurnEngine.TurnNumber;
 
-            var bf = zm.GetCards(me, Zone.Battlefield);
+            var bf = BattlefieldUnits(zm, me); // v15 拆场地：i 与观测战场单位槽序对齐（场地不占单位槽）
             for (int i = 0; i < bf.Count; i++)
             {
                 var src = bf[i];
@@ -610,8 +610,11 @@ namespace CardCore.AI.NeuralEnv
         {
             // 2026-09-16 战斗接入栈机器：攻击=速度0栈对象逐攻击开窗——动作语义不变
             //（Apply→GameActions.DeclareAttack 上栈，随后响应窗口/DrainStack 结算）。
-            var bf = zm.GetCards(me, Zone.Battlefield);
-            var oppBf = zm.GetCards(opp, Zone.Battlefield);
+            // v15 拆场地：攻方/对方单位列表剔场地（i/j 与观测战场单位槽序对齐）；
+            // 场地可被攻击（2026-11-18 场地特殊化拍板）——目标槽=场地专用槽 [189]/[190]。
+            var bf = BattlefieldUnits(zm, me);
+            var oppBf = BattlefieldUnits(zm, opp);
+            var oppField = FieldCardOf(zm, opp);
             for (int i = 0; i < bf.Count; i++)
             {
                 var atk = bf[i];
@@ -629,6 +632,21 @@ namespace CardCore.AI.NeuralEnv
                         Target = t,
                         SourceIndex = TideObservation.CardIndex(me, me, Zone.Battlefield, i),
                         TargetIndex = TideObservation.CardIndex(me, opp, Zone.Battlefield, j),
+                        TargetKindCode = 1,
+                    });
+                }
+
+                // 攻击对方场地（每次结算固定 −1 耐久——引擎侧 FieldRules 口径）：
+                // TargetIndex=场地专用槽（FieldSlotOf），TargetKindCode=1（卡目标——角色攻击行同）。
+                if (oppField != null && core.CombatSystem.CanAttackTarget(atk, oppField, me))
+                {
+                    Actions.Add(new TideAction
+                    {
+                        Type = TideActionType.Attack,
+                        Card = atk,
+                        Target = oppField,
+                        SourceIndex = TideObservation.CardIndex(me, me, Zone.Battlefield, i),
+                        TargetIndex = TideObservation.FieldSlotOf(me, opp),
                         TargetKindCode = 1,
                     });
                 }
@@ -680,7 +698,42 @@ namespace CardCore.AI.NeuralEnv
                         TargetKindCode = 2,
                     });
                 }
+
+                // 角色攻击对方场地（v15：目标=场地专用槽，与单位攻击行同口径）
+                if (oppField != null && core.CombatSystem.CanAttackTarget(me, oppField, me))
+                {
+                    Actions.Add(new TideAction
+                    {
+                        Type = TideActionType.Attack,
+                        Card = null,
+                        HeroAttacker = true,
+                        Target = oppField,
+                        SourceIndex = -1,
+                        TargetIndex = TideObservation.FieldSlotOf(me, opp),
+                        TargetKindCode = 1,
+                    });
+                }
             }
+        }
+
+        /// <summary>战场单位列表（v15 拆场地）：剔场地卡按原序——枚举器循环下标与观测
+        /// 战场槽 [0..8] 的单位序编码对齐（CardIndex(zoneIndex)=单位序号）。</summary>
+        private static List<Card> BattlefieldUnits(ZoneManager zm, Player p)
+        {
+            var cards = zm.GetCards(p, Zone.Battlefield);
+            var units = new List<Card>(cards.Count);
+            foreach (var c in cards)
+                if (c != null && !c.IsFieldCard()) units.Add(c);
+            return units;
+        }
+
+        /// <summary>该侧场地卡（v15：与 BoardState.FieldCardOf 同口径——异常多张取首张）。</summary>
+        private static Card FieldCardOf(ZoneManager zm, Player p)
+        {
+            var cards = zm.GetCards(p, Zone.Battlefield);
+            foreach (var c in cards)
+                if (c != null && c.IsFieldCard()) return c;
+            return null;
         }
 
         /// <summary>英雄技能行（2026-10-15 改版：技能=技能区法术、每回合一次=横置闸）：技能卡在场/
@@ -742,7 +795,7 @@ namespace CardCore.AI.NeuralEnv
         /// 资格镜像 GameActions.TapCreatureForElement 守卫（教学闸在 RL 为 null 不检）。</summary>
         private void EnumerateTapCreatures(GameCore core, Player me, ZoneManager zm)
         {
-            var bf = zm.GetCards(me, Zone.Battlefield);
+            var bf = BattlefieldUnits(zm, me); // v15 拆场地：i 与观测战场单位槽序对齐
             for (int i = 0; i < bf.Count; i++)
             {
                 var c = bf[i];

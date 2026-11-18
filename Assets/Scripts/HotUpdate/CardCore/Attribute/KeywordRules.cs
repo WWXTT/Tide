@@ -495,7 +495,10 @@ namespace CardCore.Attribute
                 if (card.IsNonLivingUnit())
                 {
                     int durBefore = card.GetCounterCount(CounterRules.DurabilityCounter);
-                    CounterRules.LoseDurability(CardCore.GameCore.Instance, card, amount,
+                    // 场地特殊化（2026-11-18）：场地每次受伤固定 1 耐久（战斗/效果同口径，
+                    // 与伤害量无关；防护层/易损/无实体已在上方照常结算——只在此「落耐久」一口钳 1）。
+                    CounterRules.LoseDurability(CardCore.GameCore.Instance, card,
+                        CardCore.FieldRules.DurabilityDamage(card, amount),
                         isCombat ? "战斗伤害" : "效果伤害");
                     dealt = Math.Max(0, durBefore - card.GetCounterCount(CounterRules.DurabilityCounter));
                 }

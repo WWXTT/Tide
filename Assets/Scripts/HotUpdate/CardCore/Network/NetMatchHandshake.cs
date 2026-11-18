@@ -359,7 +359,7 @@ namespace CardCore.Network
                 return;
             }
 
-            // 引用卡ID 闭环（2026-10-13 定案）：召唤衍生物（须生物）/变形赋予（须生物或结界）的
+            // 引用卡ID 闭环（2026-10-13 定案）：召唤衍生物（须生物/结界）/变形赋予（须生物或结界）的
             // atom.str 须能解析到服务器端真实卡且类型合规——与 CardLoader 构筑校验同口径。
             // P9b（2026-10-29）：空 str = 卡组期绑定槽——不再是闭环错误，绑定完整性走
             // DeckTokenSupport.ValidateDeck（ValidateDeckSubmit 上方同批校验）。

@@ -263,12 +263,13 @@ namespace CardCore.Editor
             // 2026-11-08 模拟/变形退役出组合：挂「系统」位整库隐藏——卡直接引用（引用卡=卡组合界面绑定）----
             var internalRows = CardCore.Attribute.AtomicEffectTable.GetAll()
                 .Where(r => r != null && CardCore.ComposerCatalog.HasMountBit(r, CardCore.MountKind.SystemInternal)).ToList();
-            Assert(internalRows.Count == 9
+            Assert(internalRows.Count == 10
                    && new HashSet<string>(internalRows.Select(r => r.EnumName))
                        .SetEquals(new[] { "Attack", "Guard", "SetPower", "SetLife", "SetCost",
-                           "DeclareVictory", "RevealCard", "Morph", "GrantMorph" }),
-                   "系统位 9 行：攻击/守卫/设置攻击力/设置生命值/设置费用/对手胜利+展示+模拟/变形"
-                   + "（2026-11-08 模拟/变形退役出组合——挂「系统」位整库隐藏，卡直接引用+卡组合界面绑定引用卡）");
+                           "DeclareVictory", "RevealCard", "Morph", "GrantMorph", "Dormancy" }),
+                   "系统位 10 行：攻击/守卫/设置攻击力/设置生命值/设置费用/对手胜利+展示+模拟/变形/蛰伏"
+                   + "（2026-11-08 模拟/变形退役出组合——挂「系统」位整库隐藏，卡直接引用+卡组合界面绑定引用卡；"
+                   + "2026-11-18 蛰伏并入：蓝技能系统原子同口径直引不进组合）");
             foreach (var row in internalRows)
             {
                 bool dynamicCost = CardCore.ComposerCatalog.HasMountBit(row, CardCore.MountKind.DynamicCost);
@@ -277,6 +278,11 @@ namespace CardCore.Editor
                 Assert(dynamicCost || CardCore.ComposerCatalog.CanBeRewardRow(row),
                        $"系统行 {row.EnumName} 奖励挂载资格（动态费用行除外——不作 Then 奖励，2026-10-31 定案）");
             }
+            // 2026-11-18 召唤衍生物退出动态费用：引用卡填入后费用即定，普通/引擎奖励均允许。
+            var summonRowForReward = CardCore.Attribute.AtomicEffectTable.GetByType(
+                CardCore.AtomicEffectType.SummonToken);
+            Assert(CardCore.ComposerCatalog.CanBeRewardRow(summonRowForReward),
+                   "召唤衍生物可作奖励（2026-11-18 退出动态费用）");
 
             // ---- 2. 槽级载荷端到端（合成器产出形态 = TestBranchEngines 数据形态）----
             // 引擎载荷（settle=3）：任意主干原子可挂，EngineKind/Then 转存进原子 Branch 槽
@@ -363,22 +369,23 @@ namespace CardCore.Editor
                    && gateRowsFromTable.All(r => !CardCore.ComposerCatalog.CanBeTrunkRow(r))
                    && gateRowsFromTable.All(r => !CardCore.ComposerCatalog.CanBeRewardRow(r)),
                    "门槛行挂位 8 有限分支：不得作主干/奖励（CanBeTrunkRow/CanBeRewardRow 排除；行数与目录一致随表漂移）");
-            // 动态费用行（2026-10-24 定案；2026-10-31 召唤衍生物入列）：临摹/变形赋予/召唤衍生物挂位 9
-            // ——费用随局内动态情况（补差/模板费随引用卡绑定浮动），不可作 Then 奖励；主干照旧
+            // 动态费用行（2026-10-24 定案）：临摹/变形赋予挂位 9——费用随局内动态情况（补差），
+            // 不可作 Then 奖励；2026-11-18 召唤衍生物退出动态费用（引用卡填入后费用即定），
+            // 可作普通/引擎奖励。
             var morphRow = CardCore.Attribute.AtomicEffectTable.GetByEnumName("Morph");
             var grantMorphRow = CardCore.Attribute.AtomicEffectTable.GetByEnumName("GrantMorph");
             var summonTokenRow = CardCore.Attribute.AtomicEffectTable.GetByEnumName("SummonToken");
             Assert(CardCore.ComposerCatalog.HasMountBit(morphRow, CardCore.MountKind.DynamicCost)
                    && CardCore.ComposerCatalog.HasMountBit(grantMorphRow, CardCore.MountKind.DynamicCost)
-                   && CardCore.ComposerCatalog.HasMountBit(summonTokenRow, CardCore.MountKind.DynamicCost),
-                   "动态费用位 9：临摹/变形赋予/召唤衍生物挂位（模板费随引用卡绑定浮动，不可作奖励）");
+                   && !CardCore.ComposerCatalog.HasMountBit(summonTokenRow, CardCore.MountKind.DynamicCost),
+                   "动态费用位 9：临摹/变形赋予挂位；召唤衍生物不挂（2026-11-18 费用引用后即定）");
             Assert(!CardCore.ComposerCatalog.CanBeRewardRow(morphRow)
                    && !CardCore.ComposerCatalog.CanBeRewardRow(grantMorphRow)
-                   && !CardCore.ComposerCatalog.CanBeRewardRow(summonTokenRow)
+                   && CardCore.ComposerCatalog.CanBeRewardRow(summonTokenRow)
                    && CardCore.ComposerCatalog.CanBeTrunkRow(morphRow)
                    && CardCore.ComposerCatalog.CanBeTrunkRow(grantMorphRow)
                    && CardCore.ComposerCatalog.CanBeTrunkRow(summonTokenRow),
-                   "动态费用行不作 Then 奖励（CanBeRewardRow 排除）；主干资格保留");
+                   "动态费用行不作 Then 奖励；召唤衍生物可作奖励（引用绑定后锚价可计）");
             Assert(CardCore.ComposerCatalog.IsOutcomeCondition("DmgKillsTarget")
                    && CardCore.ComposerCatalog.IsOutcomeCondition("DeclareHit")
                    && !CardCore.ComposerCatalog.IsOutcomeCondition("LifeBelowOpp")
@@ -560,7 +567,7 @@ namespace CardCore.Editor
         /// <summary>
         /// 减费三选一（2026-11-02 定案）：① 同一效果只能三选一（有限分支/自由分支/代价）；
         /// ② 并列添加两个效果禁挂代价；③ 光环类（结界的场地光环/仪典行）禁挂代价；
-        /// ④ 代价行全价 ≤4（2026-11-03 自 3 放宽回 4）；⑤ 分支减费=Then 奖励费值——有限分支 1~3、自由分支 1~6（原 1-5 同批放宽）。
+        /// ④ 代价行全价 ≤4（2026-11-03 自 3 放宽回 4）；⑤ 分支减费=Then 奖励费值——有限分支 0~3、自由分支 0~6（原 1-5 同批放宽）。
         /// 判定单源=SynergyUI.EffectComposerScreen（DiscountConflictOf / BranchRewardCapViolationOf——
         /// 卡组合保存闸 / addcost 闸 / 效果合成器形态闸与本段共用）。夹具全内存合成，不动卡表。
         /// </summary>
@@ -642,7 +649,7 @@ namespace CardCore.Editor
                    && SynergyUI.EffectComposerScreen.DiscountConflictOf(cardCost4) == null,
                    $"代价 {price4:0.#} 点（≤{SynergyUI.EffectComposerScreen.CostDiscountCap}）→ 合规");
 
-            // ---- ④ 有限分支 4 点 → 超区间（1~3） ----
+            // ---- ④ 有限分支 4 点 → 超区间（0~3） ----
             var gate4 = ParallelFx(GateAtom(AtomicEffectType.DealDamage, 1, "FirstCardThisTurn",
                 Atom(AtomicEffectType.DrawCard, 3)));
             string rGate4 = SynergyUI.EffectComposerScreen.BranchRewardCapViolationOf(gate4);
@@ -654,7 +661,7 @@ namespace CardCore.Editor
             string rGate1 = SynergyUI.EffectComposerScreen.BranchRewardCapViolationOf(gate1);
             Assert(rGate1 == null, $"有限分支奖励费 3 内 → 合规（实际：{rGate1 ?? "合规"}）");
 
-            // ---- ⑤ 自由分支 7 点 → 超区间（1~6） ----
+            // ---- ⑤ 自由分支 7 点 → 超区间（0~6） ----
             var engine7 = ParallelFx(EngineAtom(AtomicEffectType.EngineCountdown, 0,
                 CardCore.BranchEngineKind.Countdown, 0, Atom(AtomicEffectType.DrawCard, 6)));
             string rEngine7 = SynergyUI.EffectComposerScreen.BranchRewardCapViolationOf(engine7);
@@ -697,9 +704,15 @@ namespace CardCore.Editor
         /// 2026-11-06 追加：④代价同色（基准=效果主干色——CardCostService.PayloadColorMismatches
         /// 单源；EnsureCost 期 TideLog 无 sink 不可见，此处 Debug 通道补）。
         /// </summary>
-        [MenuItem("Tools/减费三选一校验（只报不改）")]
+        /// <summary>减费三选一自动汇报（2026-11-18 用户定案：取消独立菜单，费用推导完自动跑一次）。
+        /// 由 CardPipelineVerifier.Regen 的两个费用入口在收尾调用——只报不改。
+        /// 分支费值口径见 EffectComposerScreen.BranchRewardCapViolationOf。</summary>
         public static void RunDiscountExclusiveAudit()
         {
+            // 召唤衍生物奖励的锚价依赖模板解析器（编辑器菜单无组合根注入）——先接线，避免
+            // 把「模板费+2」误算成 0（深潭碑曾报自由分支减费 0）。
+            var prevResolver = CardCore.Attribute.Handlers.SummonTokenHandler.ResolveTemplate;
+            CardCore.Attribute.Handlers.SummonTokenHandler.ResolveTemplate = SynergyUI.CardCatalog.GetById;
             var cards = new List<CardData>();
             string mainPath = SynergyUI.CardDataPaths.FileIn("Cards.json");
             if (File.Exists(mainPath))
@@ -767,6 +780,7 @@ namespace CardCore.Editor
             }
             Debug.Log($"[代价栏][④同色] 审计 {costCards} 张卡（主表+教学+训练）：异色代价 {colorBad} 条"
                       + "（基准=效果主干色——异色抵扣纯空转；只报不改）");
+            CardCore.Attribute.Handlers.SummonTokenHandler.ResolveTemplate = prevResolver;
         }
 
         /// <summary>元素席位收缩断言（2026-10-28 P2）：ManaType 白/黑退役、Any 6→4——
@@ -1116,3 +1130,4 @@ namespace CardCore.Editor
 
     }
 }
+

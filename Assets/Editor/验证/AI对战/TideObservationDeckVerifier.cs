@@ -26,6 +26,9 @@ namespace CardCore.Editor.Tests
     /// ⑦ 除外 8 入册（9 张放逐→8 编码+g[15]=9+zoneKind=9）；⑧ 被展示——对方手牌 2 张开图
     ///（其余仍隐藏）、对方牌库 2 张入尾块 [185..]（区内序）；⑨ 牌库顶——光环命中才编码+LAE
     /// 出牌行+Apply 离库，**未命中/载体离场恒空槽（反泄露硬断言）**。
+    /// v15（2026-11-18 场地特殊化·拆槽）：⑩ 战场槽 [0..8] 无场地 + 场地专用槽 [189]/[190]
+    ///（zoneKind=10、身份对拍、座次镜像）+ g[7]/g[8] 只数单位 + LAE 攻击场地行
+    ///（TargetIndex=场地槽）；维度握手 15/116/58/191（FieldBase=189/FieldSlots=2）。
     /// 夹具按卡名解析（教学池 ID 随内容重推漂移，硬编码 ID 会假阴——LAE 验证器同款口径）。
     /// 入口：菜单 验证/观测v9牌库双通道；Run() 返回报告文本（全过=PASS 结尾）。
     /// </summary>
@@ -79,15 +82,17 @@ namespace CardCore.Editor.Tests
             var deck1Data = Mix(catalog, (CardA, 10), (CardB, 10), (CardC, 10)); // 30
             var deck2Data = Mix(catalog, (CardD, 10), (CardA, 10), (CardB, 10)); // 30（红+绿混色，标签口径覆盖）
 
-            // ================= ⓪ 维度握手 =================
-            checks.Add(new Check(TideObservation.LayoutVersion == 10 && TideObservation.NCard == 116
-                && TideObservation.NGlobal == 58 && TideObservation.MaxCardsTotal == 189
+            // ================= ⓪ 维度握手（v15 场地特殊化 2026-11-18：+场地专用块 [189]/[190]） =================
+            checks.Add(new Check(TideObservation.LayoutVersion == 15 && TideObservation.NCard == 116
+                && TideObservation.NGlobal == 58 && TideObservation.MaxCardsTotal == 191
                 && TideObservation.MaxCardsPerPlayer == 77 && TideObservation.DeckBase == 154
                 && TideObservation.DeckSlots == 30 && TideObservation.DeckTopSlot == 184
-                && TideObservation.OppDeckExposedBase == 185 && TideObservation.OppDeckExposedSlots == 4,
-                $"布局常量期望 v10：10/116/58/189/77/154/30/184/185/4，实际 {TideObservation.LayoutVersion}/{TideObservation.NCard}/"
+                && TideObservation.OppDeckExposedBase == 185 && TideObservation.OppDeckExposedSlots == 4
+                && TideObservation.FieldBase == 189 && TideObservation.FieldSlots == 2,
+                $"布局常量期望 v15：15/116/58/191/77/154/30/184/185/4/189/2，实际 {TideObservation.LayoutVersion}/{TideObservation.NCard}/"
                 + $"{TideObservation.NGlobal}/{TideObservation.MaxCardsTotal}/{TideObservation.MaxCardsPerPlayer}/{TideObservation.DeckBase}/"
-                + $"{TideObservation.DeckSlots}/{TideObservation.DeckTopSlot}/{TideObservation.OppDeckExposedBase}/{TideObservation.OppDeckExposedSlots}"));
+                + $"{TideObservation.DeckSlots}/{TideObservation.DeckTopSlot}/{TideObservation.OppDeckExposedBase}/{TideObservation.OppDeckExposedSlots}"
+                + $"/{TideObservation.FieldBase}/{TideObservation.FieldSlots}"));
 
             // ================= ① 构成对账 + 标签静态（seed 12345·含开抽） =================
             core.InitGame(CardLoader.BuildDeck(deck1Data, 1), CardLoader.BuildDeck(deck2Data, 1), rngSeed: 12345);
@@ -245,6 +250,88 @@ namespace CardCore.Editor.Tests
 
             // ================= ⑥⑦⑧⑨ v10 四件套：墓地扩槽/除外/被展示/牌库顶 =================
             RunV10Scenarios(catalog, log, checks);
+
+            // ================= ⑩ v15 场地特殊化：观测拆槽 + LAE 攻击场地行 =================
+            RunV15Scenarios(catalog, log, checks);
+        }
+
+        // ======================================== v15 场景（2026-11-18 场地特殊化·拆槽） ========================================
+
+        private static void RunV15Scenarios(List<CardData> catalog, StringBuilder log, List<Check> checks)
+        {
+            var core = GameCore.Instance;
+            var deck1Data = Mix(catalog, (CardA, 10), (CardB, 10), (CardC, 10));
+            var deck2Data = Mix(catalog, (CardD, 10), (CardA, 10), (CardB, 10));
+            core.InitGame(CardLoader.BuildDeck(deck1Data, 1), CardLoader.BuildDeck(deck2Data, 1), rngSeed: 15);
+            var p1 = core.Player1;
+            var p2 = core.Player2;
+            var zm = core.ZoneManager;
+
+            // 双方各上 1 张场地（结界克隆+IsField）+ p1 上 1 只攻击者（LAE 攻击行前提）
+            var fieldTpl = catalog.FirstOrDefault(c => c.Supertype == Cardtype.Enchantment);
+            Card MakeField(Player owner)
+            {
+                var data = TideJson.FromJson<CardData>(TideJson.ToJson(fieldTpl));
+                data.IsField = true;
+                var card = new CardWrapper(data);
+                card.SetController(owner);
+                zm.TryAddToBattlefield(card, owner);
+                return card;
+            }
+            var f1 = MakeField(p1);
+            var f2 = MakeField(p2);
+            var atk = TakeFromDeckOrHand(zm, p1);
+            zm.MoveCard(atk, p1, zm.IsCardInZone(atk, p1, Zone.Hand) ? Zone.Hand : Zone.Deck, Zone.Battlefield);
+
+            var obs = TideObservation.Build(core, p1, false, null);
+
+            // 战场槽 [0..8] 不含场地（zoneKind=10 不出现在单位槽）
+            bool bfClean = true;
+            for (int i = 0; i < 9; i++)
+            {
+                int b = i * TideObservation.NCard;
+                if (obs.Cards[b] == 1f && obs.Cards[b + TideObservation.ZoneKindSlot] == 10f) bfClean = false;
+            }
+            checks.Add(new Check(bfClean, "v15 拆场地：战场槽 [0..8] 不含场地（单位槽无 zoneKind=10）"));
+
+            // 场地专用槽：[189]=己方 / [190]=对方（各 1 张、zoneKind=10、身份对拍）
+            int bOwn = TideObservation.FieldBase * TideObservation.NCard;
+            int bOpp = (TideObservation.FieldBase + 1) * TideObservation.NCard;
+            bool fieldOk = obs.Cards[bOwn] == 1f && obs.Cards[bOwn + TideObservation.ZoneKindSlot] == 10f
+                && obs.Cards[bOwn + TideObservation.StructureSlot] == TideCardIndex.IndexOf(StructureHashOf(f1))
+                && obs.Cards[bOpp] == 1f && obs.Cards[bOpp + TideObservation.ZoneKindSlot] == 10f
+                && obs.Cards[bOpp + TideObservation.StructureSlot] == TideCardIndex.IndexOf(StructureHashOf(f2));
+            checks.Add(new Check(fieldOk, "v15 场地专用槽：[189]=己方场地 / [190]=对方场地（zoneKind=10、身份对拍）"));
+
+            // IndexOfCard 反查：场地卡→专用槽；单位→战场槽
+            int ua = TideObservation.IndexOfCard(core, p1, atk);
+            bool idxOk = TideObservation.IndexOfCard(core, p1, f1) == TideObservation.FieldBase
+                && TideObservation.IndexOfCard(core, p1, f2) == TideObservation.FieldBase + 1
+                && ua >= 0 && ua < 9;
+            checks.Add(new Check(idxOk,
+                $"v15 IndexOfCard：场地卡→[189]/[190]，单位→战场槽（攻击者槽={ua}）"));
+
+            // g[7]/g[8] 只数单位（p1=1 攻击者、p2=0；场地不计）
+            checks.Add(new Check(Mathf.RoundToInt(obs.Globals[7]) == 1 && Mathf.RoundToInt(obs.Globals[8]) == 0,
+                $"v15 g[7]/g[8] 只数单位（期望 1/0，实际 {obs.Globals[7]:0}/{obs.Globals[8]:0}）"));
+
+            // LAE：攻击对方场地行（TargetIndex=场地专用槽、TargetKindCode=1、源=攻击者）
+            AdvanceToMainPhase(core, p1);
+            var lae = new LegalActionEnumerator();
+            lae.Enumerate(core, p1);
+            var fieldAtkRows = lae.Actions.Where(a => a.Type == TideActionType.Attack
+                && ReferenceEquals(a.Target, f2)).ToList();
+            bool laeOk = fieldAtkRows.Count > 0 && fieldAtkRows.All(r => r.TargetIndex == TideObservation.FieldBase + 1
+                && r.TargetKindCode == 1);
+            log.AppendLine($"[v15场地] LAE 攻击场地行={fieldAtkRows.Count}");
+            checks.Add(new Check(laeOk,
+                $"v15 LAE 攻击场地行：应≥1 行且 TargetIndex={TideObservation.FieldBase + 1}/KindCode=1，实际 {fieldAtkRows.Count} 行"));
+
+            // 座次镜像：Build(p2) 时 [189]=p2 场地 / [190]=p1 场地
+            var obs2 = TideObservation.Build(core, p2, false, null);
+            bool mirrorOk = obs2.Cards[bOwn + TideObservation.StructureSlot] == TideCardIndex.IndexOf(StructureHashOf(f2))
+                && obs2.Cards[bOpp + TideObservation.StructureSlot] == TideCardIndex.IndexOf(StructureHashOf(f1));
+            checks.Add(new Check(mirrorOk, "v15 座次镜像：Build(p2) 时 [189]=p2 场地 / [190]=p1 场地"));
         }
 
         // ======================================== v10 场景（2026-11-02 观测欠账四件套） ========================================

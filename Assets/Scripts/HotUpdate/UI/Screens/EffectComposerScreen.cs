@@ -129,9 +129,9 @@ namespace SynergyUI
         /// 寒锥/退潮/缓兵/蚀忆四张 4 点行随收回报超限，降回 ≤3 由表侧跟进）。
         /// 口径=代价行全价（逐原子 PayloadUnitGrant 求和）——抵扣色容量另有运行时钳，本闸管构筑期。</summary>
         public const int CostDiscountCap = 3;
-        /// <summary>有限分支减费区间上限：Then 奖励费值 1~3（门槛行 Budget 1/2/3 均在此内——本值为全局上界）。</summary>
+        /// <summary>有限分支减费区间上限：Then 奖励费值 0~3（门槛行 Budget 1/2/3 均在此内——本值为全局上界）。</summary>
         public const int LimitedBranchFeeCap = 3;
-        /// <summary>自由分支减费区间上限：Then 奖励费值 1~6（原 1-5 同批放宽一档）。</summary>
+        /// <summary>自由分支减费区间上限：Then 奖励费值 0~6（下界 0 允许零费召唤/零费奖励）。</summary>
         public const int FreeBranchFeeCap = 6;
 
         /// <summary>branch 是否代价门载荷（settle=Gate + ComposerCatalog.CostGateId 哨兵——
@@ -279,9 +279,9 @@ namespace SynergyUI
         }
 
         /// <summary>分支奖励费值超限检测（2026-11-02 减费三选一·分支=Then 奖励费值口径）：
-        /// 有限分支（Gate/Outcome）奖励费值须在 1~<see cref="LimitedBranchFeeCap"/>、
-        /// 自由分支（Engine）在 1~<see cref="FreeBranchFeeCap"/>（下界=空/零费奖励另有未填闸，
-        /// 此处拦 &lt;1 的零费档与超上限档）。返回 null=合规；非空=违规描述。</summary>
+        /// 有限分支（Gate/Outcome）奖励费值须在 0~<see cref="LimitedBranchFeeCap"/>、
+        /// 自由分支（Engine）在 0~<see cref="FreeBranchFeeCap"/>（下界=0：零费召唤/零费奖励合法；
+        /// 空奖励另有未填闸）。返回 null=合规；非空=违规描述。</summary>
         public static string BranchRewardCapViolationOf(CardEffectData fx)
         {
             if (fx?.Steps == null) return null;
@@ -303,16 +303,16 @@ namespace SynergyUI
                 if (settle == BranchSettleKind.Gate || settle == BranchSettleKind.Outcome)
                 {
                     if (fee > LimitedBranchFeeCap)
-                        return $"效果「{fxName}」：有限分支减费 {fee:0.#} 超区间（1~{LimitedBranchFeeCap}）";
-                    if (fee < 1f)
-                        return $"效果「{fxName}」：有限分支减费 {fee:0.#} 低于区间下界（1~{LimitedBranchFeeCap}）";
+                        return $"效果「{fxName}」：有限分支减费 {fee:0.#} 超区间（0~{LimitedBranchFeeCap}）";
+                    if (fee < 0f)
+                        return $"效果「{fxName}」：有限分支减费 {fee:0.#} 低于区间下界（0~{LimitedBranchFeeCap}）";
                 }
                 else if (settle == BranchSettleKind.Engine)
                 {
                     if (fee > FreeBranchFeeCap)
-                        return $"效果「{fxName}」：自由分支减费 {fee:0.#} 超区间（1~{FreeBranchFeeCap}）";
-                    if (fee < 1f)
-                        return $"效果「{fxName}」：自由分支减费 {fee:0.#} 低于区间下界（1~{FreeBranchFeeCap}）";
+                        return $"效果「{fxName}」：自由分支减费 {fee:0.#} 超区间（0~{FreeBranchFeeCap}）";
+                    if (fee < 0f)
+                        return $"效果「{fxName}」：自由分支减费 {fee:0.#} 低于区间下界（0~{FreeBranchFeeCap}）";
                 }
             }
             return null;
@@ -671,3 +671,4 @@ namespace SynergyUI
 
     }
 }
+

@@ -243,8 +243,6 @@ namespace CardCore
         public float StatPermanentMultiplier = 4f;
         /// <summary>改写族恒价：Set*/费用永久直改 = 3.0/+1。</summary>
         public float StatRewriteFlatCost = 3f;
-        /// <summary>双方同时作用减半系数（双侧全取/规则光环 ×0.5；2026-10-05 迁表）。</summary>
-        public float SymmetricDiscountFactor = 0.5f;
         /// <summary>耐久单价：0.5 灰/点（2026-11-14 基础属性归灰定案，落桶见 CardCostService.StatBucketsOf；
         /// 2026-11-03 耐久改蓝口径作废）。</summary>
         public float DurabilityUnitCost = 0.5f;

@@ -820,9 +820,10 @@ namespace CardCore.Editor
                 if (type == Cardtype.Creature) { d.AttackAbility = true; d.GuardAbility = true; d.Power = 2; d.Life = 2; }
                 d.Effects.Add(new CardEffectData
                 {
-                    Id = "TT_probe_onplay",
-                    TriggerTiming = (int)TriggerTiming.OnPlay,
-                    // 档位由内容自决：E=红 dmg×1（登场=一回合一次 ×1）→ Ĉ=round(E[+S]) 所在档
+                    Id = "TT_probe_onturnstart",
+                    TriggerTiming = (int)TriggerTiming.OnTurnStart,
+                    // 档位由内容自决：E=红 dmg×1（回合开始=一回合一次档 f=1——2026-11-18 起探针改挂
+                    // 本时机：OnPlay 已迁 Rare 0.9（2026-11-16），9×0.9 会把 D=11 的全额口径缩成 10）
                     AtomicEffects = new List<AtomicEffectEntry> { AtomRefs.New(AtomicEffectType.DealDamage, value: dmg) },
                 });
                 return CardCore.CardCostService.Derive(d);
@@ -849,12 +850,16 @@ namespace CardCore.Editor
                        $"{what}：TargetKinds=[{string.Join(",", kinds)}]");
             }
             AssertKinds(AtomicEffectType.DealDamage, new[] { 1, 2, 3, 4 }, "伤害族开放无生命域·造成伤害");
-            AssertKinds(AtomicEffectType.Freeze, new[] { 1, 2 },
-                "冻结域 kinds={1,2}（对方元素池位已删——B1 定案：冻结无元素池）；域=Domain 列 双方战场:生物");
+            // 2026-11-16「加强绿色」裁定（8b46a8d01）：冻结可指地牌——Domain 并入 双方元素池:卡
+            //（表行「特殊裁定：可用以地牌为目标，被此效果横置的地牌不会在横置时产生元素」）。
+            // 旧「B1 定案：冻结无元素池」口径作废；契约 §6 现语义=面积域不含元素池地牌、
+            // 显式声明元素池区域 selector 才可达（本行即显式声明）。
+            AssertKinds(AtomicEffectType.Freeze, new[] { 1, 2, 13, 14 },
+                "冻结域 kinds={1,2,13,14}（13/14=双方元素池:卡——冻结可指地牌裁定）；域=Domain 列 双方战场:生物; 双方元素池:卡");
             var freezeRowB1 = CardCore.Attribute.AtomicEffectTable.GetByType(AtomicEffectType.Freeze);
             Assert(CardCore.TargetAxisRules.TryParseDomain(freezeRowB1?.Domain, out var freezeAxis)
-                   && freezeAxis.Zh == "双方战场:生物",
-                   "冻结 Domain=双方战场:生物（契约 §6：无元素池——历史易错点写死）");
+                   && freezeAxis.Zh == "双方战场:生物；双方元素池:卡",
+                   "冻结 Domain=双方战场:生物; 双方元素池:卡（2026-11-16 裁定：地牌经元素池区域 selector 显式声明可达——表行特殊裁定注明）");
 
             // ---- ③④ 结界耐久全流程（自开新局，合成卡组） ----
             var filler = Enumerable.Range(0, 8).Select(i => new CardData

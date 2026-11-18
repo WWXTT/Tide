@@ -345,6 +345,17 @@ namespace SynergyUI
         private static IEnumerable<AtomicEffectConfig> AllTableRows()
             => AtomicEffectTable.GetAll().Where(r => r != null && !string.IsNullOrEmpty(r.EnumName));
 
+        /// <summary>当前效果图是否含独立原子（2026-11-18：召唤衍生物独占——不与其他效果组合）。</summary>
+        private bool HasStandaloneAtom()
+        {
+            if (_graph?.steps == null) return false;
+            foreach (var s in _graph.steps)
+                if (s != null && s.kind == 0 && s.atomic != null
+                    && ComposerCatalog.IsStandaloneAtomRow(AtomicEffectTable.GetByHashId(s.atomic.refId)))
+                    return true;
+            return false;
+        }
+
         /// <summary>原子行搜索语料（2026-10-13）：名∪描述模板∪Tags∪MountKinds∪TargetKinds
         ///（后三者中文 CSV 直收——搜「关键词」「指示物」「连接光环」等类别词即中）。</summary>
         private static string AtomCorpus(AtomicEffectConfig row)
@@ -361,12 +372,20 @@ namespace SynergyUI
             {
                 case ComposeMode.Parallel:
                 {
+                    // 独立效果（2026-11-18：召唤衍生物等无域原子）：选中后关闭其他槽、屏蔽右侧库。
+                    if (HasStandaloneAtom())
+                    {
+                        contextZh = "独立效果：其他槽已关闭、右侧原子已屏蔽——只能改本效果时机/数量";
+                        return _ => false;
+                    }
                     contextZh = _selSlotIndex == 1
                         ? "并列槽 2（主动原子·非错边）"
                         : "并列槽 1（主动原子·非错边）";
                     // 五分类：并列无分支——引擎行不入并列槽（要引擎请切自由分支）
+                    // 独立原子（无 Domain）例外：仍列在并列库，选中后独占整条效果。
                     return lp => lp.CanBeTrunk && !lp.IsWrongSideOnly && !lp.IsEngineTrunk
-                                 && (lp.Cfg?.GetTargetKindList()?.Count ?? 0) > 0;
+                                 && ((lp.Cfg?.GetTargetKindList()?.Count ?? 0) > 0
+                                     || ComposerCatalog.IsStandaloneAtomRow(lp.Cfg));
                 }
                 case ComposeMode.FreeBranch:
                 {
@@ -1010,6 +1029,18 @@ namespace SynergyUI
         private void ReplaceParallel(AtomicEffectEntry entry)
         {
             _graph.steps ??= new List<EffectStepData>();
+            // 独立原子（2026-11-18）：独占整条效果——清空其他槽，固定落槽 1。
+            if (entry != null && ComposerCatalog.IsStandaloneAtomRow(
+                    AtomicEffectTable.GetByHashId(entry.refId)))
+            {
+                _graph.steps.Clear();
+                _graph.steps.Add(new EffectStepData { kind = 0, atomic = entry });
+                _expandedAtoms.Add(entry);
+                _selSlot = SelKind.Parallel;
+                _selSlotIndex = 0;
+                RefreshSlots();
+                return;
+            }
             int s = Mathf.Clamp(_selSlotIndex, 0, ParallelSlotCount - 1);
             bool wasEmpty = s >= _graph.steps.Count;
             if (wasEmpty)

@@ -302,15 +302,16 @@ namespace CardCore
                     if (t == (int)TriggerTiming.Activate_Active || t == (int)TriggerTiming.Activate_Instant
                         || t == (int)TriggerTiming.Activate_Response)
                         continue; // 主动档无时机（现付）
-                    // 2026-11-13 收口：引擎载荷只有结界可挂（引擎=无上限触发，生物没有耐久对价）
+                    // 2026-11-13 收口：引擎载荷只有结界可挂；2026-11-18 与 P9-7 档位制对齐——
+                    // 生物的「一回合一次/稀有」档引擎宿主合法（频率由时机档限制），仅 Multi 仍拦。
                     if (HasEngineEntry(e))
                     {
-                        // 2026-11-14：教学/训练池的引擎载体夹具是收口遗留债（教学内容待重做，
-                        // 见 docs/循环控制盘点 §11）——只告警；玩家池/新卡仍 Error 拦截。
+                        if (EffectEligibility.CreatureCanTakeTiming((TriggerTiming)t)) continue;
+                        // 教学/训练池的旧引擎夹具只告警；玩家池/新卡仍 Error 拦截。
                         bool fixture = card.Tags != null
                                        && (card.Tags.Contains("教学") || card.Tags.Contains("训练池"));
                         string msg = $"[CardLoader] 卡 {card.ID}({card.CardName})：效果 {e.Id} 携带引擎载荷"
-                                     + "——引擎无触发上限，只有结界能用耐久买次数（2026-11-13 收口）";
+                                     + "——一回合多次时机下引擎无触发上限，只有结界能用耐久买次数（2026-11-13 收口）";
                         if (fixture) TideLog.Warn(msg + "（教学/训练夹具遗留，只告警；内容重做后移除）");
                         else TideLog.Error(msg + "——装载期拦截");
                         continue;
@@ -532,13 +533,13 @@ namespace CardCore
                         {
                             // 2026-11-15 训练池矩阵 P0-D4/P2：检索预置名置空（宣言断链防白付）、
                             // 强夺/窃取对账样板无预置——同引擎载荷夹具先例，教学/训练/对账夹具卡
-                            // 降级 Warn（结算期宣言反问兜底 + AI 闸拦白付）；玩家池仍 Error 拦截。
+                            // 降级 Info（结算期宣言反问兜底 + AI 闸拦白付）；玩家池仍 Error 拦截。
                             bool paramFixture = card.Tags != null
                                                 && (card.Tags.Contains("教学") || card.Tags.Contains("训练池")
                                                     || card.Tags.Contains("对账样板"));
                             string msg = $"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
                                          + $"原子行「{row.DisplayName}」声明参数（{row.Param}）但实例字符串参数为空";
-                            if (paramFixture) TideLog.Warn(msg + "——夹具无预置（结算期宣言反问/AI 闸拦白付）");
+                            if (paramFixture) TideLog.Info(msg + "——夹具无预置（结算期宣言反问/AI 闸拦白付）");
                             else TideLog.Error(msg + "——装载期拦截（不再静默空转/退回默认档）");
                             continue;
                         }
@@ -795,7 +796,7 @@ namespace CardCore
         /// <summary>
         /// 构筑期装载宿主校验（2026-09-11 MountKinds 定案配套的硬约束，可见不炸——坏卡点名）：
         /// - 回响（MountKinds=1,5,6）：2026-09-13 定案生物和法术通用——宿主类型不限制；
-        /// - 召唤衍生物：字符串参数（条目 ID）必须指向一张真实生物卡（非空、非自指、可解析且为生物）。
+        /// - 召唤衍生物：字符串参数（条目 ID）必须指向一张真实**生物/结界**卡（非空、非自指、可解析且类型合法）。
         /// 后续 MountKinds 全面收紧时，通用装载位校验在此扩展。
         ///（微缩/放大宿主属性拦截已随两原子删除退役，2026-10-10。）
         /// </summary>
@@ -835,12 +836,15 @@ namespace CardCore
                                 var template = resolver?.Invoke(atom.str);
                                 // 2026-09-13 修复：resolver 返回裸 CardData（不实现 IHasSupertype），
                                 // is 判定恒 false 会把正常模板误报为非生物——改属性直判（同 SummonTokenHandler）。
+                                // 2026-11-18 用户定案：召唤模板放宽到生物/非场地结界（原先仅生物）。
                                 var tplSuper = template is IHasSupertype ht ? ht.Supertype : template?.Supertype;
-                                if (template != null && (isMorphRef
-                                        ? tplSuper != Cardtype.Creature && tplSuper != Cardtype.Enchantment
-                                        : tplSuper != Cardtype.Creature))
+                                if (template != null && template.IsField)
                                     TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})："
-                                                 + $"引用卡 {atom.str} 不是{(isMorphRef ? "生物/结界" : "生物")}卡——构筑期拦截");
+                                                 + $"引用卡 {atom.str} 是场地结界——场地卡不能作召唤模板");
+                                else if (template != null && tplSuper != Cardtype.Creature
+                                         && tplSuper != Cardtype.Enchantment)
+                                    TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})："
+                                                 + $"引用卡 {atom.str} 不是生物/结界卡——构筑期拦截");
                             }
                         }
                     }
@@ -966,6 +970,16 @@ namespace CardCore
                     var def = CardEffectConverter.ConvertOne(eff, card.ID);
                     if (def == null) continue;
 
+                    // 分支结构硬闸（2026-11-18）：一条效果自由/有限分支只能挂一个，且不能嵌套——
+                    // 费用推导已报 Error；装载期同步拒绝整卡，防止坏数据进对局。
+                    var branchHits = CardCore.CostDerivationService.BranchStructureViolations(def);
+                    if (branchHits.Count > 0)
+                    {
+                        TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id}："
+                                      + string.Join("；", branchHits));
+                        continue;
+                    }
+
                     // 限重复规则（2026-10-09 全局唯一定案 → 2026-10-19 放开修订）：仅引擎主干/仪典行
                     //（ComposerCatalog.DuplicateRestricted——引擎状态按卡单台账/仪典运行时同名一槽）
                     // 同一原子在一个组合效果中只出现一次——主序列/抉择/Then 奖励均计入（合成期已拦，此处构筑期兜底）；
@@ -982,6 +996,22 @@ namespace CardCore
                         TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {def.Id}：重复效果 "
                                        + $"[{string.Join(",", dupRefIds)}]——引擎主干/仪典：一个组合效果中同一效果只能出现一次（并列与奖励均计入）");
 
+                    // 场地特殊化（2026-11-18 装载告警）：指示物/关键词原子行 Domain 含场地区域词元
+                    // → 对场地恒空转（AddCounters/AddKeyword 咽喉闸）——可见不炸，合成器侧已拦下拉。
+                    foreach (var a in EnumerateAtomEntries(eff))
+                    {
+                        if (string.IsNullOrEmpty(a?.refId)) continue;
+                        var rowCfg = AtomicEffectTable.GetByHashId(a.refId);
+                        if (rowCfg == null || string.IsNullOrEmpty(rowCfg.Domain)) continue;
+                        var mounts = MountKindExtensions.ParseCsv(rowCfg.MountKinds);
+                        if (!mounts.Contains(MountKind.Keyword) && !mounts.Contains(MountKind.Counter)) continue;
+                        if (!TargetAxisRules.TryParseDomain(rowCfg.Domain, out var grantAxis)) continue;
+                        if (!grantAxis.Selectors.Any(s => s != null && TargetRegionRules.IsFieldRegion(s.Region))) continue;
+                        TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {def.Id}：原子行 "
+                                       + $"{rowCfg.EnumName}（{a.refId}）MountKinds 含指示物/关键词且 Domain='"
+                                       + rowCfg.Domain + "' 含场地词元——指示物/关键词不可赋予场地（该行对场地空转）");
+                    }
+
                     // 组合上限（2026-10-05 两槽定案）：主序列（Steps 优先，扁平兜底）主干原子计数 ≤ 2——
                     // 并列缩为两槽（Then 奖励/光环条目不计入），超限=构筑期拦截
                     var mainAtoms = def.Steps != null && def.Steps.Count > 0
@@ -991,6 +1021,13 @@ namespace CardCore
                     if (atomCount > 2)
                         TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {def.Id}："
                                        + $"主序列主干原子 {atomCount} 个超两槽上限 2（2026-10-05 并列定案；Then 奖励不计入）");
+                    // 独立原子（2026-11-18：召唤衍生物等无域原子）必须独占一条效果——不能与其他主干原子组合。
+                    bool hasStandalone = mainAtoms.Any(a => a != null
+                        && ComposerCatalog.IsStandaloneAtomRow(
+                            Attribute.AtomicEffectTable.GetByHashId(a.RowHashId)));
+                    if (hasStandalone && atomCount > 1)
+                        TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {def.Id}："
+                                       + "独立效果原子（召唤衍生物等）不能与其他主干原子组合——请拆成独立效果");
 
                     // 效果级作用范围交集校验已删（2026-11-02「取消并列效果收缩作用域」定案——
                     // 2026-10-04 相同目标定案的收窄闸）：并列原子结算期各按自身域独立解析
@@ -1344,24 +1381,27 @@ namespace CardCore
                 var resolved = new List<CardEffectData>();
                 foreach (var eid in entry.effectIds)
                 {
+                    // 关键词原子先判：关键词 id 不在 Effects.json，直接 EffectsLibrary.Resolve
+                    // 会误报“效果引用缺失”（91535cec 等 14 个 Grant 关键词）。
+                    var atom = AtomicEffectTable.GetByHashId(eid);
+                    if (atom != null
+                        && Enum.TryParse<AtomicEffectType>(atom.EnumName, out var kwType)
+                        && GrantKeywordHandlerFactory.TryGetKeywordId(kwType, out var kwId))
+                    {
+                        if (!cardData.Keywords.Contains(kwId)) cardData.Keywords.Add(kwId);
+                        continue;
+                    }
+
                     var effect = EffectsLibrary.Resolve(eid);
                     if (effect != null) { resolved.Add(effect); continue; }
 
-                    var atom = AtomicEffectTable.GetByHashId(eid);
                     if (atom == null)
                     {
                         TideLog.Warn($"[CardLoader] {entry.id}：effectIds 引用 {eid} 既不在效果库也不在原子表——跳过");
                         continue;
                     }
-                    if (Enum.TryParse<AtomicEffectType>(atom.EnumName, out var grantType)
-                        && GrantKeywordHandlerFactory.TryGetKeywordId(grantType, out var kwId))
-                    {
-                        if (!cardData.Keywords.Contains(kwId)) cardData.Keywords.Add(kwId);
-                    }
-                    else
-                    {
-                        TideLog.Warn($"[CardLoader] {entry.id}：原子 {atom.EnumName} 非 Grant 族——不可作本体关键词，跳过");
-                    }
+                    // 非 Grant 原子（已在上面排除关键词）不可作本体关键词。
+                    TideLog.Warn($"[CardLoader] {entry.id}：原子 {atom.EnumName} 非 Grant 族——不可作本体关键词，跳过");
                 }
                 cardData.Effects = resolved;
                 ValidateTriggeredSingleResult(entry.id, entry.cardName, cardData.Effects);

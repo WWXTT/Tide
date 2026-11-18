@@ -618,7 +618,10 @@ namespace CardCore.Damage
                 if (card.IsNonLivingUnit())
                 {
                     int durBefore = card.GetCounterCount(CounterRules.DurabilityCounter);
-                    CounterRules.LoseDurability(GameCore.Instance, card, ctx.Amount,
+                    // 场地特殊化（2026-11-18）：场地每次受伤固定 1 耐久（Chain 路径同 Legacy 口径；
+                    // 默认不启用 Chain，双改防未来 opt-in 漂移）。
+                    CounterRules.LoseDurability(GameCore.Instance, card,
+                        FieldRules.DurabilityDamage(card, ctx.Amount),
                         isCombat ? "战斗伤害" : "效果伤害");
                     dealt = Math.Max(0, durBefore - card.GetCounterCount(CounterRules.DurabilityCounter));
                 }

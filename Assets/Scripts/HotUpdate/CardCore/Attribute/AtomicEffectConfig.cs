@@ -196,7 +196,8 @@ namespace CardCore.Attribute
         /// 目标种类集（**B2 2026-11-05 硬切：TargetKinds 列已删——kinds 视图自 Domain 新语法派生**）。
         /// 派生口径（区级语义，供 SideLock/隐藏区/装载校验等 17 个消费口）：自己→{0}；
         /// 战场 selector→对应侧单位 kind（Own→1/Enemy→2/Both→1,2）；区域 selector→Zone+Side 匹配的
-        /// 区域 kind（5..16）；角色 selector→对应侧单位 kind（角色经单位 kind 承载侧别——Player 滤器语义）。
+        /// 区域 kind（5..16）；角色 selector→对应侧单位 kind（角色经单位 kind 承载侧别——Player 滤器语义）；
+        /// 场地 selector→区级 kinds 3/4（Own→3/Enemy→4/Both→3,4——场地特殊化 2026-11-18）。
         /// 类别细分（生物/结界/法术/卡）不进 kinds——候选走 TargetAxis（TargetAxisResolver）。
         /// 空 Domain（无目标行）= 空集。
         /// </summary>
@@ -235,6 +236,18 @@ namespace CardCore.Attribute
                 if (s.Region == CardCore.TargetRegion.Self)
                 {
                     if (!kinds.Contains(0)) kinds.Add(0);
+                    continue;
+                }
+                // 场地 selector（场地特殊化 2026-11-18）：派生区级 kinds 3/4（己方/对方无生命单位
+                // ——场地的区级视图；与 CostPayability/SideLock/EffectExecutionEngine 预检等
+                // kinds 消费口同视角），Both 取 3,4。不走 ZoneOf 映射（场地 Zone=None）。
+                if (CardCore.TargetRegionRules.IsFieldRegion(s.Region))
+                {
+                    var fSide = CardCore.TargetRegionRules.SideOf(s.Region);
+                    if (fSide == CardCore.RegionSide.Own || fSide == CardCore.RegionSide.Both)
+                        if (!kinds.Contains(3)) kinds.Add(3);
+                    if (fSide == CardCore.RegionSide.Opposing || fSide == CardCore.RegionSide.Both)
+                        if (!kinds.Contains(4)) kinds.Add(4);
                     continue;
                 }
                 var zone = CardCore.TargetRegionRules.ZoneOf(s.Region);

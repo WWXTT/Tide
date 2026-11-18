@@ -46,7 +46,8 @@ namespace CardCore
             bool enchant = data.Supertype == Cardtype.Enchantment;
             if ((enchant || data.Durability > 0) && card.GetCounterCount(CounterRules.DurabilityCounter) <= 0)
                 card.AddCounters(CounterRules.DurabilityCounter,
-                    CardCompositionCost.TotalDurabilityOf(data));
+                    CardCompositionCost.TotalDurabilityOf(data),
+                    kind: Attribute.CounterGrantKind.Init); // 场地特殊化：引擎初始化档——不过场地指示物闸
         }
     }
 }

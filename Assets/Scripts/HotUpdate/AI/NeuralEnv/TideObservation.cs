@@ -15,7 +15,7 @@ namespace CardCore.AI.NeuralEnv
     /// v3 契约（2026-10-14，tide_rl/docs/action_space_v3_contract.md，对账依据=仓库根
     /// AI训练准备_v3对账报告_2026-10-14.md）：
     ///
-    /// 槽位分配（每玩家 77 槽，共 154 槽 + 尾块 35 = 189；容量=引擎真值精确对齐）：
+    /// 槽位分配（每玩家 77 槽，共 154 槽 + 尾块 35 + 场地 2 = 191；容量=引擎真值精确对齐）：
     ///   [0..8]   战场 Battlefield (9 = BattlefieldCapacityPerPlayer，单位区 4+5；P11 盘面重塑)
     ///   [9..22]  元素池 ElementPool (14 = 地牌槽编码容量护栏——2026-10-15 规则硬顶退役后仅编码上限；按色叠格)
     ///   [23..34] 手牌 Hand (12 = 回合中溢出护栏；回合末上限 7 由 globals 表达)
@@ -68,7 +68,11 @@ namespace CardCore.AI.NeuralEnv
         // v14（2026-11-15 目标区域共享规格 v0.2 §6）：动作特征 12→14 维——[12]targetZoneRank
         //（首目标区域序，TargetZoneGrouping.ZoneRankOf 单源）/ [13]targetSideRank（归属，枚举者视角）；
         // 训练未开始、无兼容负担；旧 ONNX/fixture 作废（python LAYOUT_VERSION/N_ACTION_FEATURES 同步升 14）。
-        public const int LayoutVersion = 14;
+        // v15（2026-11-18 场地特殊化 §P7）：场地卡拆出战场单位槽——卡槽 189→191（尾部专用块
+        // [189]=己方场地卡/[190]=对方场地卡，zoneKind=10）；战场槽 [0..8] 只编码单位（剔场地，
+        // 槽序=单位序）；g[7]/g[8] 只数单位。旧 checkpoint/ONNX/fixture 全部作废（python
+        // MAX_CARDS/LAYOUT_VERSION 同步升 15）。
+        public const int LayoutVersion = 15;
         public const int MaxCardsPerPlayer = 77; // v10：43→77（墓地 4→30、除外 8 入册）
         // v9 己方牌库块（尾接全局块，不走 ZoneLayout 每玩家偏移语义——专用 DeckBase+排序名次路径）：
         public const int DeckSlots = 30;                                      // 截断护栏（初始整组 30 恰满；衍生物入库超出不编码）
@@ -76,7 +80,10 @@ namespace CardCore.AI.NeuralEnv
         public const int DeckTopSlot = DeckBase + DeckSlots;                  // v10 [184]：牌库顶虚拟手牌（光环命中才编码）
         public const int OppDeckExposedSlots = 4;                             // v10：对方牌库被展示卡截断护栏
         public const int OppDeckExposedBase = DeckTopSlot + 1;                // v10 [185..188]
-        public const int MaxCardsTotal = DeckBase + DeckSlots + 1 + OppDeckExposedSlots; // v10：116→189
+        // v15 场地专用块（尾部追加）：每方 1 槽——[189]=枚举者视角己方场地卡 / [190]=对方场地卡。
+        public const int FieldBase = OppDeckExposedBase + OppDeckExposedSlots; // v15 [189]
+        public const int FieldSlots = 2;                                       // 己方/对方各 1（无场地=空槽恒 0）
+        public const int MaxCardsTotal = FieldBase + FieldSlots;               // v15：189→191
         // 卡特征布局（内容身份三通路，[15..] 由 CardIdentityService 推导；槽位下标全部由
         // AtomIdSlots 派生——扩容只改 AtomIdSlots 一处，python N_CARD_FEATURES 同步）：
         //   [0..13]  状态特征（valid/controller/超类/力量/生命/费用/横置/关键词/指示物…实时值）
@@ -98,7 +105,8 @@ namespace CardCore.AI.NeuralEnv
         public const int PosXSlot = ParamStart + AtomIdSlots * CardIdentityService.AtomParamDim; // [113]
         public const int PosZSlot = PosXSlot + 1;                              // [114]
         // v9 区域种类 [115]：显式映射（不依 Zone 枚举序，防重排）——0=战场 1=元素池 2=手牌 3=墓地
-        // 4=发动区 5=场地区 6=己方牌库块；v10 扩 7=牌库顶虚拟手牌 8=对方牌库被展示 9=除外区。
+        // 4=发动区 5=场地区 6=己方牌库块；v10 扩 7=牌库顶虚拟手牌 8=对方牌库被展示 9=除外区；
+        // v15 扩 10=场地卡（场地专用槽 WriteFieldCard 直写；战场槽仍 0=只含单位）。
         // 对方隐藏手牌=2（WriteConcealedCard；被展示卡豁免为全特征，仍写 2=手牌）。
         public const int ZoneKindSlot = PosZSlot + 1;                          // [115]
         public const int NCard = ZoneKindSlot + 1; // v9：115→116（尾加 zoneKind）；python N_CARD_FEATURES 同步
@@ -148,9 +156,16 @@ namespace CardCore.AI.NeuralEnv
             obs.WriteOwnDeck(core, seat);        // v9：己方牌库块（仅决策座次方）
             obs.WriteDeckTop(core, seat);        // v10：牌库顶虚拟手牌槽（光环命中才编码——防泄露下一抽）
             obs.WriteOppDeckExposed(core, opp);  // v10：对方牌库被展示卡尾块（RevealRules 信息轴）
+            obs.WriteFieldCard(core, seat, FieldBase);      // v15：场地专用槽 [189]=己方（无场地=空槽）
+            obs.WriteFieldCard(core, opp, FieldBase + 1);   // v15：[190]=对方
             obs.WriteGlobals(core, seat, opp, responseContext);
             return obs;
         }
+
+        /// <summary>场地卡专用槽下标（v15 拆场地）：controller 相对 me——己方 [189] / 对方 [190]。
+        /// LAE 攻击场地行/IndexOfCard 反查共用本口。</summary>
+        public static int FieldSlotOf(Player me, Player controller)
+            => controller != null && !ReferenceEquals(controller, me) ? FieldBase + 1 : FieldBase;
 
         /// <summary>某卡在 cards_ 中的槽位下标（controller 相对 me；未编码区/超出区域容量返回 -1）。</summary>
         public static int CardIndex(Player me, Player controller, Zone zone, int indexInZone)
@@ -162,10 +177,13 @@ namespace CardCore.AI.NeuralEnv
 
         /// <summary>卡实例 → cards_ 槽位下标：动作行目标/栈顶来源的反查——扫描双方全部已编码区
         ///（v9 起含己方牌库块、v10 起含除外区；未编码区如对方牌库/衍生物临时区返回 -1）。
+        /// v15 拆场地：战场场地卡先路由到场地专用槽（先于区扫描）；战场单位序=剔场地后名次。
         /// 仅枚举/观测辅助用，非热路径权威。</summary>
         public static int IndexOfCard(GameCore core, Player me, Card c)
         {
             if (core?.ZoneManager == null || me == null || c == null) return -1;
+            if (c.IsFieldCard() && c.GetZone() == Zone.Battlefield)
+                return FieldSlotOf(me, c.GetController()); // v15：场地专用槽（不占战场单位槽）
             int slot = TryZoneSlot(core.ZoneManager, me, c, 0);
             if (slot >= 0) return slot;
             slot = TryDeckSlot(core.ZoneManager, me, c); // v9：己方牌库块（排序名次对齐编码序）
@@ -194,7 +212,19 @@ namespace CardCore.AI.NeuralEnv
             {
                 var cards = zm.GetCards(p, zone);
                 if (cards == null) continue;
-                int idx = cards.IndexOf(c);
+                int idx;
+                if (zone == Zone.Battlefield)
+                {
+                    // v15 拆场地：战场槽=单位序（剔场地——与 WriteZone 编码序对齐；IndexOf 会算进场地）
+                    idx = -1;
+                    int unitIdx = 0;
+                    foreach (var card in cards)
+                    {
+                        if (ReferenceEquals(card, c)) { idx = unitIdx; break; }
+                        if (card != null && !card.IsFieldCard()) unitIdx++;
+                    }
+                }
+                else idx = cards.IndexOf(c);
                 if (idx >= 0 && ZoneLayout(zone, out int off, out int cap) && idx < cap)
                     return baseSlot + off + idx;
             }
@@ -245,6 +275,16 @@ namespace CardCore.AI.NeuralEnv
             var layer = core.LayerEngine;
             var cards = zm.GetCards(p, zone);
             if (cards == null) return;
+
+            // v15 拆场地：战场槽只编码单位（剔场地后按原序——槽序=单位序，槽数恒 9）；
+            // 场地卡走 WriteFieldCard 专用槽（zoneKind=10）。
+            if (zone == Zone.Battlefield)
+            {
+                var units = new List<Card>(cards.Count);
+                foreach (var c in cards)
+                    if (c != null && !c.IsFieldCard()) units.Add(c);
+                cards = units;
+            }
 
             // 元素池地牌：横置态与锁色在 PooledCard 包装上（Card.IsTapped 恒 0——v2 失效维，v3 从包装读）
             Dictionary<Card, PooledCard> pooledOf = null;
@@ -328,6 +368,23 @@ namespace CardCore.AI.NeuralEnv
             int n = Math.Min(OppDeckExposedSlots, exposed.Count);
             for (int i = 0; i < n; i++)
                 WriteCard(core.LayerEngine, exposed[i], OppDeckExposedBase + i, false, -1f, -1f, 8);
+        }
+
+        /// <summary>场地卡专用槽（v15 拆场地·每方 1 槽）：该侧战场区场地卡（与 BoardState.FieldCardOf
+        /// 同口径——异常多张取首张）全特征编码（zoneKind=10，posX/posZ=己方场地格坐标）。
+        /// 无场地=空槽恒 0（valid=0 即「该侧无场地」信号）；场地不占战场单位槽（WriteZone 已滤）。</summary>
+        private void WriteFieldCard(GameCore core, Player p, int slot)
+        {
+            Card field = null;
+            var cards = core.ZoneManager.GetCards(p, Zone.Battlefield);
+            if (cards != null)
+                foreach (var c in cards)
+                    if (c != null && c.IsFieldCard()) { field = c; break; }
+            if (field == null) return;
+            int playerIdx = ReferenceEquals(p, core.Player1) ? 0 : 1;
+            var (fx, fz) = BoardLayout.FieldCell(playerIdx);
+            WriteCard(core.LayerEngine, field, slot, false,
+                (float)fx / BoardLayout.Width, (float)fz / BoardLayout.Height, 10);
         }
 
         /// <summary>牌库编码序（单源）：StructureContentHash → CompositionContentHash → RuntimeId。
@@ -486,8 +543,9 @@ namespace CardCore.AI.NeuralEnv
             var se = core.StackEngine;
             g[5] = se != null ? zm.GetCards(me, Zone.Hand).FindAll(c => !se.IsPendingCast(c)).Count : zm.GetCards(me, Zone.Hand).Count;
             g[6] = se != null ? zm.GetCards(opp, Zone.Hand).FindAll(c => !se.IsPendingCast(c)).Count : zm.GetCards(opp, Zone.Hand).Count;
-            g[7] = zm.GetCards(me, Zone.Battlefield).Count;
-            g[8] = zm.GetCards(opp, Zone.Battlefield).Count;
+            // v15 拆场地：战场计数只数单位（剔场地——场地存在性由专用槽 valid+zoneKind=10 表达）
+            g[7] = BattlefieldUnitCount(zm, me);
+            g[8] = BattlefieldUnitCount(zm, opp);
             g[9] = ep.GetPooledCards(me).Count;
             g[10] = ep.GetPooledCards(opp).Count;
             g[11] = zm.GetCards(me, Zone.Graveyard).Count / 30f;
@@ -550,6 +608,17 @@ namespace CardCore.AI.NeuralEnv
 
         private static float Clamp(float v, float min, float max)
             => v < min ? min : (v > max ? max : v);
+
+        /// <summary>战场单位数（v15：剔场地——与战场槽 [0..8] 编码口径一致）。</summary>
+        private static int BattlefieldUnitCount(ZoneManager zm, Player p)
+        {
+            int n = 0;
+            var cards = zm.GetCards(p, Zone.Battlefield);
+            if (cards == null) return 0;
+            foreach (var c in cards)
+                if (c != null && !c.IsFieldCard()) n++;
+            return n;
+        }
     }
 
     /// <summary>
