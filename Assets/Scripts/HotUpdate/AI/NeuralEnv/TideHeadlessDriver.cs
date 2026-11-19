@@ -194,6 +194,12 @@ namespace CardCore.AI.NeuralEnv
             _core.InitGame(CardLoader.BuildDeck(deck1, 1), CardLoader.BuildDeck(deck2, 1),
                 skillCardId1: HeroSkillSystem.AutoPickSkillCard(deck1),
                 skillCardId2: HeroSkillSystem.AutoPickSkillCard(deck2));
+            // 规则对齐（2026-11-20，AI训练说明 §4.6）：后手（P2）开局 +SecondPlayerArmorBonus 护甲——
+            // 与 AiDuelRunner（TideSim/窗口批量）/联机/本地对局同口径。此前 headless 缺失，
+            // 导致训练分布 ≠ 实战，且六格 P1 虚高（脚本 P2 少甲）/P2 虚低（模型 P2 少甲）。
+            if (GameCore.SecondPlayerArmorBonus > 0)
+                _core.Player2.AddCounters(CardCore.Attribute.KeywordRules.ArmorCounter,
+                    GameCore.SecondPlayerArmorBonus, _core.Player2);
             _core.Player1.IsAI = true; // 目标/范围选择自动应答（不弹窗，异步同步完成）
             _core.Player2.IsAI = true;
             _modelPlayer = modelIsP1.HasValue ? (modelIsP1.Value ? _core.Player1 : _core.Player2) : null;

@@ -593,10 +593,11 @@ namespace CardCore.AI.NeuralEnv
             // 地牌上限（2026-10-15：自然封顶 10+成长无上限——归一化基准 14 保持 v3 训练分布不变，超出饱和到 1）
             g[32] = Math.Min(ep.GetLandCap(me) / 14f, 1f);
             g[33] = Math.Min(ep.GetLandCap(opp) / 14f, 1f);
-            // g[34..37] 原=黑白本回合已获得台账——台账已随 2026-10-28 四色重构删除；
-            // 维度 v3 冻结保留槽位（下游块 g[38+] 座次不动），恒置 0（P2 删枚举成员后彻底死位）
-            g[34] = 0f;
-            g[35] = 0f;
+            // g[34]/g[35]（2026-11-20，AI训练说明 §4.6）：角色护甲层数 /5——后手开局 +5 甲必须可见，
+            // 否则模型只能从「莫名少掉的血」反推。视角与 g[0]/g[1] 生命一致（me/opp）。
+            // g[36]/g[37] 仍为死位（原黑白台账，2026-10-28 四色重构后恒 0）——维度不变，旧权重可载。
+            g[34] = me != null ? me.GetCounterCount(Attribute.KeywordRules.ArmorCounter) / 5f : 0f;
+            g[35] = opp != null ? opp.GetCounterCount(Attribute.KeywordRules.ArmorCounter) / 5f : 0f;
             g[36] = 0f;
             g[37] = 0f;
 

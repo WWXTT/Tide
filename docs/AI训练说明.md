@@ -1,7 +1,7 @@
 # AI 训练说明（tide_rl）
 
 > 目的：把「为什么这么设、改什么要重训、怎么判断改得好不好」写死，避免下次再问「当初为什么这样」。
-> 最后更新：2026-11-18
+> 最后更新：2026-11-20
 
 ## 0. 本轮训练计划（2026-11-17 两阶段课程定版，环境冻结）
 
@@ -377,6 +377,31 @@ FSP 口径；开启后日志/config 标注 `fsp=true`，`info.fsp=True`。
   - 结论：按本表 **P0/P1/P2/P3.1/P3.2/P4-5.3 功能通过**；P3.3/B-5/C-1/C-2 明确不在本轮。
     仍未收口：`TideServer` 存量红、`AIModels` 旧件、4 项旧 ③④ verifier 红、v18 真模型导出/重训。
 
+### 4.6 训练环境与对局环境的规则差异（2026-11-20 发现，**当日已改代码、待重训验证**）
+
+> 结论：**脚本本体一致，但训练/评估链路少一条规则**——后手（P2）开局 **+5 护甲**。
+
+| 路径 | 后手 +5 护甲 | 代码位置 |
+|---|---|---|
+| TideSim / 窗口批量（§0.2 基线口径） | ✅ | `Assets/Scripts/HotUpdate/AI/AiDuelRunner.cs:125-126`（`ApplySecondPlayerArmor` 默认 true） |
+| 联机 | ✅ | `CardCore/NetSession/NetBattleChannel.cs:399` |
+| 本地 / 挑战对局 | ✅ | `UI/Screens/BattleController.cs:101,110-116`、`BattleScreen.Local.cs:196/213/257/268` |
+| 编辑器批量评估（AiBattleE2E） | ✅ | `Assets/Editor/验证/AI对战/AiBattleE2E.cs:180` |
+| **训练 / TCP 评估（headless）** | ❌ **缺失** | `AI/NeuralEnv/TideHeadlessDriver.cs:194` 只调 `InitGame`；`AI/NeuralEnv/` 全目录无 `ArmorCounter`/`AddCounters` |
+
+- 数值单源：`Assets/Configs/ValueSystemConfig.json:141` `"SecondPlayerArmorBonus": 5.0`。
+- **影响**：
+  1. 模型从未在「后手带 5 甲」的世界训练；导出进对局后 P2 多 5 甲、P1 面对的脚本 P2 也更硬——**训练分布 ≠ 实战**。
+  2. **六格口径不对等**：基线（TideSim，含护甲）vs 评估（headless，不含）——**P1 格模型胜率虚高**（脚本 P2 少 5 甲）、**P2 格虚低**（模型 P2 少 5 甲）。佐证：基线红/蓝 P2 ≥ P1（护甲补偿），本轮评估三套均 P1 > P2。
+  3. **护甲不在观测里（已补）**：原 `TideObservation.cs` 只编码双方生命（`g[0]/g[1]`），全文件无 `ArmorCounter`。2026-11-20 已占用死位 **`g[34]`=己方护甲/5、`g[35]`=对方护甲/5**（维度不变、旧权重可载；`g[36]/g[37]` 仍为死位），模型可见这 5 甲。
+- **脚本一致性已验（同日，2026-11-20）**：训练副本与主工程 **272 文件哈希零差异**（AI 策略/CardCore/编辑器桥/三套预组与卡表/TideSim）；同种子 **120 局**逐局一致、3 局逐动作战报一致；**600 局镜像精确复现 §0.2 基线**（红 72/128、蓝 85/115、绿 185/15）；三预组主题 tag 100%（30/60/30）→ `AiStrategy.AutoMatch` 与 TideSim 显式绑定同值；上一轮 headless 日志含 15,956 条 `[green-key]`/111,041 条 `[green-state]`（绿策略确在训练中运行）。
+- **状态（2026-11-20 01:1x 已落地代码）**：
+  - `TideHeadlessDriver.cs`：`ResetCore` 在 `InitGame` 后给 P2 注入 `SecondPlayerArmorBonus`（对齐 `AiDuelRunner`）。
+  - `TideObservation.cs`：`g[34]/g[35]` 编码双方护甲层数/5。
+  - `train_tide_complete.py`：新增 **`--init-params <run目录|.msgpack>`** 热启动（只载权重、不载优化器状态；Adam 从零累计）。
+  - 编译验证：`dotnet build Tide.HotUpdate.csproj -t:Rebuild` **0 错误**。
+  - 待验证：重训首局 `reset` 的 obs `g[34]/g[35]` 必须恰好一侧为 5/5（=1.0），另一侧 0；随后从 step 199,680 的 `last` 热启动，评估口径随规则与 §0.2 基线对齐。
+
 ## 5. 哪些改动必须重训
 
 | 改动 | 要重训？ | 能否预先判断 |
@@ -385,6 +410,7 @@ FSP 口径；开启后日志/config 标注 `fsp=true`，`info.fsp=True`。
 | 观测特征 / 布局版本 | ✅ 必须 | ✅ 编码器自检 |
 | 动作空间（LAE 枚举/动作特征/交互参数） | ✅ 必须 | ✅ `audit_action_space.py` + §4.5；布局 v18 后旧模型作废 |
 | 奖励函数 / λ | ✅ 必须 | ✅ 跑 100 局看 reward 分布 |
+| **对战规则**（后手护甲/开局补偿等） | ✅ 必须 | 见 §4.6：headless 当前缺后手 +5 甲（2026-11-20） |
 | 网络结构 | ✅ 必须 | ⚠️ 半预判 |
 | 超参（lr/熵/clip） | ❌ 不用重训，重跑即可 | ❌ 只能看曲线 |
 | 表现层 | ❌ | — |
@@ -421,6 +447,7 @@ FSP 口径；开启后日志/config 标注 `fsp=true`，`info.fsp=True`。
 4. **取样池口径**：reset 日志「训练池 **87 张**（TrainingCards 84 + 教学双标签 3）」（2026-11-19 P4-5.3；P2-1..3 已入池，P2-4 无卡）；随机 30 张 0 纯教学卡（[`训练池覆盖矩阵.md`](训练池覆盖矩阵.md) §0 P0-C）。
 5. **关键词完整性**：15 印刷 + 1 登场授予（无实体登场自获 / 再生登场获得）；`CardLoader` 0 悬空（矩阵 §2）。
 6. **Python 编码器同步**：`LAYOUT_VERSION=18` / `N_ACTION_FEATURES=18` / `N_CARD_FEATURES=116` / `MAX_CARDS=191`（v18 口径），与 C# 握手通过（v18 A2 已证）。
+7. **规则一致性（新增，2026-11-20）**：headless 训练/评估必须与对局同规则——当前缺「后手 +5 护甲」（`SecondPlayerArmorBonus`），见 §4.6；开训前用 1 局对拍确认双方后手护甲与 TideSim 一致。
 
 ## 7. 训练中怎么判断「有没有在学」
 
