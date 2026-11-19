@@ -36,24 +36,23 @@ namespace CardCore
 
         // 2026-11-05 ID 冻结收口：TableFingerprint 整表盐及其缓存一并拆除——身份哈希锚定冻结 ID，
         // 原子表内容编辑（含新增无人引用的行）不再触发训练身份换血。
+        //
+        // P-1（2026-11-19 C 方案，docs/AI动作空间补全_修改计划.md §0.4）：EffectType 下标改
+        // **稳定 ID 派生**——index = 1 + SplitMix64(FNV1a64(枚举名)) % (N_EFFECT_TYPES - 1)。
+        // 与池/生成顺序/manifest 无关，main/train 跨进程天然同号（旧追加式注册表+manifest type 行
+        // 分配已废弃，card_identity_manifest.json 仅存档不参与）。0 = hash 0/无/空名；
+        // 未入表不再返回 0——直接落稳定桶。
 
-        /// <summary>EffectType 下标冻结注册表（名→1 基下标，追加式）：首次访问按当前表枚举名排序
-        /// 播种（与历史排序口径零漂移），此后新枚举名一律追加 max+1、永不重排——修复「新增行 →
-        /// 字母序在后的类型全体移位」。分配经 TideCardIndex 清单（type 行）持久化跨进程续排。</summary>
-        private static Dictionary<string, int> _typeRegistry;
-        private static int _typeMaxIndex;
-        private static bool _typeOverflowWarned;
-        private static bool _typeAdopted;
+        /// <summary>EffectType 下标容量上界（P-1：Python N_EFFECT_TYPES=4096；0=无/空名）。
+        /// 旧值 255（256 池 manifest 追加式）已随 2026-11-19 稳定派生废弃。
+        /// public：编辑器验证器（StableIndexVerifier/SpecMaster A2）跨程序集对账取用。</summary>
+        public const int MaxTypeIndex = 4095;
 
-        /// <summary>EffectType 下标容量上界（Python N_EFFECT_TYPES=256；0=无/未入表/溢出）。</summary>
-        internal const int MaxTypeIndex = 255;
-
-        /// <summary>表侧缓存失效（2026-11-05 口径收窄）：ID 冻结后身份哈希与表内容解耦，Reload
-        /// 换表不再触发任何换血——类型注册表是冻结分配，**不清**（跨 Reload 存活，追加式不重排）。
+        /// <summary>表侧缓存失效（P-1 后恒 no-op）：稳定派生无注册表/缓存可清——
         /// 保留方法给既有调用点（SpecMasterVerifier / EffectComposerScreen.SwitchTable）。幂等。</summary>
         public static void InvalidateTableCache()
         {
-            // 保留注册表：见字段注释。语义从「清缓存待重算」收窄为占位，防未来误把冻结分配当缓存清掉。
+            // P-1：追加式注册表已拆，本口仅为兼容保留（无行为）。
         }
 
         /// <summary>推导并写回卡的内容身份（EnsureCost 顶部调用；幂等，重算便宜）。token 等未经装载管线的卡保持空身份（观测侧记 0）。
@@ -75,94 +74,43 @@ namespace CardCore
 
         // ===================================================== 参数数值通路（EffectType 下标 + 参数块） =====================================================
 
-        /// <summary>EffectType → 冻结下标（1 基；0 = 无/未入表/溢出）。追加式注册表：首访按枚举名
-        /// 排序播种（与历史排序口径零漂移），新枚举名追加 max+1 永不重排——新增原子行不再挪动
-        /// 任何已分配下标（2026-11-05 ID 冻结收口；分配经 TideCardIndex 清单 type 行持久化）。</summary>
-        internal static int AtomTypeIndex(string effectType)
-        {
-            if (string.IsNullOrEmpty(effectType)) return 0;
-            var reg = EnsureTypeRegistry();
-            if (reg.TryGetValue(effectType, out int idx)) return idx;
+        // ---- P-1（2026-11-19 C 方案）稳定派生原语：与 Python tide_features.stable_index 同式（双侧逐位对拍） ----
 
-            int next = _typeMaxIndex + 1;
-            if (next > MaxTypeIndex)
-            {
-                if (!_typeOverflowWarned)
-                {
-                    _typeOverflowWarned = true;
-                    TideLog.Error($"[CardIdentity] EffectType 下标溢出（>{MaxTypeIndex}，Python N_EFFECT_TYPES=256）：{effectType} 记 0——泛化通路降级，请扩容重导出");
-                }
-                return 0;
-            }
-            reg[effectType] = next;
-            _typeMaxIndex = next;
-            return next;
+        /// <summary>SplitMix64（标准常数）——64 位混叠，P-1 稳定下标的派生核。
+        /// Python 侧 tide_features.splitmix64 同式（&amp; 0xFFFFFFFFFFFFFFFF 掩码）。</summary>
+        public static ulong SplitMix64(ulong seed)
+        {
+            ulong z = seed + 0x9E3779B97F4A7C15UL;
+            z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9UL;
+            z = (z ^ (z >> 27)) * 0x94D049BB133111EBUL;
+            return z ^ (z >> 31);
         }
 
-        /// <summary>注册表取用：未初始化时按当前表枚举名排序播种（首访 = 历史排序口径，零漂移）。</summary>
-        private static Dictionary<string, int> EnsureTypeRegistry()
+        /// <summary>FNV-1a 64（逐 UTF-16 码元——EffectType 枚举名/效果 Id 均为 ASCII，与
+        /// Python 逐 ord(ch) 同值）。空串/Null → 0（=无）。</summary>
+        public static ulong Fnv1a64(string s)
         {
-            if (_typeRegistry != null) return _typeRegistry;
-            var names = AtomicEffectTable.GetAll()
-                .Select(cfg => cfg.EnumName)
-                .Where(n => !string.IsNullOrEmpty(n))
-                .Distinct()
-                .OrderBy(n => n, StringComparer.Ordinal) // GetAll 走字典 Values 序不稳，必须排序
-                .ToList();
-            var map = new Dictionary<string, int>(names.Count);
-            for (int i = 0; i < names.Count; i++) map[names[i]] = i + 1;
-            _typeRegistry = map;
-            _typeMaxIndex = names.Count;
-            return map;
+            if (string.IsNullOrEmpty(s)) return 0UL;
+            ulong h = 0xCBF29CE484222325UL;
+            foreach (var ch in s)
+            {
+                h ^= (ulong)ch;
+                h *= 0x100000001B3UL;
+            }
+            return h;
         }
 
-        /// <summary>清单载入侧 Adoption（TideCardIndex.ConfigureManifest 的 type 行）：清单分配是
-        /// 权威——首次 Adoption 以清单为基重建（当前表新名按排序批追加 max+1），修复「装载期先播种、
-        /// 清单后绑定」的时序错位；此后只补缺不重排（追加式铁律）。装载期按播种号暂存的下标由
-        /// TideCardIndex.Register 里的 EnsureIdentity 重跑刷新。</summary>
-        internal static void AdoptTypeIndexes(IReadOnlyDictionary<string, int> adopted)
-        {
-            if (adopted == null || adopted.Count == 0) return;
-            if (_typeAdopted)
-            {
-                var reg = EnsureTypeRegistry();
-                foreach (var kv in adopted)
-                {
-                    if (string.IsNullOrEmpty(kv.Key) || kv.Value < 1 || kv.Value > MaxTypeIndex) continue;
-                    if (reg.ContainsKey(kv.Key)) continue; // 已冻结分配不重排
-                    reg[kv.Key] = kv.Value;
-                    if (kv.Value > _typeMaxIndex) _typeMaxIndex = kv.Value;
-                }
-                return;
-            }
-            _typeAdopted = true;
+        /// <summary>稳定下标（P-1 §0.4.2 单源公式）：index = 1 + SplitMix64(seed) % (pool - 1)；
+        /// seed 0 → 0（无）。范围恒 [0, pool-1]——未登记不再返回 0，直接落稳定桶。</summary>
+        public static int StableIndex(ulong seed, int pool)
+            => seed == 0UL ? 0 : 1 + (int)(SplitMix64(seed) % (ulong)(pool - 1));
 
-            var rebuilt = new Dictionary<string, int>(adopted.Count + 16);
-            int max = 0;
-            foreach (var kv in adopted)
-            {
-                if (string.IsNullOrEmpty(kv.Key) || kv.Value < 1 || kv.Value > MaxTypeIndex) continue;
-                rebuilt[kv.Key] = kv.Value;
-                if (kv.Value > max) max = kv.Value;
-            }
-            // 清单里没有的当前表名 = 清单落盘后新增 → 排序批追加（确定性，与装载时序无关）
-            var missing = AtomicEffectTable.GetAll()
-                .Select(cfg => cfg.EnumName)
-                .Where(n => !string.IsNullOrEmpty(n) && !rebuilt.ContainsKey(n))
-                .Distinct()
-                .OrderBy(n => n, StringComparer.Ordinal);
-            foreach (var n in missing)
-            {
-                if (max >= MaxTypeIndex) break;
-                rebuilt[n] = ++max;
-            }
-            _typeRegistry = rebuilt;
-            _typeMaxIndex = max;
-        }
-
-        /// <summary>注册表快照（TideCardIndex.SaveManifest 落盘 type 行用；取用即播种）。</summary>
-        internal static IReadOnlyDictionary<string, int> TypeIndexSnapshot()
-            => EnsureTypeRegistry();
+        /// <summary>EffectType → 稳定下标（1 基；0 = 无/空名）。P-1：由枚举名 FNV-1a 64 直接
+        /// 派生（池 4096）——与池/生成顺序/manifest 无关，main/train 跨进程同号；
+        /// 旧「追加式注册表 + manifest type 行」分配已废弃（2026-11-19）。
+        /// public：编辑器验证器（StableIndexVerifier）跨程序集对拍取用。</summary>
+        public static int AtomTypeIndex(string effectType)
+            => StableIndex(Fnv1a64(effectType), MaxTypeIndex + 1);
 
         /// <summary>原子参数块（AtomParamDim 维，幅度 Clamp 到观测口径 [-99, 999]）。null 原子记全 0。
         /// 2026-09-10 目标域模型后 6 维：[0]Value [1]Mana总量 [2]Mana色数 [3]kind数 [4]最小kind [5]最大kind。</summary>

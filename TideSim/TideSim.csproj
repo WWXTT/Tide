@@ -33,6 +33,8 @@
     <!-- 2026-11-09 拆分：AiStrategy 三主题策略各自成文件（类型名不变）。 -->
     <Compile Include="..\Assets\Scripts\HotUpdate\AI\RedAggroStrategy.cs" Link="Shared\SynergyUI\RedAggroStrategy.cs" />
     <Compile Include="..\Assets\Scripts\HotUpdate\AI\GreenRampStrategy.cs" Link="Shared\SynergyUI\GreenRampStrategy.cs" />
+    <!-- P0 2026-11-19 无域原子目标：牺牲候选顺序单源（GreenRampStrategy 与 LAE 共用；不引 NeuralEnv） -->
+    <Compile Include="..\Assets\Scripts\HotUpdate\AI\HeroSkillTargetPolicy.cs" Link="Shared\SynergyUI\HeroSkillTargetPolicy.cs" />
     <Compile Include="..\Assets\Scripts\HotUpdate\AI\BlueControlStrategy.cs" Link="Shared\SynergyUI\BlueControlStrategy.cs" />
     <Compile Include="..\Assets\Scripts\HotUpdate\AI\AiDuelRunner.cs" Link="Shared\SynergyUI\AiDuelRunner.cs" />
     <!-- 教学预设场面数据类+静默注入器（2026-11-04 教学场景回归）：tutorial-scenario 入口直接复用
@@ -49,6 +51,11 @@
     <Compile Include="..\Assets\Scripts\HotUpdate\UI\Data\KeywordCatalog.cs" Link="Shared\SynergyUI\KeywordCatalog.cs" />
     <Compile Include="..\Assets\Scripts\HotUpdate\UI\Data\ColorFilter.cs" Link="Shared\SynergyUI\ColorFilter.cs" />
     <Compile Include="..\TideServer\HeadlessAiShims.cs" Link="Shared\TideServer\HeadlessAiShims.cs" />
+    <!-- 残局求解器（2026-11-19 阶段1）：合法动作枚举=训练侧同一份 LegalActionEnumerator，
+         不复制「什么算合法动作」；TideObservation 是它的槽位/特征依赖（纯 C#，无 UnityEngine）。 -->
+    <Compile Include="..\Assets\Scripts\HotUpdate\AI\NeuralEnv\LegalActionEnumerator.cs" Link="Shared\NeuralEnv\LegalActionEnumerator.cs" />
+    <Compile Include="..\Assets\Scripts\HotUpdate\AI\NeuralEnv\TideObservation.cs" Link="Shared\NeuralEnv\TideObservation.cs" />
+    <Compile Include="..\Assets\Scripts\HotUpdate\AI\NeuralEnv\FieldValueReward.cs" Link="Shared\NeuralEnv\FieldValueReward.cs" />
   </ItemGroup>
 
 </Project>

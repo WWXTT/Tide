@@ -8,44 +8,42 @@ using UnityEngine;
 namespace CardCore.Editor.Tests
 {
     /// <summary>
-    /// 部署一致性哨兵（2026-09-29）：部署三件套 onnx + fixture + manifest 必须同源。
-    /// fixture 内 manifest_sha256 是导出时刻录的清单指纹；与磁盘 card_identity_manifest.json
-    /// 的 sha256 不等 = 模型与身份清单已分叉（游戏内容变更/续训/漏跑 sync_model_to_main），
-    /// 精确哈希 embedding 行会静默串台、强度悄悄劣化——历史上「编辑器窗口 55 开 vs 训练
-    /// eval 80 开」的怪差即此因之一。定案：分叉 = 响亮失败（拒跑），不再只是警告。
+    /// 部署一致性哨兵（2026-09-29；P-1 2026-11-19 口径更新）：部署件 onnx + fixture 的
+    /// **布局/池尺寸**必须与当前代码同代。旧版按 manifest sha 对账（模型与卡身份清单分叉=
+    /// embedding 串台）——稳定下标后身份纯派生、与清单无关，该对账退役（card_identity_manifest.json
+    /// 仅存档）；改对 fixture 头 layout_version/dims（含 cardPoolSize/typePoolSize）。
+    /// 分代 = 响亮失败（拒跑），不再只是警告。
     /// </summary>
     public static class NeuralDeployGuard
     {
         /// <summary>与 OnnxTidePolicy.ModelAssetFolder 同目录（Assets/Art/AIModels）。</summary>
         public const string FixtureFileName = "tide_policy_fixture.json";
 
-        public static string ManifestPath
-            => Path.Combine(Application.dataPath, "..", "tide_rl", "card_identity_manifest.json");
+        // ManifestPath 已删（P-1 2026-11-19）：manifest 指纹对账随稳定下标退役（文件仅存档）。
 
         public static string FixturePath
             => Path.Combine(Application.dataPath, "..", OnnxTidePolicy.ModelAssetFolder, FixtureFileName);
 
         /// <summary>
         /// 校验 fixture 记录的 manifest sha 与磁盘 manifest 是否同源。
-        /// 返回 null = 通过；否则返回错误描述（可直接展示）。detail 附两侧指纹前缀。
+        /// 返回 null = 通过；否则返回错误描述（可直接展示）。detail 附布局摘要。
         /// 2026-11-02 起追加布局对账（fixture 头 layout_version/dims vs 当前 TideObservation）：
         /// 盘面重塑/特征增删后旧模型即使清单同源，布局也不同代——一并拦截。
+        /// P-1（2026-11-19 稳定下标）：manifest sha 对账**退役**（身份下标纯派生、与清单无关，
+        /// 文件仅存档）；新增池尺寸对账（dims.cardPoolSize/typePoolSize vs 当前常量）——
+        /// 旧 1024/256 池模型在此被拒（P-1 §0.4.4）。
         /// </summary>
         public static string Verify(out string detail)
         {
             detail = "";
             if (!File.Exists(FixturePath))
-                return $"部署三件套缺 fixture：{FixturePath}（export_onnx.py 应与 onnx 一同复制到该目录）";
-            if (!File.Exists(ManifestPath))
-                return $"manifest 不存在：{ManifestPath}";
+                return $"部署件缺 fixture：{FixturePath}（export_onnx.py 应与 onnx 一同复制到该目录）";
 
-            string fxSha;
             int fxLayout;
             Dims fxDims;
             try
             {
                 var fx = JsonConvert.DeserializeObject<FixtureHead>(File.ReadAllText(FixturePath));
-                fxSha = fx?.manifest_sha256;
                 fxLayout = fx?.layout_version ?? 0;
                 fxDims = fx?.dims;
             }
@@ -53,24 +51,17 @@ namespace CardCore.Editor.Tests
             {
                 return $"fixture 解析失败：{ex.Message}";
             }
-            if (string.IsNullOrEmpty(fxSha))
-                return "fixture 内无 manifest_sha256 字段（旧版导出产物）——重跑 tide_rl/export_onnx.py";
 
             string layoutError = VerifyFixtureLayout(fxLayout, fxDims);
             if (layoutError != null)
                 return layoutError;
-
-            string diskSha = Sha256(File.ReadAllBytes(ManifestPath));
-            detail = $"fixture {Short(fxSha)}… vs 磁盘 {Short(diskSha)}…（布局 v{fxLayout}）";
-            if (fxSha != diskSha)
-                return "模型导出时的卡身份 manifest 与当前 card_identity_manifest.json 不同源，"
-                     + "精确身份 embedding 行会串台。修复：游戏内容变更后重训并重跑 export_onnx.py，"
-                     + "或先跑 tide_rl/sync_model_to_main.ps1 同步导出时的清单。";
+            detail = $"fixture 布局 v{fxLayout}（cardPool {fxDims?.cardPoolSize ?? 0} / typePool {fxDims?.typePoolSize ?? 0}）";
             return null;
         }
 
         /// <summary>fixture 头布局（layoutVersion/dims）与当前 TideObservation 常量对账；
-        /// 返回 null = 一致，否则返回错误描述。OnnxFixtureSelfCheck 与 Verify 共用单源。</summary>
+        /// 返回 null = 一致，否则返回错误描述。OnnxFixtureSelfCheck 与 Verify 共用单源。
+        /// P-1（2026-11-19）：dims 增 cardPoolSize/typePoolSize 对账（缺键=旧版产物拒）。</summary>
         public static string VerifyFixtureLayout(int layoutVersion, Dims dims)
         {
             if (layoutVersion <= 0 || dims == null)
@@ -85,21 +76,17 @@ namespace CardCore.Editor.Tests
             if (dims.nAction != CardCore.AI.NeuralEnv.TideObservation.NAction) mismatches.Add($"nAction {dims.nAction}");
             if (dims.maxActions != OnnxTidePolicy.MaxActions) mismatches.Add($"maxActions {dims.maxActions}");
             if (dims.maxCards != CardCore.AI.NeuralEnv.TideObservation.MaxCardsTotal) mismatches.Add($"maxCards {dims.maxCards}");
+            // P-1 池尺寸（旧版 fixture 无这两键=0，自然落入不匹配）
+            if (dims.cardPoolSize != TideCardIndex.Capacity) mismatches.Add($"cardPoolSize {dims.cardPoolSize}");
+            if (dims.typePoolSize != CardIdentityService.MaxTypeIndex + 1) mismatches.Add($"typePoolSize {dims.typePoolSize}");
             if (mismatches.Count > 0)
                 return $"fixture 维度与当前观测编码不一致：{string.Join("、", mismatches)}"
                      + "——重跑 tide_rl/export_onnx.py 重导出";
             return null;
         }
 
-        private static string Short(string sha) => sha.Length > 16 ? sha[..16] : sha;
-
-        private static string Sha256(byte[] bytes)
-        {
-            using (var sha = System.Security.Cryptography.SHA256.Create())
-                return BitConverter.ToString(sha.ComputeHash(bytes)).Replace("-", "").ToLowerInvariant();
-        }
-
         // 只取头部字段——fixture 主体是数百 KB 对拍样例，无需整包反序列化模型
+        // （P-1 2026-11-19：manifest_sha256 字段随 manifest 退役——保留解析容错，缺省空串）
         private sealed class FixtureHead
         {
             public string manifest_sha256 = "";
@@ -107,7 +94,8 @@ namespace CardCore.Editor.Tests
             public Dims dims;
         }
 
-        // 嵌套 dims 对象（export_onnx.py 2026-11-02 起写入；Json.NET 按字段名反序列化）
+        // 嵌套 dims 对象（export_onnx.py 2026-11-02 起写入；P-1 2026-11-19 增池尺寸两键；
+        // Json.NET 按字段名反序列化）
         public sealed class Dims
         {
             public int nCard;
@@ -115,6 +103,8 @@ namespace CardCore.Editor.Tests
             public int nAction;
             public int maxActions;
             public int maxCards;
+            public int cardPoolSize;
+            public int typePoolSize;
         }
     }
 }

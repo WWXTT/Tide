@@ -343,6 +343,12 @@ namespace CardCore
         /// 计数先落到 effect 原子（TryActivate 预检与结算扣费同表），预选目标随 ActivateEffect 入栈。</summary>
         public static bool TryActivateSkill(GameCore core, Player player, int effectIndex,
             List<Entity> targets, IReadOnlyList<int> dynamicCounts, out string reason)
+            => TryActivateSkill(core, player, effectIndex, targets, dynamicCounts, null, out reason);
+
+        /// <summary>交互参数版（2026-11-19 P1 v0.3）：interaction=声明期移动落格/宣言卡名——
+        /// 随 ActivateEffect 入栈（结算期 handler 消费）；null=旧行为。</summary>
+        public static bool TryActivateSkill(GameCore core, Player player, int effectIndex,
+            List<Entity> targets, IReadOnlyList<int> dynamicCounts, InteractionParams interaction, out string reason)
         {
             reason = null;
             if (core == null || player == null) { reason = "内部错误：空参数"; return false; }
@@ -376,7 +382,7 @@ namespace CardCore
                     core.TurnEngine.TurnNumber, out reason))
                 return false;
 
-            if (!GameActions.ActivateEffect(core, player, effect, skillCard, targets, dynamicCounts, 0, out reason))
+            if (!GameActions.ActivateEffect(core, player, effect, skillCard, targets, dynamicCounts, 0, interaction, out reason))
                 return false;
 
             // 遥测：发动计数（升级机制已退役；快照/RL 观察口径保留）

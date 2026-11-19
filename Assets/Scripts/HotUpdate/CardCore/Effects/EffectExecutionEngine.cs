@@ -326,6 +326,7 @@ namespace CardCore
                 CastCard = instance.CastCard, // 施放链路宿主卡（状态门 DrawnInStandbyThisTurn 用）
                 ResolvingEffect = effect, // P9b：引用卡槽按 (来源卡ID, 效果序号) 解析卡组期绑定
                 RespondedEntry = instance.RespondedEntry, // E1-1 响应绑定透传：反制原子读它打标（跟谁入栈反制谁）
+                Interaction = instance.Interaction, // 声明期交互参数（P1 2026-11-19 v0.3）：移动格/宣言名
             };
 
             // 参照显式透传（步5 §3.3）：声明期 Reference spec 选位随实例入栈（网络/重放按 SpecKey

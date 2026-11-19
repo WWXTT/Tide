@@ -148,6 +148,11 @@ namespace CardCore
         /// null/空=无动态数量（行为与旧实例一致）。</summary>
         public List<int> DynamicCounts { get; set; }
 
+        /// <summary>声明期交互参数（2026-11-19 P1 v0.3）：移动落格/宣言卡名——随声明入栈
+        ///（PushCardCast/ActivateEffect 透传；FromPendingEffect 复制），执行引擎写进
+        /// EffectExecutionContext.Interaction 由 handler 消费。null=无（旧行为）。</summary>
+        public InteractionParams Interaction { get; set; }
+
         /// <summary>
         /// 效果解析上下文
         /// </summary>
@@ -342,6 +347,7 @@ namespace CardCore
                 ActivationSpeed = pending.ActivationSpeed,
                 ActivationType = pending.ActivationType, // 两层无效管制面判定（2026-10-04）
                 Targets = new List<Entity>(pending.SelectedTargets),
+                Interaction = pending.Interaction, // 声明期交互参数（P1 2026-11-19 v0.3）：随实例入栈
                 TriggeringEvent = pending.TriggeringEvent,
                 TimestampInfo = pending.TimestampInfo,
                 CreatedAt = pending.TimestampInfo.DateTime,

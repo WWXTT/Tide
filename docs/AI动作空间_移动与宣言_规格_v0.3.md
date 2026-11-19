@@ -1,5 +1,13 @@
 # AI 动作空间·移动与宣言 规格 v0.3（2026-11-15）
 
+> **2026-11-19 晚状态：本规格已实施（P1，[AI动作空间补全_修改计划](AI动作空间补全_修改计划.md) §2）**：
+> `InteractionParams` 透传链落地（声明入栈→结算 handler 消费）、LAE 移动行=目标×合法空格（MaxMoveRows=18）
+> /宣言行=候选名（MaxDeclareRows=16）、`UnsupportedForAi` 对 MoveUnit/SearchDeck/DeclareHand/DeclareDeck
+> 的裁剪删除、SimpleAI 接 `PickMoveCell`/`PickDeclaration`、动作 **14→17 维**（`[14]moveCellX/[15]moveCellZ/
+> [16]declaredNameIndex`）。**布局号 v17**（v16 已被 P-1 稳定下标占用——本文「用 v16」审计注作废）。
+> 验收：LaeMultiTargetVerifier ⑥ 场景（§6.2/6.3/6.4）全过；§6.5 回归+SpecMaster+audit 100 局全绿。
+> 旧口径（NAction=14/LAYOUT_VERSION=15/无 InteractionParams）已失效。
+
 > 给 ZCode 的实现规格。承 [目标候选区域信息_共享规格_v0.2](目标候选区域信息_共享规格_v0.2.md)。
 > v0.2 只把「候选区域」变成数据；本规格补上 **AI/训练缺的两类交互参数**：
 > **移动选格**、**宣言卡名**。脚本（`ScriptedAi`）不学这两项（用户定案），只做 `SimpleAI` + `LegalActionEnumerator`。

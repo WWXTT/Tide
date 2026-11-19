@@ -731,6 +731,10 @@ namespace CardCore
         /// <summary>抉择模式索引（来自 EffectInstance.ModeIndex；执行引擎遇 Choice 步骤按此分派）</summary>
         public int ModeIndex;
 
+        /// <summary>声明期交互参数（2026-11-19 P1 v0.3）：移动落格/宣言卡名——随 EffectInstance 入栈，
+        /// 执行引擎写入此处，MoveUnitHandler/ProphecyHandlerUtil 消费。null=无（旧行为）。</summary>
+        public InteractionParams Interaction;
+
         //（充能色字段已随 2026-11-05 充能系统动作化改版删除：充能不再是卡上效果，
         //  颜色在充能宣言结算期反问后直接落层，不经执行上下文透传。）
 

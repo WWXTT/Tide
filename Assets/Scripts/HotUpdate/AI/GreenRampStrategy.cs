@@ -498,28 +498,29 @@ namespace CardCore.AI
 
         /// <summary>牺牲技能的目标（2026-11-18 定案）：**池里的卡全献（含阿格洛斯），场上的阿格洛斯不献**。
         /// 池里的阿格洛斯献进墓地后由归根回收、当回合再打出；场上的阿格洛斯是站场单位，留着。
-        /// 归根（无论手/池）不进牺牲名单。</summary>
+        /// 归根（无论手/池）不进牺牲名单。
+        /// 2026-11-19 P0 重构：排除归根/场上阿格洛斯与「场上→池」排序抽到 HeroSkillTargetPolicy.OrderSacrifice
+        ///（与 LAE prefix-k 行单源共用）；本方法只收集原始候选（场上全部+池两路）+策略层 cap，行为不变。</summary>
         public override List<Entity> HeroSkillTargets(GameCore core, Player me, int effectIndex)
         {
             var effects = HeroSkillSystem.SkillEffectsOf(HeroSkillSystem.ResolveSkillCard(core, me));
             if (effectIndex < 0 || effectIndex >= effects.Count || effects[effectIndex]?.Id != "FXGREEN08") return null;
             int own = OwnTurn(core, me);
             if (own < 5) return null; // T1/T3 引擎自动（T3 小精灵）
-            string N(Card x) => (x as IHasName)?.CardName;
-            var list = new List<Entity>();
+            // 原始候选：场上全部 + 池两路收（包装 + 区内实际卡，避免漏沃土拉的卡）——
+            // 排除归根/场上阿格洛斯与「场上段→池段」排序单源在 HeroSkillTargetPolicy.OrderSacrifice
+            var raw = new List<Entity>();
             var seen = new HashSet<Card>();
-            // 场上：献除归根、场上的阿格洛斯以外的单位
             foreach (var x in core.ZoneManager.GetCards(me, Zone.Battlefield) ?? new List<Card>())
-                if (x != null && x.IsAlive && N(x) != NameReturn && N(x) != NamePanther && seen.Add(x)) list.Add(x);
-            // 池：全献（含阿格洛斯和池里的归根副本——手里的归根不在池里，不受影响）；
-            // 包装 + 区内实际卡两路收，避免漏沃土拉的卡
+                if (x != null && seen.Add(x)) raw.Add(x);
             foreach (var pc in core.ElementPool.GetPooledCards(me))
             {
                 var c = pc?.SourceCard;
-                if (c != null && seen.Add(c)) list.Add(c);
+                if (c != null && seen.Add(c)) raw.Add(c);
             }
             foreach (var c in core.ZoneManager.GetCards(me, Zone.ElementPool) ?? new List<Card>())
-                if (c != null && seen.Add(c)) list.Add(c);
+                if (c != null && seen.Add(c)) raw.Add(c);
+            var list = HeroSkillTargetPolicy.OrderSacrifice(core, me, raw);
             int cap = HeroSkillTargetCap(core, me);
             if (cap >= 0 && list.Count > cap) list = list.Take(cap).ToList();
             return list;

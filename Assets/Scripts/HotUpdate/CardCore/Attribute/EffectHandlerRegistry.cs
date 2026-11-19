@@ -624,8 +624,11 @@ namespace CardCore.Attribute
 
         /// <summary>逐原子交互选择规格（2026-11-02 LAE 动作空间 v8 单源）：收集"结算期会弹选"的
         /// 原子清单——声明期收集器（人类弹选）、LAE（神经动作行展开）、SimpleAI（预选排序）三方共用，
-        /// 跳过条件与结算路径 ResolveAtomTargetsAsync 的自动档逐条同判：引擎主干/无域/defer/全隐藏区/
+        /// 跳过条件与结算路径 ResolveAtomTargetsAsync 的自动档逐条同判：引擎主干/defer/全隐藏区/
         /// 强制类/随机/effCount=0（全取）/SelectionMode 全取档/候选空（这些原子结算期自动收口，不占选择权）。
+        /// 例外（P0 2026-11-19）：无域原子命中 NoDomainTargetScopes 白名单（牺牲/蛰伏·任意数量档）
+        /// 时产 spec（AppendNoDomainSpec）——handler 硬编码作用域经白名单域串补进选择层，
+        /// 结算路径 ResolveAtomTargetsAsync 对无域原子仍是「有预选透传/无预选空列表」不改。
         /// 候选已完成两道过滤（帷幕收窄+显示域，同结算路径交互分支口径）；返回序=原子执行序
         /// （预选队列有序消费对齐归属）。</summary>
         public static List<AtomTargetSpec> CollectAtomTargetSpecs(EffectDefinition def, EffectExecutionContext context)
@@ -649,7 +652,15 @@ namespace CardCore.Attribute
                 // 候选只做可见性过滤（无帷幕/守护——参照不是被施加效果的对象，§2.3）。
                 bool refAtom = atom.ReferenceAxis != null;
                 var kinds = (refAtom ? atom.ReferenceKinds : atom.TargetKinds) ?? new List<int>();
-                if (kinds.Count == 0) continue; // 无域原子：handler 自结算
+                if (kinds.Count == 0)
+                {
+                    // P0（2026-11-19 无域原子目标）：牺牲/蛰伏这类作用域写死在 handler 的原子，
+                    // 数量档=任意（-1）且命中 NoDomainTargetScopes 白名单时按白名单域产轴解析候选、
+                    // 建 spec（EffCount=-1、AiMode=Enumerate——LAE 展开 prefix-k 前缀行，模型可选张数）；
+                    // 未命中/非任意档保持原跳过（handler 自结算，不静默改行为）。
+                    AppendNoDomainSpec(def, atom, atomIndex, context, specs);
+                    continue;
+                }
                 if (atom.DeferSelect == 1) continue; // 效果处理时选——结算期问（必须选）
                 if (TargetKindRules.AllHiddenZone(kinds)) continue; // 隐藏区不进选择
 
@@ -694,6 +705,34 @@ namespace CardCore.Attribute
                 });
             }
             return specs;
+        }
+
+        /// <summary>无域白名单 spec（P0 2026-11-19 无域原子目标）：牺牲/蛰伏（数量档=任意 -1，
+        /// IsPrefixAtom 单源判定——固定 1/2/3 档不走白名单）按 NoDomainTargetScopes 域串产轴解析候选
+        /// （引擎解析序；排除/排序单源在 CardCore.AI.HeroSkillTargetPolicy——LAE 展开 prefix-k
+        /// 前缀行前过滤，SimpleAI 预选同源）。候选空不建 spec（该效果行回落单行 null=handler 自结算，
+        /// 与白名单前口径一致）。Kinds 置空（无域原子无 kinds 视图；同域分组/隐藏区等 kinds 消费口对 null 已安全）。</summary>
+        private static void AppendNoDomainSpec(EffectDefinition def, AtomicEffectInstance atom, int atomIndex,
+            EffectExecutionContext context, List<AtomTargetSpec> specs)
+        {
+            if (!NoDomainTargetScopes.IsPrefixAtom(atom, def)) return; // 只开任意数量档（-1）
+            if (!NoDomainTargetScopes.TryGet(atom.Type, out var domain, out var filter, out _)) return;
+            if (!TargetAxisRules.TryParseDomain(domain, out var axis)) return; // 表内常量域串——解析失败=数据错误，保守跳过
+            var candidates = ResolveCandidates(null, filter, context, axis);
+            if (candidates == null || candidates.Count == 0) return;
+            specs.Add(new AtomTargetSpec
+            {
+                Atom = atom,
+                Kinds = null,
+                EffCount = -1,
+                Candidates = candidates,
+                AutoTake = false, // 任意数量档必弹选（与主路径 -1 口径一致）
+                SpecKey = $"atom:{atomIndex}/spec:0/role:target",
+                Role = TargetSpecRole.Target,
+                AtomIndex = atomIndex,
+                Axis = axis,
+                AiMode = AiPickMode.Enumerate,
+            });
         }
 
         /// <summary>参照候选解析（步4 §2.3 单源）：RefDomain 轴取候选 + **仅可见性过滤**

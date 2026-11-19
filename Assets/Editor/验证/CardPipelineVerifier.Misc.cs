@@ -22,9 +22,9 @@ namespace CardCore.Editor
         /// ② TrainingCards：effectIds 跟换（新效果号 + 原子换号）+ payload refId 台账自愈/跟换 →
         ///   装载重推费用快照（EnsureCost）→ 卡 id 重推（"C_"+HashCard——内容变才变）。
         /// 训练池无卡组 json 引用（训练桥=随机 30/主题整组口径），无③跟换段。2026-11-05 ID 冻结 +
-        /// 身份稳定化后：卡/效果/原子 id 均不换号、身份哈希锚定冻结 ID（表内容编辑不再换血）——
-        /// tide_rl/card_identity_manifest.json（v2）经 RegisterIdentities 幂等追加续排，仅新内容
-        /// 才占新行；旧基线吊死仅发生在 v1→v2 一次性重键（盐拆除）。</summary>
+        /// 身份稳定化后：卡/效果/原子 id 均不换号、身份哈希锚定冻结 ID（表内容编辑不再换血）。
+        /// P-1（2026-11-19 稳定下标）：身份下标改 SplitMix64 纯派生，card_identity_manifest.json
+        /// 追加续排机制已废弃（文件仅存档；旧口径 v1→v2 一次性重键史一并作废）。</summary>
         private static void RegenTrainingTables(Dictionary<string, string> atomRenames)
         {
             string fxPath = SynergyUI.CardDataPaths.TrainingFileIn("TrainingEffects.json");

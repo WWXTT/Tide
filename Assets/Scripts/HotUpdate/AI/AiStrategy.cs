@@ -428,6 +428,19 @@ namespace CardCore.AI
         /// <summary>出牌目标接管（2026-11-04）：null=不接管（回落通用择优）；空表=本次不满足，别打。</summary>
         public virtual List<Entity> PickSpellTargets(GameCore core, Player me, Card card, int modeIndex) => null;
 
+        /// <summary>移动落格（2026-11-19 P1 v0.3）：cells=MoveUnitRules.LegalDestinations(unit)
+        /// 合法空格（与 first-free 同序）。默认首格；返回负值=放弃（效果不发动）。</summary>
+        public virtual (int x, int z) PickMoveCell(GameCore core, Player me, Card unit,
+            IReadOnlyList<(int x, int z)> cells)
+            => cells != null && cells.Count > 0 ? cells[0] : (-1, -1);
+
+        /// <summary>宣言卡名（2026-11-19 P1 v0.3）：candidates=已读到的卡名（DeclarationCandidates
+        /// 单源——检索=己方牌库去重名、强夺/窃取=对手手牌/牌库已展示卡名，非空）。默认取首；
+        /// null/空串=放弃（效果不发动）。</summary>
+        public virtual string PickDeclaration(GameCore core, Player me, Card source, string atomType,
+            IReadOnlyList<string> candidates)
+            => candidates != null && candidates.Count > 0 ? candidates[0] : null;
+
         /// <summary>永久物落格（2026-11-15 审计 §2.1）：cells=己方单位区空格（BoardLayout.UnitCells
         /// 序）。默认取首个=原 first-free 行为（站位价值为零但不倒退）；派生策略可按邻接/光环/攻击
         /// 距离覆写。返回不在 cells 内的值=放弃钉格（回落自动落位）。</summary>

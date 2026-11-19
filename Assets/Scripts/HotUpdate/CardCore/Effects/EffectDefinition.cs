@@ -178,6 +178,11 @@ namespace CardCore
         public uint SequenceNumber => TimestampInfo.Sequence;
         public IGameEvent TriggeringEvent { get; set; }
         public List<Entity> SelectedTargets { get; set; } = new List<Entity>();
+
+        /// <summary>声明期交互参数（2026-11-19 P1 v0.3）：移动落格/宣言卡名——Create 不带，
+        /// 调用方赋值（同 SelectedTargets 先例）；FromPendingEffect 复制进 EffectInstance。</summary>
+        public InteractionParams Interaction { get; set; }
+
         public int PaidSpeedBoost { get; set; }
         public bool IsOnStack { get; set; }
 

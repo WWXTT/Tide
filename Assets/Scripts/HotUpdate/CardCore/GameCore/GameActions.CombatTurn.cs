@@ -185,6 +185,12 @@ namespace CardCore
         /// PendingEffect 入栈（结算期有序消费，不再弹窗）。null=旧行为（结算期各自解析）。</summary>
         public static bool ActivateEffect(GameCore core, Player player, EffectDefinition effect, Card source,
             List<Entity> targets, IReadOnlyList<int> dynamicCounts, int paidBoost, out string reason)
+            => ActivateEffect(core, player, effect, source, targets, dynamicCounts, paidBoost, null, out reason);
+
+        /// <summary>交互参数版（2026-11-19 P1 v0.3）：interaction=声明期移动落格/宣言卡名——随
+        /// PendingEffect 入栈（结算期 MoveUnitHandler/ProphecyHandlerUtil 消费）；null=旧行为。</summary>
+        public static bool ActivateEffect(GameCore core, Player player, EffectDefinition effect, Card source,
+            List<Entity> targets, IReadOnlyList<int> dynamicCounts, int paidBoost, InteractionParams interaction, out string reason)
         {
             reason = null;
             if (core == null || player == null || effect == null) { reason = "内部错误：空参数"; return false; }
@@ -246,6 +252,9 @@ namespace CardCore
             // 动态数量（2026-11-14）：声明期预选目标随待发入栈（结算期有序消费，不再弹窗）
             if (targets != null && targets.Count > 0)
                 pending.SelectedTargets = new List<Entity>(targets);
+            // 声明期交互参数（P1 2026-11-19 v0.3）：移动格/宣言名随待发入栈（null=无）
+            if (interaction != null)
+                pending.Interaction = interaction;
 
             // §11 过载闸（2026-11-09 裁定）：主动效果入栈前查源卡预算
             if (source != null && !CardEffectBudget.Instance.CanCommit(source, out var actOverload))
@@ -294,6 +303,12 @@ namespace CardCore
 
         /// <summary>带原因版（2026-11-03 失败提示细化）：Crumb 取证保留，同步升级 reason。</summary>
         public static bool ActivateEffectInResponse(GameCore core, Player player, EffectDefinition effect, Card source, out string reason)
+            => ActivateEffectInResponse(core, player, effect, source, null, out reason);
+
+        /// <summary>交互参数版（2026-11-19 P1 修复·反馈追补）：响应发动同样携带移动格/宣言名
+        ///（LAE RespondActivate 行的 Interaction 原样入栈）；null=旧行为。</summary>
+        public static bool ActivateEffectInResponse(GameCore core, Player player, EffectDefinition effect, Card source,
+            InteractionParams interaction, out string reason)
         {
             reason = null;
             if (core == null || player == null || effect == null || source == null) { reason = "内部错误：空参数"; return false; }
@@ -328,6 +343,7 @@ namespace CardCore
                 player,
                 core.TurnEngine.TurnPlayer,
                 core.TurnEngine.CurrentPhase?.Phase ?? PhaseType.Standby);
+            if (interaction != null) pending.Interaction = interaction; // P1 修复：响应路径交互参随待发入栈
 
             // §11 过载闸：响应路径同口径（入栈前查源卡预算）
             if (!CardEffectBudget.Instance.CanCommit(source, out var respOverload))

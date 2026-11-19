@@ -336,36 +336,124 @@ namespace SynergyUI
         /// <summary>已提示过的「不支持原子」效果 Id（一次性告警去重——防每回合刷屏）。</summary>
         private static readonly HashSet<string> _unsupportedAtomLogged = new HashSet<string>();
 
-        /// <summary>AI 无法正确执行的原子（2026-11-15 审计 §1.1）：MoveUnit 需选格交互（AI/无头/
-        /// 服务器无选格桥=移动空转）；SearchDeck/DeclareHand/DeclareDeck 需卡名文本输入（无预置=
-        /// 结算期取消、已付费用不退）。含这些原子且无可用预置的效果 AI 不发动/不打出
-        /// （防付费后空转），待交互接线后逐条移除本闸。</summary>
+        /// <summary>AI 无法正确执行的原子（2026-11-15 审计 §1.1；P1 2026-11-19 v0.3 更新）：
+        /// 原两条裁剪已删除——MoveUnit 选格经 InteractionParams.MoveX/Z（PickMoveCell 策略口）、
+        /// SearchDeck/DeclareHand/DeclareDeck 宣言经 DeclaredName（PickDeclaration 策略口，候选=
+        /// DeclarationCandidates「只读已读到的」）随发动透传，见 TryBuildInteraction。本闸当前
+        /// 无条目，保留口子给未来新增交互原子（接线前照旧裁剪防白付）。</summary>
         private static bool UnsupportedForAi(EffectDefinition def)
         {
-            if (def?.Effects == null) return false;
-            foreach (var atom in def.Effects)
-            {
-                if (atom == null) continue;
-                if (atom.Type == AtomicEffectType.MoveUnit) return true;
-                if ((atom.Type == AtomicEffectType.SearchDeck
-                     || atom.Type == AtomicEffectType.DeclareHand
-                     || atom.Type == AtomicEffectType.DeclareDeck)
-                    && string.IsNullOrWhiteSpace(atom.StringValue))
-                    return true;
-            }
             return false;
         }
 
         /// <summary>不支持原子的裁剪取证（§0.2.6 所有裁剪留日志）：每效果 Id 一次 TideLog 级告警；
-        /// TIDE_DEBUG_AI=1 时逐次 Console 明细（与 TIDE_DEBUG_PLAY 同款探针口径）。</summary>
+        /// TIDE_DEBUG_AI=1 时逐次 Console 明细（与 TIDE_DEBUG_PLAY 同款探针口径）。
+        /// P1（2026-11-19 v0.3）：source 兼带「move-nocell/declare-empty」（无空格/无已读卡名
+        /// ——不发动，非缺陷取证）。</summary>
         private static void LogUnsupportedSkip(EffectDefinition def, string source)
         {
             if (def == null) return;
             string key = def.Id ?? def.DisplayName ?? "?";
             if (_unsupportedAtomLogged.Add(key))
-                TideLog.Warn($"[AI] 跳过 AI 无法执行的效果（选格/卡名交互缺失，防白付代价）：{source} {def.DisplayName}（{key}）——见 docs/AI与脚本执行修复_修改计划.md §1");
+                TideLog.Warn($"[AI] 跳过 AI 无法执行的效果（选格/卡名交互缺失或候选空，防白付代价）：{source} {def.DisplayName}（{key}）——见 docs/AI与脚本执行修复_修改计划.md §1 / v0.3");
             if (Environment.GetEnvironmentVariable("TIDE_DEBUG_AI") == "1")
                 Console.WriteLine($"[dbg-ai] skip unsupported effect={key} src={source}");
+        }
+
+        /// <summary>声明期交互参数构造（P1 2026-11-19 v0.3）：含移动/宣言原子的效果在发动前
+        /// 由策略择格（PickMoveCell）/择名（PickDeclaration），随 GameActions.* 透传到结算期
+        /// handler。返回 false=不发动（无合法空格/候选空/策略放弃——不白付代价）。
+        /// targets=已选目标（移动单目标 v1：取首个己方战场单位；多目标不发动，v0.3 §8）。</summary>
+        private bool TryBuildInteraction(GameCore core, Player me, Card source, EffectDefinition def,
+            List<Entity> targets, out InteractionParams interaction)
+        {
+            interaction = null;
+            AtomicEffectInstance moveAtom = null, declareAtom = null;
+            if (def?.Effects != null)
+                foreach (var a in def.Effects)
+                {
+                    if (a == null) continue;
+                    if (a.Type == AtomicEffectType.MoveUnit && moveAtom == null) moveAtom = a;
+                    if ((a.Type == AtomicEffectType.SearchDeck
+                         || a.Type == AtomicEffectType.DeclareHand
+                         || a.Type == AtomicEffectType.DeclareDeck)
+                        && string.IsNullOrWhiteSpace(a.StringValue) && declareAtom == null) declareAtom = a;
+                }
+            if (moveAtom == null && declareAtom == null) return true; // 无交互原子：旧行为
+
+            if (declareAtom != null)
+            {
+                var names = DeclarationCandidates.For(core, me, declareAtom);
+                if (names.Count == 0)
+                {
+                    LogUnsupportedSkip(def, "declare-empty"); // 无已读卡名：不发动（v0.3 §4.3）
+                    return false;
+                }
+                var pick = _strategy.PickDeclaration(core, me, null, declareAtom.Type.ToString(), names);
+                if (string.IsNullOrEmpty(pick))
+                {
+                    LogUnsupportedSkip(def, "declare-pick-null");
+                    return false;
+                }
+                interaction = interaction ?? new InteractionParams();
+                interaction.DeclaredName = pick;
+            }
+
+            if (moveAtom != null)
+            {
+                Card unit = null;
+                int ownUnits = 0;
+                if (targets != null)
+                    foreach (var t in targets)
+                        if (t is Card c && c.IsAlive && c.GetZone() == Zone.Battlefield
+                            && ReferenceEquals(c.GetController() ?? c.GetOwner(), me))
+                        {
+                            unit = c;
+                            ownUnits++;
+                        }
+                // v0.3 §8：移动 v1 只支持单目标；多目标不发动（与 LAE InteractionVariants 的 units!=1 同口径）
+                if (ownUnits > 1)
+                {
+                    LogUnsupportedSkip(def, "move-multitarget");
+                    return false;
+                }
+                if (unit == null && def != null)
+                {
+                    // 单目标免弹档（AutoTake）：targets 空——从 spec 计划取该原子候选（候选≤需求，
+                    // need=1 时恰 1 个；结算期引擎自动解析出同一单位 + Interaction 落格）
+                    var spec = CardCore.Attribute.EffectHandlerRegistry.CollectSpecPlan(def, BuildTargetCtx(core, me, source))
+                        .FirstOrDefault(s => ReferenceEquals(s.Atom, moveAtom));
+                    if (spec?.Candidates != null)
+                        foreach (var cand in spec.Candidates)
+                            if (cand is Card c2 && c2.IsAlive && c2.GetZone() == Zone.Battlefield
+                                && ReferenceEquals(c2.GetController() ?? c2.GetOwner(), me))
+                            {
+                                unit = c2;
+                                ownUnits++;
+                            }
+                }
+                if (ownUnits > 1)
+                {
+                    LogUnsupportedSkip(def, "move-multitarget");
+                    return false;
+                }
+                var cells = unit != null ? GameBoard.MoveUnitRules.LegalDestinations(unit) : null;
+                if (cells == null || cells.Count == 0)
+                {
+                    LogUnsupportedSkip(def, "move-nocell"); // 无合法空格/无单位目标：不发动（v0.3 §3.2）
+                    return false;
+                }
+                var (x, z) = _strategy.PickMoveCell(core, me, unit, cells);
+                if (x < 0 || z < 0)
+                {
+                    LogUnsupportedSkip(def, "move-pick-null");
+                    return false;
+                }
+                interaction = interaction ?? new InteractionParams();
+                interaction.MoveX = x;
+                interaction.MoveZ = z;
+            }
+            return true;
         }
 
         /// <summary>英雄技能（2026-10-07 卡牌化：技能=构筑标记的结界卡）：在场/未横置/未沉默/
@@ -380,7 +468,8 @@ namespace SynergyUI
 
             // 阶段4（2026-11-15 审计 §2.4）：多效果技能经策略择一（默认 0=旧行为）；
             // 阶段1闸（§1.2）改按**所选效果**判：含 AI 无法执行的原子（选格/无预置卡名）→ 不发动。
-            var skillEffects = HeroSkillSystem.SkillEffectsOf(HeroSkillSystem.ResolveSkillCard(core, me));
+            var skillCard2 = HeroSkillSystem.ResolveSkillCard(core, me);
+            var skillEffects = HeroSkillSystem.SkillEffectsOf(skillCard2);
             int effectIndex = skillEffects.Count > 1 ? _strategy.PickHeroSkillEffect(core, me, skillEffects) : 0;
             if (effectIndex < 0 || effectIndex >= skillEffects.Count) effectIndex = 0;
             if (skillEffects.Count > 0 && UnsupportedForAi(skillEffects[effectIndex]))
@@ -391,8 +480,13 @@ namespace SynergyUI
 
             // 2026-11-18 用户定案：技能目标由**策略**提供（绿套「牺牲」自管选牌）；SimpleAI 只做基础调用。
             List<Entity> heroTargets = _strategy.HeroSkillTargets(core, me, effectIndex);
-            var ok = heroTargets != null
-                ? GameActions.ActivateHeroSkill(core, me, effectIndex, heroTargets, null, out _)
+            // P1 v0.3：技能含移动/宣言原子时构造交互参数（现役技能无此类原子，通道统一）
+            InteractionParams skillInter = null;
+            if (skillEffects.Count > 0
+                && !TryBuildInteraction(core, me, skillCard2, skillEffects[effectIndex], heroTargets, out skillInter))
+                return false;
+            var ok = heroTargets != null || skillInter != null
+                ? GameActions.ActivateHeroSkill(core, me, effectIndex, heroTargets, null, skillInter, out _)
                 : await GameActions.ActivateHeroSkill(core, me, effectIndex);
             if (ok)
             {
@@ -420,6 +514,9 @@ namespace SynergyUI
                 // 策略闸（2026-11-15）：自愿队列也必须经策略同意（绿套用它把「牺牲」锁进脚本）
                 if (!_strategy.AllowVoluntaryActivation(core, me, effect.Source as Card, null))
                     continue;
+                // P1 v0.3：含移动/宣言原子的待发效果构造交互参数后随队入栈（候选空=跳过）
+                if (!TryBuildInteraction(core, me, effect.Source as Card, effect.Effect, effect.SelectedTargets, out var inter)) continue;
+                if (inter != null) effect.Interaction = inter;
                 if (core.StackEngine.PlayerActivateVoluntary(effect))
                     any = true;
             }
@@ -444,7 +541,9 @@ namespace SynergyUI
                     if (CardCore.Attribute.SuppressRules.IsOverloaded(source)) continue; // §11 预检：过载卡主动失效
                     if (!_strategy.AllowVoluntaryActivation(core, me, source, def.DisplayName)) continue; // 策略闸
                     if (!executor.CanActivate(def, source, me, me, phase, core.TurnEngine.TurnNumber)) continue;
-                    if (GameActions.ActivateEffect(core, me, def, source))
+                    // P1 v0.3：含移动/宣言原子的效果先构造交互参数（候选空=跳过该能力）
+                    if (!TryBuildInteraction(core, me, source, def, null, out var interaction)) continue;
+                    if (GameActions.ActivateEffect(core, me, def, source, null, null, 0, interaction, out _))
                     {
                         any = true;
                         await SettleAfterAiActionAsync(core, me); // 阶段2：给人响应窗
@@ -505,7 +604,9 @@ namespace SynergyUI
                 if (pinned != null && pinned.Count == 0) continue;
                 // 失败静默重试下一张（引擎契约：不付费、卡留手）
                 var targets = pinned ?? ChooseTargets(core, me, card, mode);
-                if (GameActions.PlayCard(core, me, card, targets, Zone.Hand, mode))
+                // P1（2026-11-19 v0.3）：含移动/宣言原子的效果先构造交互参数（无空格/候选空=不打出）
+                if (!TryBuildInteraction(core, me, card, chosenDef, targets, out var interaction)) continue;
+                if (GameActions.PlayCard(core, me, card, targets, Zone.Hand, mode, null, null, interaction, out _))
                 {
                     TryPinPlacement(core, me, card); // 阶段5：永久物钉格（声明成功即 Pin，与人类 PlayCardFinal 同时点）
                     await StageCastAsync(core, card, targets); // 出牌舞台：亮 1 秒（卡面+箭头）再结算

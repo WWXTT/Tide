@@ -37,6 +37,12 @@ namespace CardCore
         /// <summary>动态数量版（2026-11-14）：dynamicCounts=声明期收集的动态数量（下标=效果原子序，
         /// 0=非动态）——预检/扣费按 base×N，随 cast 透传到结算执行（ResolveCardCastAsync 同表扣费）。</summary>
         public static bool PlayCard(GameCore core, Player player, Card card, List<Entity> targets, Zone fromZone, int modeIndex, List<Entity> references, IReadOnlyList<int> dynamicCounts, out string rejectReason)
+            => PlayCard(core, player, card, targets, fromZone, modeIndex, references, dynamicCounts, null, out rejectReason);
+
+        /// <summary>交互参数版（2026-11-19 P1 v0.3）：interaction=声明期移动落格/宣言卡名——随 cast
+        /// 入栈（EffectInstance.Interaction），结算期 MoveUnitHandler/ProphecyHandlerUtil 消费；
+        /// null=旧行为（UI 桥/预置照旧）。</summary>
+        public static bool PlayCard(GameCore core, Player player, Card card, List<Entity> targets, Zone fromZone, int modeIndex, List<Entity> references, IReadOnlyList<int> dynamicCounts, InteractionParams interaction, out string rejectReason)
         {
             rejectReason = null;
             if (core == null || player == null || card == null) { rejectReason = "内部错误：空参数"; return false; }
@@ -123,7 +129,7 @@ namespace CardCore
             if (core.StackEngine.GetPendingCastCards(player).Contains(card))
             { rejectReason = "该卡已在施放中（连锁上待结算——不可二次声明）"; return false; }
 
-            if (!core.StackEngine.PushCardCast(card, player, targets, modeIndex, references, dynamicCounts))
+            if (!core.StackEngine.PushCardCast(card, player, targets, modeIndex, references, dynamicCounts, interaction))
             {
                 // 理论不可达（声明预检已过）；S3b 后零移动——直接失败（卡从未动过）
                 card._pendingCastFromZone = Zone.None;
@@ -164,6 +170,10 @@ namespace CardCore
 
         /// <summary>动态数量版（2026-11-14）：同 PlayCard 计数透传（响应出牌同门）。</summary>
         public static bool PlayCardInResponse(GameCore core, Player player, Card card, List<Entity> targets, int modeIndex, List<Entity> references, IReadOnlyList<int> dynamicCounts, out string rejectReason)
+            => PlayCardInResponse(core, player, card, targets, modeIndex, references, dynamicCounts, null, out rejectReason);
+
+        /// <summary>交互参数版（2026-11-19 P1 v0.3）：同 PlayCard——interaction 随 cast 入栈。</summary>
+        public static bool PlayCardInResponse(GameCore core, Player player, Card card, List<Entity> targets, int modeIndex, List<Entity> references, IReadOnlyList<int> dynamicCounts, InteractionParams interaction, out string rejectReason)
         {
             rejectReason = null;
             if (core == null || player == null || card == null) { rejectReason = "内部错误：空参数"; return false; }
@@ -218,7 +228,7 @@ namespace CardCore
             if (core.StackEngine.GetPendingCastCards(player).Contains(card))
             { rejectReason = "该卡已在施放中（连锁上待结算——不可二次声明）"; return false; }
 
-            if (!core.StackEngine.PushCardCast(card, player, targets, modeIndex, references, dynamicCounts))
+            if (!core.StackEngine.PushCardCast(card, player, targets, modeIndex, references, dynamicCounts, interaction))
             {
                 // S3b：零移动回退（卡留手牌，Push 失败不动卡）
                 rejectReason = "速度门拒绝（响应卡速度须高于记速器）";
@@ -678,6 +688,7 @@ namespace CardCore
                     ModeIndex = 0, // 法术效果禁嵌抉择（装载校验拦）——modeIndex 已被效果抉择占用，执行层恒 0
                     CastCard = card, // 施放宿主卡（状态门「本回合第一张抽到的卡」需要卡身份）
                     RespondedEntry = castEntry?.RespondedEntry, // E1-1：cast 的响应绑定透传给法术效果上下文（反制读它）
+                    Interaction = cast?.Interaction, // P1（2026-11-19 v0.3）：声明期交互参数随 cast 结算透传（移动格/宣言名）
                 }, skipElementCost: true);
             }
 

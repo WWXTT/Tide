@@ -539,27 +539,16 @@ namespace CardCore.Editor.Tests
             return null;
         }
 
-        /// <summary>ONNX 卡身份登记（镜像 TideHeadlessServer.HandleReset / 训练服务器口径）。
-        /// 2026-09-29 起表指纹不符 = 失败拒跑（登记会全体换行、embedding 串台），不再只是警告。</summary>
+        /// <summary>ONNX 身份接线（P-1 2026-11-19 稳定下标后）：下标纯派生（TideCardIndex/
+        /// CardIdentityService），无 manifest 登记——模型新旧由 OnnxTidePolicy.ValidateModelLayout
+        /// 按图输入维度 + pool size 拦。本口保留恒真（历史调用点兼容），只打一条布局日志。</summary>
         private static bool ConfigureNeuralIdentity(List<CardData> p1, List<CardData> p2)
         {
-            int loaded = TideCardIndex.ConfigureManifest(ManifestPath);
-            if (loaded < 0)
-            {
-                EditorUtility.DisplayDialog("AI 大脑",
-                    "card_identity_manifest.json 表指纹与当前原子表不符——游戏内容已变更，"
-                    + "卡身份会全体换行、模型 embedding 串台。\n需重训 + 重导出（模型/清单/游戏内容三者同源）。", "好");
-                return false;
-            }
-            Debug.Log($"[AI 对战] 卡身份清单载入 {loaded} 条（{ManifestPath}）");
-            BattleDeckSources.RegisterIdentities(); // Cards.json 全池（含三主题卡）——2026-09-21 起替代已删的 Configs/TestDecks
-            TideCardIndex.Register(p1);
-            TideCardIndex.Register(p2);
+            Debug.Log($"[AI 对战] 稳定下标 P-1：cardPool {TideCardIndex.Capacity}"
+                      + $" / typePool {CardIdentityService.MaxTypeIndex + 1}"
+                      + $" / layout v{TideObservation.LayoutVersion}（manifest 已废弃）");
             return true;
         }
-
-        private static string ManifestPath
-            => Path.Combine(Application.dataPath, "..", "tide_rl", "card_identity_manifest.json");
 
         /// <summary>三色主题卡池（Cards.json 按三套新构建器标签过滤；下标红/绿/蓝——2026-10-22 起一代 Theme* 卡已清池）。</summary>
         private static List<CardData>[] ThemeColorPools()

@@ -349,17 +349,24 @@ namespace CardCore
             int over = hand.Count - limit;
             if (over <= 0) return;
 
-            var chosen = await TargetSelectionService.RequestAsync(new TargetSelectionRequest
-            {
-                Candidates = hand.Cast<Entity>().ToList(),
-                MinCount = over,
-                MaxCount = over,
-                Chooser = player,
-                Title = $"回合结束，手牌超出{limit}张，请选择丢弃",
-                Hint = $"弃掉 {over} 张手牌",
-                AllowCancel = false,
-                PromptAtom = AtomicEffectType.DiscardCard, // 2026-11-14：标注弃牌语义，AI 排序保留关键牌
-            });
+            List<Entity> chosen;
+            // P3（2026-11-19 §4.1）：模型驱动座改为停靠决策——HandLimitDiscardGate 挂起，
+            // 驱动用 DiscardChoice 动作行交模型选后 Complete 释放；非模型座回落 RequestAsync
+            //（AI/无头自动选前 N，旧行为不变）
+            if (HandLimitDiscardGate.TryPark(player, hand, over))
+                chosen = (await HandLimitDiscardGate.WaitChosenAsync()).Cast<Entity>().ToList();
+            else
+                chosen = await TargetSelectionService.RequestAsync(new TargetSelectionRequest
+                {
+                    Candidates = hand.Cast<Entity>().ToList(),
+                    MinCount = over,
+                    MaxCount = over,
+                    Chooser = player,
+                    Title = $"回合结束，手牌超出{limit}张，请选择丢弃",
+                    Hint = $"弃掉 {over} 张手牌",
+                    AllowCancel = false,
+                    PromptAtom = AtomicEffectType.DiscardCard, // 2026-11-14：标注弃牌语义，AI 排序保留关键牌
+                });
 
             foreach (var entity in chosen)
             {

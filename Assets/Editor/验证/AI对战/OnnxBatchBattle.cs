@@ -43,16 +43,10 @@ namespace CardCore.Editor.Tests
                 return;
             }
 
-            // 身份链同口径：manifest（追加式）+ 全池登记（与 TideHeadlessServer.HandleReset 一致）
-            string manifest = Path.Combine(Application.dataPath, "..", "tide_rl", "card_identity_manifest.json");
-            int loaded = TideCardIndex.ConfigureManifest(manifest);
-            if (loaded < 0)
-            {
-                Debug.LogError("[批量对局] manifest 表指纹不符——游戏内容已变更，模型/清单/内容三者须同源（重训重导出）");
-                return;
-            }
-            Debug.Log($"[批量对局] manifest 载入 {loaded} 条（总 {TideCardIndex.Count}）");
-            BattleDeckSources.RegisterIdentities();
+            // P-1（2026-11-19 稳定下标）：manifest 绑定/全池登记已废弃——下标纯派生，
+            // 模型代际由 NeuralDeployGuard（布局/池尺寸）+ OnnxTidePolicy.ValidateModelLayout 拦。
+            Debug.Log($"[批量对局] 稳定下标 P-1（cardPool {TideCardIndex.Capacity}"
+                      + $" / typePool {CardIdentityService.MaxTypeIndex + 1}）——manifest 已废弃");
 
             var rng = new System.Random(20260921);
             int wins = 0, losses = 0, unfinished = 0;

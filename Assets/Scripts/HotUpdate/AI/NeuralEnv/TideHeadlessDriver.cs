@@ -127,6 +127,7 @@ namespace CardCore.AI.NeuralEnv
         // 当前停靠点（BuildResult 按它构建观测与动作表；Step 按它归属奖励）
         private Player _decider;
         private bool _responseStop;
+        private bool _discardStop; // P3（2026-11-19 §4.1）：手牌上限弃牌停靠（legal=DiscardChoice 行）
 
         // vs 脚本对手位：_modelPlayer != null 时，非模型回合由 SimpleAI 整回合自动打
         // （策略每局按 Reset 注入重建——主题评估用 AutoMatch，缺省 General）
@@ -216,6 +217,11 @@ namespace CardCore.AI.NeuralEnv
             _reason = null;
             _decider = null;
             _responseStop = false;
+            _discardStop = false;
+            // P3（2026-11-19 §4.1）：模型座手牌上限弃牌改停靠决策（DiscardChoice 行）——
+            // 自对弈（_modelPlayer=null）双座皆模型；vs 模式仅模型座
+            HandLimitDiscardGate.Reset();
+            HandLimitDiscardGate.Bind(p => _modelPlayer == null || ReferenceEquals(p, _modelPlayer));
             _bannedThisTurn.Clear(); // 新对局：无进展防护状态归零（stamp 由 BuildResult 兜底重置）
             _actionsThisTurn = 0;
             _budgetClosedThisTurn = false; // L2 预算收口状态归零（_loopBudgetCount 只增不清）
@@ -315,6 +321,20 @@ namespace CardCore.AI.NeuralEnv
                 // 响应让过：直接 Pass（双 Pass 触发结算），推进交响应循环
                 GameActions.PassPriority(_core, me);
             }
+            else if (a.Type == TideActionType.DiscardChoice)
+            {
+                // P3（2026-11-19 §4.1）手牌上限弃牌：交选择释放门——EnforceHandLimitAsync
+                // 余段（入墓+CardDiscardEvent）在 Complete 调用线程内联继续；钳到 over 张防多弃
+                var snap = HandLimitDiscardGate.Snapshot();
+                var picked = new List<Card>();
+                if (a.Targets != null)
+                    foreach (var e2 in a.Targets)
+                        if (e2 is Card dc && snap.cards != null && snap.cards.Contains(dc)
+                            && picked.Count < Math.Max(1, snap.over))
+                            picked.Add(dc);
+                HandLimitDiscardGate.Complete(picked);
+                _discardStop = false;
+            }
             else
             {
                 bool ok = LegalActionEnumerator.Apply(_core, me, a);
@@ -366,6 +386,8 @@ namespace CardCore.AI.NeuralEnv
         /// <summary>释放：反订阅终局、撤销棋盘接线（静态扩展点归零）。</summary>
         public void Dispose()
         {
+            HandLimitDiscardGate.Reset(); // P3 §4.1：解绑+清挂起
+            HandLimitDiscardGate.Bind(null);
             EventManager.Instance.Unsubscribe<GameOverEvent>(OnGameOver);
             CombatSystem.AdjacentResolver = null;
             CombatSystem.RoleAdjacentResolver = null;
@@ -382,6 +404,7 @@ namespace CardCore.AI.NeuralEnv
             _gameOver = true;
             _winner = e.Winner;
             _reason = e.Reason.ToString();
+            HandLimitDiscardGate.CompleteDefault(); // P3 §4.1：终局释放挂起弃牌（防泄漏死等）
         }
 
         private int SeatOf(Player p)
@@ -401,6 +424,17 @@ namespace CardCore.AI.NeuralEnv
         {
             for (int i = 0; i < PhaseAdvanceGuard && !_gameOver; i++)
             {
+                // P3（2026-11-19 §4.1）手牌上限弃牌停靠：模型座挂起请求先于一切推进停靠
+                //（回合末事件在 EndTurn/相位泵内已同步 Park；停靠步由 Step 应用 DiscardChoice 释放）
+                if (HandLimitDiscardGate.HasPending)
+                {
+                    var snap = HandLimitDiscardGate.Snapshot();
+                    _decider = snap.player ?? _core.TurnEngine.TurnPlayer;
+                    _responseStop = true; // 决策上下文=窗口语义（g[49]=1）
+                    _discardStop = true;
+                    return;
+                }
+
                 var turnPlayer = _core.TurnEngine.TurnPlayer;
 
                 // vs SimpleAI：对手回合整段自动打（TakeTurn 自带回合准备与 EndTurn，不折返）
@@ -516,6 +550,12 @@ namespace CardCore.AI.NeuralEnv
             if (!_gameOver && _core.TurnEngine.CurrentPhase?.Phase == PhaseType.Main
                 && _core.StackEngine.IsEmpty)
                 GameActions.EndTurn(_core, _core.TurnEngine.TurnPlayer);
+            // P3 §4.1：强收路径释放挂起弃牌（默认组）——防门泄漏卡死后续停靠
+            if (HandLimitDiscardGate.HasPending)
+            {
+                HandLimitDiscardGate.CompleteDefault();
+                _discardStop = false;
+            }
         }
 
         /// <summary>L1 指纹检测（方案 §5.2）：仅 Main 相决策点（响应窗沿用 StallDrawThreshold）。
@@ -663,10 +703,21 @@ namespace CardCore.AI.NeuralEnv
             // v3：传入棋盘占用层——观测位置特征（单位格 TryGetCell；board 已在 Reset 接线）
             var obs = TideObservation.Build(_core, _decider, _responseStop, _board);
             _legal = new LegalActionEnumerator();
-            if (_responseStop) _legal.EnumerateResponses(_core, _decider);
+            if (_discardStop)
+            {
+                // P3 §4.1：弃牌停靠步——legal=DiscardChoice 组合行（独立枚举口；
+                // 默认组保底恒 ≥1 行，不补 PassPriority/EndTurn 兜底防误用）
+                var snap = HandLimitDiscardGate.Snapshot();
+                if (snap.cards != null)
+                    _legal = LegalActionEnumerator.EnumerateDiscardChoices(_core, _decider, snap.cards, snap.over);
+            }
+            else if (_responseStop) _legal.EnumerateResponses(_core, _decider);
             else _legal.Enumerate(_core, _decider);
-            _legal.RemoveAll(_bannedThisTurn); // 本回合已判无效的动作不再出现在选项表
-            _legal.AppendFallback(_responseStop); // 空表冻结兜底（2026-09-30：停靠态与引擎瞬态错位/摘除清空时补 PassPriority/EndTurn 保流动）
+            if (!_discardStop)
+            {
+                _legal.RemoveAll(_bannedThisTurn); // 本回合已判无效的动作不再出现在选项表
+                _legal.AppendFallback(_responseStop); // 空表冻结兜底（2026-09-30：停靠态与引擎瞬态错位/摘除清空时补 PassPriority/EndTurn 保流动）
+            }
             return new TideStepResult
             {
                 Obs = obs,

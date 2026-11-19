@@ -443,14 +443,25 @@ namespace CardCore.Attribute.Handlers
                    && ProphecyDimension.Matches(card, dim, val);
         }
 
-        /// <summary>卡名宣言反问（CardName 行共用，2026-10-31 阶段C）：结算期弹文本输入窗，
-        /// 玩家输入替换 StringValue（不再读构筑期预置）。默认值=旧预置（Name: 前缀按需解码/
-        /// 裸名原样——检索旧口径），玩家清空=取消。AI/无头=默认值即结果（无默认 null 空转=旧行为）。
+        /// <summary>卡名宣言反问（CardName 行共用，2026-10-31 阶段C；P1 2026-11-19 v0.3 增声明期参数优先）：
+        /// 结算期弹文本输入窗，玩家输入替换 StringValue（不再读构筑期预置）。默认值=旧预置
+        /// （Name: 前缀按需解码/裸名原样——检索旧口径），玩家清空=取消。AI/无头=默认值即结果
+        /// （无默认 null 空转=旧行为）。
+        /// P1：context.Interaction.DeclaredName 非空时**优先**（LAE 宣言行/SimpleAI PickDeclaration）——
+        /// 跳过文本窗，按同一编码写回（候选只来自已读到的卡名，必命中）。
         /// 返回 true=已写回可继续结算；false=取消/超时（效果不结算、费用不退）。</summary>
         internal static async UniTask<bool> AskCardNameAsync(AtomicEffectInstance effect,
             EffectExecutionContext context, string title, bool nameEncoded)
         {
             if (effect == null || context == null || context.Controller == null) return false;
+
+            // P1（2026-11-19 v0.3）：声明期交互参数优先（AI/训练）——跳过文本窗，按同一编码写回
+            string declared = context.Interaction?.DeclaredName;
+            if (!string.IsNullOrEmpty(declared))
+            {
+                effect.StringValue = nameEncoded ? ProphecyDimension.Name + ":" + declared : declared;
+                return true;
+            }
 
             string preset = effect.StringValue;
             string def = preset;
@@ -477,6 +488,12 @@ namespace CardCore.Attribute.Handlers
             EffectExecutionContext context, string title, bool typeOnly)
         {
             if (effect == null || context == null || context.Controller == null) return null;
+
+            // P3（2026-11-19 §4.2）：声明期交互参数优先（LAE 预言三选一行 Type:Creature/Spell/
+            // Enchantment）——跳过反问窗，原样交回（非法编码由 handler Execute 校验告警按未命中结算）。
+            // 仅预言行会带 DeclaredName 进本口；无参走原默认值（AI/无头行为不变）。
+            string declaredDim = context.Interaction?.DeclaredName;
+            if (!string.IsNullOrEmpty(declaredDim)) return declaredDim;
 
             string preset = effect.StringValue;
             string presetName = null, presetDim = null, presetVal = null;

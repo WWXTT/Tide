@@ -646,9 +646,9 @@ namespace CardCore.Attribute.Handlers
     /// 表域=己方单位（结算期反问选目标——敌方单位不可选由表域承担）；落格合法性/执行=
     /// GameBoard.MoveUnitRules 单源（己方单位区空格·非原地·PinCard+Resync——邻接（碾压）/
     /// 箭头连接光环/攻击距离按新格即时派生）。选格经 CellSelectionService 反问桥由 UI 弹格
-    /// （与召唤生物选格同交互）。AI/无头/联机（无桥或 Chooser.IsAI）：安全空转+Warn——
-    /// 发动代价照旧由 ActivateEffect 结算（横置/耐久/费用），移动本身不收额外资源；
-    /// LegalActionEnumerator 本阶段不枚举本原子（防 AI 白付代价）。
+    /// （与召唤生物选格同交互）。P1（2026-11-19 v0.3）：声明期 InteractionParams.MoveX/Z 优先
+    /// （LAE 移动行=目标×合法空格 / SimpleAI PickMoveCell）——跳过选格窗按同一终检执行；
+    /// 无参无桥：安全空转+Warn（发动代价照旧由 ActivateEffect 结算，移动本身不收额外资源）。
     /// </summary>
     public class MoveUnitHandler : AtomicEffectHandlerBase
     {
@@ -674,6 +674,23 @@ namespace CardCore.Attribute.Handlers
                 if (cells.Count == 0)
                 {
                     TideLog.Warn($"[MoveUnit] {unit.ID} 无合法空格（单位区满/全占）——空转");
+                    continue;
+                }
+
+                // P1（2026-11-19 v0.3）：声明期交互参数优先（LAE 移动行/SimpleAI PickMoveCell）——
+                // 跳过选格窗，按同一合法性终检执行（非法格=跳过该目标，不白付额外资源）
+                var asked = context.Interaction;
+                if (asked != null && asked.HasMoveCell)
+                {
+                    if (!cells.Any(c => c.x == asked.MoveX && c.z == asked.MoveZ)) continue; // 非法格=跳过
+                    if (!GameBoard.MoveUnitRules.TryMove(unit, asked.MoveX, asked.MoveZ)) continue;
+                    PublishEvent(new KeywordAppliedEvent
+                    {
+                        Target = unit,
+                        Keyword = "移动",
+                        Detail = $"移动：{EffectText.Name(unit)} → 空格 ({asked.MoveX},{asked.MoveZ})",
+                        Source = context.CastCard ?? context.Source,
+                    });
                     continue;
                 }
 

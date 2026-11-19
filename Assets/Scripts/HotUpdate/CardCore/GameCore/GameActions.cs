@@ -82,6 +82,12 @@ namespace CardCore
             List<Entity> targets, IReadOnlyList<int> dynamicCounts, out string reason)
             => HeroSkillSystem.TryActivateSkill(core, player, effectIndex, targets, dynamicCounts, out reason);
 
+        /// <summary>交互参数版（2026-11-19 P1 v0.3）：interaction=声明期移动落格/宣言卡名——
+        /// 随技能发动入栈（LAE 移动/宣言行/驱动透传）；null=旧行为。</summary>
+        public static bool ActivateHeroSkill(GameCore core, Player player, int effectIndex,
+            List<Entity> targets, IReadOnlyList<int> dynamicCounts, InteractionParams interaction, out string reason)
+            => HeroSkillSystem.TryActivateSkill(core, player, effectIndex, targets, dynamicCounts, interaction, out reason);
+
         /// <summary>
         /// 主阶段：横置带地牌特性的生物产 1 元素（2026-09-13 英雄技能·培育赋予的特性）。
         /// 颜色随该生物费用构成（多色时自动取首个有份额的颜色；无费用→灰）。

@@ -25,9 +25,10 @@ namespace CardCore.AI.NeuralEnv
     /// → 编辑器 AssetDatabase（直启 Main 的开发流程）→ Resources（过渡期旧位置兜底）。
     /// 模型默认放 Assets/Art/AIModels/（export_onnx.py 复制到该目录；YooAsset 收集组 AIModel）。
     ///
-    /// 前置条件：TideCardIndex 必须绑定与训练同一份 manifest
-    /// （ConfigureManifest(tide_rl/card_identity_manifest.json) 后 Register 卡池），
-    /// 否则卡身份 embedding 行串台——模型导出时的 manifest 指纹写在 onnx metadata 里。
+    /// P-1（2026-11-19 稳定下标）：旧「绑定训练同一份 manifest」前置条件已废弃——身份下标纯派生
+    /// （TideCardIndex/CardIdentityService，SplitMix64），无清单、无登记。模型新旧代由
+    /// ValidateModelLayout 按图输入维度 + **embedding 池尺寸**（16384/4096，扫模型常量）拦——
+    /// 旧 1024/256 池模型在这里被拒，不再静默 clip。
     /// </summary>
     public sealed class OnnxTidePolicy : IDisposable
     {
@@ -72,10 +73,12 @@ namespace CardCore.AI.NeuralEnv
         }
 
         /// <summary>
-        /// 加载侧布局校验（2026-11-02 部署加固）：模型图输入维度必须与当前
-        /// TideObservation 常量逐值一致。盘面重塑/特征增删后旧模型只会在首步推理
-        /// 抛张量形状异常（或更糟——维度恰好兼容但语义全错），此处提前给出明确报错；
-        /// 导出侧（export_onnx.py）同代把 layoutVersion/dims 写进 fixture 头与
+        /// 加载侧布局校验（2026-11-02 部署加固；P-1 2026-11-19 增池尺寸）：模型图输入维度必须与
+        /// 当前 TideObservation 常量逐值一致；且图常量须含 P-1 池尺寸的 embedding 表
+        /// （卡身份 16384 / EffectType 4096——扫 model.constants 的二维权重首维）。盘面重塑/
+        /// 特征增删/池扩容后旧模型只会在首步推理抛张量形状异常（或更糟——维度恰好兼容但语义
+        /// 全错，如旧 1024 池 embedding 被静默 clip），此处提前给出明确报错；
+        /// 导出侧（export_onnx.py）同代把 layoutVersion/dims/pool sizes 写进 fixture 头与
         /// onnx metadata，Python 对拍/部署两侧可对账。不一致抛 InvalidOperationException，
         /// 由调用方（NeuralAiDriver）响亮回落 SimpleAI。
         /// </summary>
@@ -110,22 +113,48 @@ namespace CardCore.AI.NeuralEnv
                         problems.Add($"{name}[{k}]: {DescribeDim(actual)} ≠ {dims[k]}");
                 }
             }
+
+            // P-1（2026-11-19）池尺寸校验：图常量里必须有 (cardPool,·)/(typePool,·) 的 embedding
+            // 权重表——旧 1024/256 池模型缺 16384/4096 表（embedding 查表会被 jnp.clip 静默截断，
+            ///  必须显式拒）。正向判据（缺表=旧代），顺带识别旧池表给出可读诊断。
+            int wantCard = TideCardIndex.Capacity, wantType = CardIdentityService.MaxTypeIndex + 1;
+            bool hasCard = false, hasType = false, legacyCard = false, legacyType = false;
+            foreach (var cst in model.constants)
+            {
+                if (cst == null || cst.shape.rank != 2) continue;
+                int d0 = cst.shape[0];
+                if (d0 == wantCard) hasCard = true;
+                else if (d0 == wantType) hasType = true;
+                else if (d0 == 1024) legacyCard = true;   // 旧卡身份池（manifest 追加式时代）
+                else if (d0 == 256) legacyType = true;    // 旧 EffectType 池
+            }
+            if (!hasCard)
+                problems.Add(legacyCard
+                    ? $"embedding 池为旧 1024（P-1 前模型）——当前卡身份池 {wantCard}，作废重导出"
+                    : $"图常量缺 {wantCard} 行卡身份 embedding 表（P-1 稳定下标模型才有）");
+            if (!hasType)
+                problems.Add(legacyType
+                    ? $"embedding 池为旧 256（P-1 前模型）——当前 EffectType 池 {wantType}，作废重导出"
+                    : $"图常量缺 {wantType} 行 EffectType embedding 表（P-1 稳定下标模型才有）");
+
             if (problems.Count > 0)
                 throw new InvalidOperationException(
                     $"[OnnxTidePolicy] 模型布局与当前观测编码不一致（{resourcePath}）：\n  "
                     + string.Join("\n  ", problems)
                     + $"\n当前契约 layoutVersion={TideObservation.LayoutVersion}"
                       + $"（cards {MaxCards}x{TideObservation.NCard} / global {TideObservation.NGlobal}"
-                      + $" / actions {MaxActions}x{TideObservation.NAction} / rstate {RnnChannels}）"
-                    + "——代码与模型不同代，重跑 tide_rl/export_onnx.py 重导出后再用");
+                      + $" / actions {MaxActions}x{TideObservation.NAction} / rstate {RnnChannels}"
+                      + $" / cardPool {wantCard} / typePool {wantType}）"
+                      + "——代码与模型不同代，重跑 tide_rl/export_onnx.py 重导出后再用");
         }
 
         private static string DescribeDim(int dim) => dim < 0 ? "(动态维)" : dim.ToString();
 
         /// <summary>
         /// 三级回落：YooAsset 热更包 → 编辑器 AssetDatabase（直启 Main，未走 Launch）→
-        /// Resources（过渡期旧副本兜底）。真机上模型只随资源包下发——注意必须与卡池
-        /// manifest/Configs 同版本节奏更新（模型权重绑定导出时的卡身份 manifest 指纹）。
+        /// Resources（过渡期旧副本兜底）。真机上模型只随资源包下发——P-1 稳定下标后身份
+        /// 与 manifest 解耦，模型代际由 ValidateModelLayout（输入维度 + 池尺寸）自证，
+        /// 与游戏包同版本节奏更新即可。
         /// </summary>
         private static IE.ModelAsset LoadModelAsset(string resourcePath)
         {

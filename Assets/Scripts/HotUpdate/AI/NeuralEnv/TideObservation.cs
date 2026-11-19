@@ -72,7 +72,21 @@ namespace CardCore.AI.NeuralEnv
         // [189]=己方场地卡/[190]=对方场地卡，zoneKind=10）；战场槽 [0..8] 只编码单位（剔场地，
         // 槽序=单位序）；g[7]/g[8] 只数单位。旧 checkpoint/ONNX/fixture 全部作废（python
         // MAX_CARDS/LAYOUT_VERSION 同步升 15）。
-        public const int LayoutVersion = 15;
+        // v16（2026-11-19 P-1 稳定 ID 派生下标 C 方案）：身份下标语义换血——卡身份池
+        // 1024→16384（TideCardIndex 稳定派生）、EffectType 池 256→4096（CardIdentityService
+        // 稳定派生）、「未登记=0」语义废弃（0 只表示 hash=0）。观测/动作特征**维度不变**
+        //（卡 116/动作 14/globals 58），但下标取值分布与 embedding 表大小变化——旧
+        // checkpoint/ONNX/fixture 全部作废；OnnxTidePolicy 按 pool size 拒旧模型（P-1 §0.4.3）。
+        // v17（2026-11-19 P1 v0.3 移动/宣言）：动作特征 14→**17** 维——+[14]moveCellX/[15]moveCellZ
+        ///（Interaction.MoveX/Z，-1=无）、[16]declaredNameIndex（宣言候选序号 0..15，-1=无）。
+        // 移动行=目标×合法空格（MaxMoveRows=18）、宣言行=候选名（MaxDeclareRows=16，只读已读到的
+        // 卡名——DeclarationCandidates 单源）；UnsupportedForAi 对 MoveUnit/SearchDeck/DeclareHand/
+        // DeclareDeck 的裁剪删除。旧 checkpoint/ONNX/fixture 全部作废（v0.3 原文的 v16 号已被 P-1 占用）。
+        // v18（2026-11-19 P2 永久物落格）：动作特征 17→**18** 维——+[17]placementCell（己方
+        // UnitCells 格下标 0..8，-1=非落格行）。永久物（生物/结界）PlayCard/RespondPlay 行×空格
+        // 逐格展开（MaxPlaceRows=9），Apply 声明成功即 PinCard（镜像 SimpleAI.TryPinPlacement 时点）。
+        // 旧 checkpoint/ONNX/fixture 全部作废。
+        public const int LayoutVersion = 18;
         public const int MaxCardsPerPlayer = 77; // v10：43→77（墓地 4→30、除外 8 入册）
         // v9 己方牌库块（尾接全局块，不走 ZoneLayout 每玩家偏移语义——专用 DeckBase+排序名次路径）：
         public const int DeckSlots = 30;                                      // 截断护栏（初始整组 30 恰满；衍生物入库超出不编码）
@@ -118,14 +132,18 @@ namespace CardCore.AI.NeuralEnv
         // v9 尾加 g[50..57]（对方牌库开局标签快照，DeckTagsOf——随卡组创建保留、整局恒定）。
         public const int NGlobal = 58; // v9：50→58（+8 对方牌库标签）
         public const int DeckTagStart = 50; // v9 g[50..57] = DeckTagsOf（对方牌库开局标签）
-        // 动作特征槽（v8 8→11 维；v13 11→12；v14 12→14）：[0]valid [1]type [2]sourceIndex [3]targetIndex [4]modeIndex
+        // 动作特征槽（v8 8→11 维；v13 11→12；v14 12→14；v17 14→17=P1 v0.3 移动/宣言）：
+        // [0]valid [1]type [2]sourceIndex [3]targetIndex [4]modeIndex
         // [5]actionCost [6]effectIdentity [7]targetKind + v8 多目标追加：
-        // [8]target2Index [9]target3Index（Targets[1]/[2] 槽位，-1=无/玩家目标/>3 截断不编码）[10]nTargets（0..8 钳）
+        // [8]target2Index [9]target3Index（Targets[1]/[2] 槽位，-1=无/玩家目标/>3 截断不编码）[10]nTargets（0..16 钳；P0 2026-11-19 由 0..8 提升为 0..16，prefix-k 行 k=9..16 可分）
         // + v13 参照追加：[11]referenceIndex（Reference 角色选位镜像槽位，-1=无/玩家参照）
         // + v14 目标区域追加：[12]targetZoneRank（-1=无目标；角色0→其他9，ZoneRankOf 单源）
         // [13]targetSideRank（-1=无目标；0=己方/1=对方，枚举者视角）——只编码首目标
         //（多目标经 target2/3 槽位+观测 zoneKind 分辨，与「只编码前 3 目标」同口径）。
-        public const int NAction = 14;
+        // + v17 P1 v0.3 追加：[14]moveCellX / [15]moveCellZ（Interaction.MoveX/Z，-1=无/非展开行）
+        // [16]declaredNameIndex（宣言候选序号 0..15，同效果内可比；-1=非宣言行）。
+        // + v18 P2 追加：[17]placementCell（永久物落格=己方 UnitCells 格下标 0..8；-1=非落格行）。
+        public const int NAction = 18;
 
         public float[] Cards = new float[MaxCardsTotal * NCard];
         public float[] Globals = new float[NGlobal];
@@ -510,12 +528,21 @@ namespace CardCore.AI.NeuralEnv
             var data = c is CardWrapper wrapper ? wrapper.GetData() : null;
             var atomHashes = data?.AtomContentHashes;
             for (int e = 0; e < AtomIdSlots && e < (atomHashes?.Length ?? 0); e++)
-                Cards[b + HashIdStart + e] = TideCardIndex.IndexOf(atomHashes[e]);
+            {
+                int idx = TideCardIndex.IndexOf(atomHashes[e]);
+                // P-1 §0.4.4：写入值域断言（Release 零开销——Debug.Assert 按 DEBUG 条件编译剥除）
+                System.Diagnostics.Debug.Assert(idx >= 0 && idx < TideCardIndex.Capacity, $"hash 下标越池 {idx}");
+                Cards[b + HashIdStart + e] = idx;
+            }
             Cards[b + StructureSlot] = TideCardIndex.IndexOf(data != null ? data.StructureContentHash : 0UL);
             Cards[b + CompositionSlot] = TideCardIndex.IndexOf(data != null ? data.CompositionContentHash : 0UL);
             var typeIdx = data?.AtomTypeIndexes;
             for (int e = 0; e < AtomIdSlots && e < (typeIdx?.Length ?? 0); e++)
-                Cards[b + TypeIdStart + e] = typeIdx[e];
+            {
+                int t = typeIdx[e];
+                System.Diagnostics.Debug.Assert(t >= 0 && t <= CardIdentityService.MaxTypeIndex, $"type 下标越池 {t}");
+                Cards[b + TypeIdStart + e] = t;
+            }
             var atomParams = data?.AtomParams;
             int dim = CardIdentityService.AtomParamDim;
             int nParams = Math.Min(AtomIdSlots, (atomParams?.Length ?? 0) / dim);
@@ -622,148 +649,53 @@ namespace CardCore.AI.NeuralEnv
     }
 
     /// <summary>
-    /// 内容身份登记簿：ulong 内容哈希（CardIdentityService：原子哈希 / 组合结构哈希 /
-    /// 关键词+tag+光环组合哈希，2026-11-05 ID 冻结收口后直接锚定冻结 ID——不再混原子表指纹）
-    /// → 池内小整数下标，供 TideObservation [15..22] 输出、Python 侧 nn.Embed 查表。
-    /// 拆散到原子级：同原子（如 造成伤害4）跨卡共享同一行——相近效果在原子层重叠，语义直接迁移。
-    /// 0 = 无该成分 / token / 未登记；容量 1024 与 Python N_CARD_POOL 对齐。
-    /// 键是内容哈希（内容寻址，别名 ID 不参与）。容量口径（2026-09-21 扩容定案）：
-    /// 占行的是「原子实例级身份」（原子类型+参数+目标域组合 / 结构骨架 / 关键词组合），
-    /// 不是卡——白板卡不占行、同原子跨卡共享行；1024 ≈ 千张常用卡的互异效果实例余量。
-    /// 触顶静默降级不崩（新哈希记 0，类型+参数通路照常）。
-    ///
-    /// 分配口径（追加式 + manifest 持久化，2026-09-09 修复）：
-    ///   - 已分配的下标永不改写（旧实现重复 Register 时把全部哈希覆盖成 Count+1，
-    ///     第二局起全体身份塌缩到同一行——已修）；
-    ///   - 新哈希按批内排序追加到末尾（首批 = 全池排序 1..N，与历史口径一致），
-    ///     任何新卡/新组合都不再挪动已有下标——已训 embedding 行永不串台；
-    ///   - ConfigureManifest 绑定清单文件（训练/部署同一份）：启动载入、有新增即落盘。
-    ///     manifest v2（2026-11-05 ID 冻结收口）：清单不再锚定原子表指纹——表内容编辑/新增行
-    ///     不再作废清单（旧「table 指纹」头一票作废已拆）；EffectType 下标冻结分配同存清单
-    ///     （type 行）。旧格式清单（-1）按作废处理：冻结前哈希混盐，键本就不兼容，重登记即可。
+    /// 内容身份 → 稳定下标（P-1 2026-11-19 C 方案，docs/AI动作空间补全_修改计划.md §0.4）：
+    /// index = 1 + SplitMix64(hash) % (N_CARD_POOL - 1)；hash 0 → 0。**纯函数派生**——
+    /// 与池/生成顺序/manifest 无关，main/train 跨进程同号；未登记 hash 不再返回 0（直接落稳定桶），
+    /// 0 只表示 hash=0（无该成分/token）。派生原语单源在 CardIdentityService（SplitMix64/
+    /// Fnv1a64/StableIndex——Python tide_features 同式对拍）。
+    /// 键仍是 ulong 内容哈希（CardIdentityService：原子哈希/组合结构哈希/关键词+tag+光环组合哈希，
+    /// 2026-11-05 ID 冻结收口后直接锚定冻结 ID）。拆散到原子级：同原子（如 造成伤害4）跨卡共享
+    /// 同一行。容量 16384 与 Python N_CARD_POOL 对齐（碰撞 ≈ 1.7 个/239 身份，见 §0.4.5——
+    /// 碰撞=共享 embedding 行可接受，报告出 CollisionReport；不做按插入序探测）。
+    /// 动作 effectIdentity：FNV1a64(def.Id)+盐 → StableIndex(1024)（与卡身份哈希族隔离）。
+    /// 旧「追加式登记簿 + card_identity_manifest.json 持久化」已废弃（2026-11-19）——
+    /// manifest 文件仅存档，不参与训练/导出；旧 1024/256 模型作废（当前 LayoutVersion=18 拒载，
+    /// v16 起另按 cardPool/typePool 尺寸校验）。
     /// </summary>
     public static class TideCardIndex
     {
-        private const int Capacity = 1024; // 2026-09-21 256→1024（趁新口径重训扩容；manifest 下标系统不变）
-        private static readonly Dictionary<ulong, int> _map = new Dictionary<ulong, int>();
-        private static string _manifestPath; // ConfigureManifest 绑定；null = 纯内存（无持久化）
+        /// <summary>卡身份池（P-1：1024→16384；Python N_CARD_POOL 同步。embedding 表随池扩 ~16×）。</summary>
+        public const int Capacity = 16384;
 
-        /// <summary>已登记身份数（诊断/日志用）。</summary>
-        public static int Count => _map.Count;
+        /// <summary>动作 effectIdentity 池（P-1 不变；特征 [6] 仍 / 1024）。</summary>
+        public const int EffectIdentityPool = 1024;
 
-        /// <summary>绑定清单文件并载入既有分配。返回载入条数；-1 = 旧格式清单已作废（从零开始）。
-        /// 幂等：重复调用以首次绑定的文件为准（训练服务器与自测共用同一路径）。
-        /// manifest v2（2026-11-05 ID 冻结收口）：scheme 2 头 + type 行（EffectType 冻结分配）+
-        /// 哈希行；不再有表内容闸。旧「table 指纹」头 = 冻结前混盐口径，键不兼容——作废重登记。</summary>
-        public static int ConfigureManifest(string path)
-        {
-            if (string.IsNullOrEmpty(path)) return 0;
-            if (_manifestPath != null) return 0; // 已绑定，不重复载入（进程内下标分配已生效）
-            _manifestPath = path;
+        /// <summary>已登记身份数——**legacy 恒 0**：稳定派生无登记簿（旧日志口径作废，
+        /// 调用方改打 pool sizes；见 NeuralAiDriver/TideHeadlessServer 2026-11-19 日志）。</summary>
+        public static int Count => 0;
 
-            try
-            {
-                if (!File.Exists(path)) return 0;
-                bool schemeOk = false;
-                var typeLines = new Dictionary<string, int>();
-                int loaded = 0;
-                foreach (var line in File.ReadAllLines(path))
-                {
-                    var t = line.Trim();
-                    if (t.Length == 0 || t.StartsWith("#")) continue;
-                    var parts = t.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                    if (parts.Length == 2 && parts[0] == "scheme")
-                    {
-                        schemeOk = parts[1] == "2";
-                        if (!schemeOk) break; // 旧 table 头 / 未知版本：冻结前清单作废
-                        continue;
-                    }
-                    if (parts.Length == 3 && parts[0] == "type"
-                        && !string.IsNullOrEmpty(parts[1])
-                        && int.TryParse(parts[2], out int tix) && tix >= 1 && tix <= CardIdentityService.MaxTypeIndex)
-                    {
-                        typeLines[parts[1]] = tix;
-                        continue;
-                    }
-                    if (parts.Length == 2
-                        && ulong.TryParse(parts[0], out ulong h) && h != 0UL
-                        && int.TryParse(parts[1], out int idx)
-                        && idx >= 1 && idx < Capacity && schemeOk)
-                    {
-                        _map[h] = idx; // 清单是权威分配，直接采纳
-                        loaded++;
-                    }
-                }
-                if (!schemeOk) return -1;
-                if (typeLines.Count > 0) CardIdentityService.AdoptTypeIndexes(typeLines);
-                // 载入后 Count 可能小于最大下标（清单曾被截断）；Count 只用于「追加位置」，
-                // 从最大下标续排，避免与清单内保留条目撞号。
-                foreach (var idx in _map.Values)
-                    if (idx > _maxIndex) _maxIndex = idx;
-                return loaded;
-            }
-            catch
-            {
-                return 0; // 读失败按无清单处理（不影响本局注册）
-            }
-        }
+        /// <summary>绑定清单文件并载入既有分配——**legacy no-op**（P-1 已废弃 manifest 分配；
+        /// 旧调用点保留签名编译通过，返回 0=无载入）。文件仅存档不参与训练/导出。</summary>
+        public static int ConfigureManifest(string path) => 0;
 
-        private static int _maxIndex;
+        /// <summary>登记卡池——**legacy no-op**（P-1：下标纯派生无需登记；身份推导
+        /// （CardIdentityService.EnsureIdentity）由装载管线 CardCostService.EnsureCost 承担）。</summary>
+        public static int Register(IEnumerable<CardData> pool) => 0;
 
-        /// <summary>登记卡池（HandleReset / 自测菜单调用；可重复调用）：收集全部内容哈希 →
-        /// 去重排序 → 未登记者按批内排序追加分配（_maxIndex+1 起）。返回本批新增条数。
-        /// 已登记哈希跳过——跨局重复 Register 是常态（每次 reset 都调），追加式保证幂等。
-        /// 容量满后停止分配（返回值小于待登记数，调用方可据此告警）。</summary>
-        public static int Register(IEnumerable<CardData> pool)
-        {
-            if (pool == null) return 0;
-            var hashes = new SortedSet<ulong>();
-            foreach (var card in pool)
-            {
-                if (card == null) continue;
-                // 2026-11-05 ID 冻结收口：装载期身份可能早于清单绑定（EffectType 下标按播种号暂存）——
-                // 清单 type 行 Adoption 后按冻结分配重刷一遍（幂等便宜），观测取用口径一致。
-                CardIdentityService.EnsureIdentity(card);
-                if (card.AtomContentHashes != null)
-                    foreach (var h in card.AtomContentHashes)
-                        if (h != 0UL) hashes.Add(h);
-                if (card.StructureContentHash != 0UL) hashes.Add(card.StructureContentHash);
-                if (card.CompositionContentHash != 0UL) hashes.Add(card.CompositionContentHash);
-            }
-
-            int added = 0;
-            foreach (var h in hashes)
-            {
-                if (_map.Count >= Capacity - 1) break;
-                if (_map.ContainsKey(h)) continue; // 追加式：已分配下标永不改写
-                _map[h] = ++_maxIndex;
-                added++;
-            }
-            if (added > 0 && _manifestPath != null) SaveManifest();
-            return added;
-        }
-
-        /// <summary>内容哈希 → 下标（未登记 = 0）。</summary>
+        /// <summary>内容哈希 → 稳定下标（0 = hash 0/无成分）。</summary>
         public static int IndexOf(ulong hash)
-            => hash != 0UL && _map.TryGetValue(hash, out int idx) ? idx : 0;
+            => CardIdentityService.StableIndex(hash, Capacity);
 
-        /// <summary>哈希 → 下标，未登记则追加分配（v2 effectIdentity 用）。追加式口径同 Register：
-        /// 已分配下标永不改写、容量满记 0 静默降级、有清单绑定时落盘。</summary>
+        /// <summary>哈希 → 下标——legacy 别名（P-1 派生无「登记」语义，恒等于 IndexOf）。</summary>
         public static int IndexOfOrRegister(ulong hash)
-        {
-            if (hash == 0UL) return 0;
-            if (_map.TryGetValue(hash, out int idx)) return idx;
-            if (_map.Count >= Capacity - 1) return 0;
-            _map[hash] = ++_maxIndex;
-            if (_manifestPath != null) SaveManifest();
-            return _maxIndex;
-        }
+            => IndexOf(hash);
 
         /// <summary>效果定义 → 身份下标（动作特征 [6] / globals g[48] 的 effectIdentity）：
-        /// 键 = EffectDefinition.Id（转换自卡表的内容哈希稳定键）的 FNV-1a 64 + 效果空间盐——
-        /// 与 CardIdentityService 的卡身份哈希族隔离（64 位空间 + 盐，碰撞概率可忽略；即撞也只共用行不崩）。
-        /// 追加式注册进同一 manifest（不动表指纹）；同一效果定义跨局同 Id → 同下标（embedding 不稀释）。
-        /// 空 Id（动态授予的效果）= 0（未登记信号）。</summary>
+        /// 键 = EffectDefinition.Id（转换自卡表的内容哈希稳定键）的 FNV-1a 64 + 效果空间盐
+        /// ——与 CardIdentityService 的卡身份哈希族隔离（64 位空间 + 盐，碰撞概率可忽略；
+        /// 即撞也只共用行不崩）。P-1：盐化哈希 → StableIndex(1024) 纯派生，同一效果定义
+        /// 跨进程同号（embedding 不稀释）。空 Id（动态授予的效果）= 0。</summary>
         public static int IndexOfEffectDefinition(EffectDefinition def)
         {
             if (def == null || string.IsNullOrEmpty(def.Id)) return 0;
@@ -773,36 +705,7 @@ namespace CardCore.AI.NeuralEnv
                 h ^= ch;
                 h *= 1099511628211UL;
             }
-            return IndexOfOrRegister(h);
-        }
-
-        /// <summary>清单落盘（临时文件 + 替换，原子写）。格式（v2）：# 注释 / scheme 2 头 /
-        /// type &lt;枚举名&gt; &lt;下标&gt;（EffectType 冻结分配）/ 「哈希 下标」行。</summary>
-        private static void SaveManifest()
-        {
-            try
-            {
-                var dir = Path.GetDirectoryName(_manifestPath);
-                if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-                var sb = new System.Text.StringBuilder();
-                sb.Append("# TideCardIndex identity manifest v2 (append-only; hash=decimal index; type=frozen EffectType index)\n");
-                sb.Append("scheme 2\n");
-                var typeRows = new List<KeyValuePair<string, int>>(CardIdentityService.TypeIndexSnapshot());
-                typeRows.Sort((a, b) => a.Value.CompareTo(b.Value)); // 按下标序落盘（追加史可读）
-                foreach (var kv in typeRows)
-                    sb.Append("type ").Append(kv.Key).Append(' ').Append(kv.Value).Append('\n');
-                foreach (var kvp in _map)
-                    sb.Append(kvp.Key).Append(' ').Append(kvp.Value).Append('\n');
-                string tmp = _manifestPath + ".tmp";
-                File.WriteAllText(tmp, sb.ToString());
-                if (File.Exists(_manifestPath)) File.Delete(_manifestPath);
-                File.Move(tmp, _manifestPath);
-            }
-            catch
-            {
-                // 落盘失败不阻断训练（本进程内分配仍一致；下次进程从旧清单续排，极端情况 =
-                // 本次新增哈希在下次进程换号，与未持久化时的行为相同）
-            }
+            return CardIdentityService.StableIndex(h, EffectIdentityPool);
         }
     }
 }

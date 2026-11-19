@@ -71,9 +71,8 @@ namespace CardCore.Editor.TideHeadless
         private const int SelfTestMaxSteps = 2000;
         private const int TcpPort = 9999;
 
-        /// <summary>卡身份清单（追加式分配的持久化）：训练/部署同一份 → 新哈希续排，已训 embedding 行永不串台。</summary>
-        private static string CardManifestPath
-            => Path.Combine(Application.dataPath, "..", "tide_rl", "card_identity_manifest.json");
+        // P-1（2026-11-19 稳定下标）：CardManifestPath/ConfigureManifest/RegisterIdentities 已删——
+        // 身份下标纯派生（TideCardIndex/CardIdentityService），不读写 manifest（文件仅存档）。
 
         private static TcpListener _tcpListener;
         private static Thread _tcpThread;
@@ -93,10 +92,11 @@ namespace CardCore.Editor.TideHeadless
             // 服务器重启时重载数据层（编辑器内可能改了 Cards.json/主题卡组）：
             // CardCatalog 缓存失效 + 主题卡组缓存置空（BattleDeckSources 每次重新读盘）
             _themeDecks = null;
-            int loaded = TideCardIndex.ConfigureManifest(CardManifestPath); // 追加式下标，重启不改写
-            Debug.Log(loaded >= 0
-                ? $"[TideHeadless] 卡身份清单载入 {loaded} 条（{CardManifestPath}）"
-                : $"[TideHeadless] 卡身份清单表指纹不符，旧清单作废从零续排（{CardManifestPath}）");
+            // P-1 布局回显（Python _assert_layout 同口径对账）：pool sizes + layout
+            Debug.Log($"[TideHeadless] 稳定下标 P-1：cardPool {TideCardIndex.Capacity}"
+                      + $" / typePool {CardIdentityService.MaxTypeIndex + 1}"
+                      + $" / effectPool {TideCardIndex.EffectIdentityPool}"
+                      + $" / layout v{TideObservation.LayoutVersion}（manifest 已废弃，纯派生同号）");
             _tcpThread = new Thread(TcpServerLoop) { IsBackground = true };
             _tcpThread.Start();
             Debug.Log($"[TideHeadless] TCP 服务器启动在 localhost:{TcpPort}，等待 Python 连接...");
@@ -212,9 +212,9 @@ namespace CardCore.Editor.TideHeadless
                 Debug.LogError("[无头驱动] 训练池加载失败（tag「训练池」0 张——TrainingCards.json 缺失或全表掉标签）");
                 return;
             }
-            TideCardIndex.ConfigureManifest(CardManifestPath); // 与训练路径同一份清单（追加式续排）
-            int added = TideCardIndex.Register(pool); // 自测路径同口径登记卡身份（与 BattleDeckSources 同源同序）
-            Debug.Log($"[无头驱动] 卡身份登记 +{added}（总 {TideCardIndex.Count}）");
+            // P-1（2026-11-19 稳定下标）：自测路径不再绑定/登记清单——下标纯派生，跨进程同号。
+            Debug.Log($"[无头驱动] 稳定下标 P-1（cardPool {TideCardIndex.Capacity}"
+                      + $" / typePool {CardIdentityService.MaxTypeIndex + 1}）——manifest 已废弃");
 
             var driver = new TideHeadlessDriver();
             var rng = new System.Random(12345);
@@ -268,7 +268,7 @@ namespace CardCore.Editor.TideHeadless
         public static void Main()
         {
             Debug.unityLogger.logEnabled = false;
-            TideCardIndex.ConfigureManifest(CardManifestPath); // batchmode 进程短命：跨进程稳定全靠清单
+            // P-1 稳定下标：跨进程同号由纯派生保证（SplitMix64），batchmode 无需清单载入。
 
             int port = TcpPort;
             var argv = Environment.GetCommandLineArgs();
@@ -311,7 +311,7 @@ namespace CardCore.Editor.TideHeadless
             //              缺省随机 30）vs 随机主题整组，SimpleAI 按主题 AutoMatch 策略
             //              整回合自动打，obs/reward 恒为模型视角（info.modelSeat 判胜负、info.theme 分主题统计）。
             // 2026-11-15 训练池定案（矩阵 §0 P0-C）：随机 30 只抽 tag「训练池」（教学卡不参与训练）；
-            // 主题整组（对手/镜像）不变；卡身份登记仍全量（manifest 要全量，见 RegisterIdentities）。
+            // 主题整组（对手/镜像）不变。P-1 稳定下标后无身份登记步骤（manifest 已废弃，纯派生）。
             var pool = BattleDeckSources.TrainingPool();
             var themes = ThemeDeckCache.Where(t => t.deck.Count > 0).ToList();
             if (pool.Count == 0 || themes.Count == 0)
@@ -328,10 +328,6 @@ namespace CardCore.Editor.TideHeadless
                 _poolLogged = true;
                 UnityEngine.Debug.Log($"[TideHeadless] 训练池 {pool.Count} 张（tag「训练池」；随机 30 张抽样口径，教学卡不参与）");
             }
-
-            int addedIds = BattleDeckSources.RegisterIdentities(); // 追加式幂等：新卡身份自动续排进 manifest
-            if (addedIds > 0)
-                UnityEngine.Debug.Log($"[TideHeadless] 卡身份登记 +{addedIds}（总 {TideCardIndex.Count}）");
 
             lock (DeckRngLock)
             {
@@ -489,6 +485,9 @@ namespace CardCore.Editor.TideHeadless
                         nAction = TideObservation.NAction,
                         maxActions = OnnxTidePolicy.MaxActions,
                         maxCards = TideObservation.MaxCardsTotal, // v3：卡槽总数入握手（契约 §7）
+                        // P-1（2026-11-19）：池尺寸入握手——Python 侧 embedding 表与 C# 派生同代
+                        cardPoolSize = TideCardIndex.Capacity,
+                        typePoolSize = CardIdentityService.MaxTypeIndex + 1,
                     },
                     decisionSeat = r.Done ? -1 : r.DecisionSeat,
                     // L3-A 循环治理（2026-11-18 方案 §5.4）：收口步外显 + 本回合步数——
@@ -512,8 +511,9 @@ namespace CardCore.Editor.TideHeadless
 
         [Serializable] public class HeadlessRequest { public string op; public int action; public string opponent; public float shapingLambda; public int shapingSet; public string theme; public string modelTheme; public string modelDoped; }
         [Serializable] public class HeadlessObs { public List<float> cards; public List<float> globals; public List<float> actions; public int nActions; }
-        // v2 布局握手字段（2026-09-30 契约第 5 节）：layoutVersion / dims / decisionSeat
-        [Serializable] public class HeadlessDims { public int nCard; public int nGlobal; public int nAction; public int maxActions; public int maxCards; }
+        // v2 布局握手字段（2026-09-30 契约第 5 节）：layoutVersion / dims / decisionSeat；
+        // P-1（2026-11-19）dims 增 cardPoolSize/typePoolSize（稳定下标池尺寸两侧对账）
+        [Serializable] public class HeadlessDims { public int nCard; public int nGlobal; public int nAction; public int maxActions; public int maxCards; public int cardPoolSize; public int typePoolSize; }
         [Serializable] public class HeadlessInfo { public int toPlay; public string winner; public string reason; public int turn; public int modelSeat; public string theme; public string modelTheme; public string modelDoped; public int layoutVersion; public HeadlessDims dims; public int decisionSeat; public bool loopPruned; public string loopReason; public int turnActions; }
         [Serializable] public class HeadlessResponse { public string op; public HeadlessObs obs; public float reward; public bool done; public HeadlessInfo info; }
     }

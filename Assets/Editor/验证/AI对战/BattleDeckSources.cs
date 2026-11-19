@@ -30,8 +30,9 @@ namespace CardCore.Editor.Tests
         public static List<CardData> AllCards() => CardCatalog.LoadAll();
 
         /// <summary>训练池（2026-11-15 定案，训练池覆盖矩阵 §0 P0-C）：只抽 tag「训练池」的卡——
-        /// 教学卡不参与训练（教学表并行重写中）。当前 68 张 = TrainingCards 65 + 教学表双标签 3。
-        /// 卡身份登记（RegisterIdentities）仍走 AllCards 全量（manifest 要全量）。</summary>
+        /// 教学卡不参与训练（教学表并行重写中）。当前训练池 87 张 = TrainingCards 84 + 教学表双标签 3
+        /// （2026-11-19 v18；P2-1..3 已入池）。
+        /// P-1（2026-11-19）后无身份登记步骤（稳定下标纯派生，RegisterIdentities 已删）。</summary>
         public static List<CardData> TrainingPool()
             => AllCards().Where(c => c.Tags != null && c.Tags.Contains("训练池")).ToList();
 
@@ -104,11 +105,6 @@ namespace CardCore.Editor.Tests
             return kept;
         }
 
-        /// <summary>卡身份登记（manifest 追加式幂等，新哈希自动续排）：Cards.json 全池含三主题卡。</summary>
-        public static int RegisterIdentities()
-        {
-            var pool = AllCards();
-            return pool.Count > 0 ? TideCardIndex.Register(pool) : 0;
-        }
+        // RegisterIdentities 已删（P-1 2026-11-19 稳定下标）：身份下标纯派生，无 manifest 登记。
     }
 }

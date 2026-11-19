@@ -15,7 +15,7 @@ using UnityEngine;
 namespace CardCore.Editor.Tests
 {
     /// <summary>
-    /// 规范总校验（2026-11-02 定案）：一次性只读体检，Console 分区打印 A~E 报告 + 末尾 PASS/FAIL 汇总。
+    /// 规范总校验（2026-11-02 定案；2026-11-19 增 F 段）：一次性只读体检，Console 分区打印 A~F 报告 + 末尾 PASS/FAIL 汇总。
     /// 任何一项 FAIL 给出「项名 + 具体卡/原子 + 原因」。
     /// ■ A 对账三件套：A1 卡表合并 SHA256（Cards.json + Effects.json + Configs/原子表_*.json，
     ///   按相对路径 Ordinal 排序后拼接原文，输出前 8 位）；A2 布局版本 C#(TideObservation) vs
@@ -28,6 +28,8 @@ namespace CardCore.Editor.Tests
     ///   D2 预组·22（冻结两个对方单位）3 敌施放后恰 2 横置。
     /// ■ E 系统规则抽检：E1 全体消灭 handler 含结界分支（源码文本）；E2 代价栏两条拒绝文案存在；
     ///   E3 SkillValueViolations 存在；E4 HasPlayableTargets 三态（0 敌 false / 1 敌 true，挂在 D1 对局内）。
+    /// ■ F P-1 稳定下标（2026-11-19）：F1 聚合 StableIndexVerifier——同 ID 同值/范围/Python
+    ///   算法对拍/常量对账（含池尺寸）/碰撞报告；旧 manifest 对账已随稳定下标退役。
     /// 硬约束：全程只读——不写表、不改数据、不触发重推（AtomicEffectTable/EffectsLibrary.Reload 与
     /// RunColorAudit 同款「重读现值」；对局为内存态）。
     /// </summary>
@@ -70,6 +72,8 @@ namespace CardCore.Editor.Tests
             catch (Exception ex) { Of("D").FailWith("D 段异常中断：" + ex.Message + "\n" + ex.StackTrace); }
             try { SectionE(); }
             catch (Exception ex) { Of("E").FailWith("E 段异常中断：" + ex.Message); }
+            try { SectionF(); }
+            catch (Exception ex) { Of("F1").FailWith("F 段异常中断：" + ex.Message); }
 
             // ---- 分区打印 + 汇总 ----
             Debug.Log("[规范总校验] ===== A. 对账三件套（并行开发防串味）=====");
@@ -82,6 +86,8 @@ namespace CardCore.Editor.Tests
             Print("D1"); Print("D2");
             Debug.Log("[规范总校验] ===== E. 系统规则抽检 =====");
             Print("E1"); Print("E2"); Print("E3"); Print("E4");
+            Debug.Log("[规范总校验] ===== F. P-1 稳定下标（2026-11-19）=====");
+            Print("F1");
 
             int pass = Items.Count(i => !i.Fail), fail = Items.Count(i => i.Fail), warn = Items.Count(i => i.Warn);
             var sb = new StringBuilder();
@@ -141,16 +147,20 @@ namespace CardCore.Editor.Tests
             string a1Hash = hash.Substring(0, 8);
             a1.Line($"卡表合并 SHA256={a1Hash}（{files.Count} 文件按相对路径排序拼接原文：{string.Join(" | ", parts)}）");
 
-            // A2 布局版本两侧对账
+            // A2 布局版本两侧对账（P-1 2026-11-19 增池尺寸三常量）
             var a2 = Of("A2");
             int csLayout = TideObservation.LayoutVersion, csNAction = TideObservation.NAction;
+            int csCardPool = TideCardIndex.Capacity, csTypePool = CardIdentityService.MaxTypeIndex + 1;
             var py = File.ReadAllText(Path.Combine(root, "tide_rl", "tide_features.py"));
             int pyLayout = IntOf(py, @"LAYOUT_VERSION"), pyNAction = IntOf(py, @"N_ACTION_FEATURES");
-            a2.Line($"C# TideObservation LayoutVersion={csLayout} NAction={csNAction} vs Python tide_features LAYOUT_VERSION={pyLayout} N_ACTION_FEATURES={pyNAction}");
-            if (pyLayout < 0 || pyNAction < 0)
-                a2.FailWith("[FAIL] tide_features.py 解析不到 LAYOUT_VERSION/N_ACTION_FEATURES 常量");
-            else if (csLayout != pyLayout || csNAction != pyNAction)
-                a2.FailWith($"[FAIL] 布局版本两侧不一致（训练副本口径漂移——模型/观测/动作空间不同代）");
+            int pyCardPool = IntOf(py, @"N_CARD_POOL"), pyTypePool = IntOf(py, @"N_EFFECT_TYPES");
+            a2.Line($"C# TideObservation LayoutVersion={csLayout} NAction={csNAction} cardPool={csCardPool} typePool={csTypePool}"
+                  + $" vs Python tide_features LAYOUT_VERSION={pyLayout} N_ACTION_FEATURES={pyNAction}"
+                  + $" N_CARD_POOL={pyCardPool} N_EFFECT_TYPES={pyTypePool}");
+            if (pyLayout < 0 || pyNAction < 0 || pyCardPool < 0 || pyTypePool < 0)
+                a2.FailWith("[FAIL] tide_features.py 解析不到 LAYOUT_VERSION/N_ACTION_FEATURES/N_CARD_POOL/N_EFFECT_TYPES 常量");
+            else if (csLayout != pyLayout || csNAction != pyNAction || csCardPool != pyCardPool || csTypePool != pyTypePool)
+                a2.FailWith($"[FAIL] 布局/池常量两侧不一致（训练副本口径漂移——模型/观测/动作空间不同代）");
 
             // A3（ONNX stamp vs 卡表 hash）已于 2026-11-02 删除：两者不同域，恒为假警报。
             return a1Hash;
@@ -595,6 +605,25 @@ namespace CardCore.Editor.Tests
         private static string NameOf(Entity e)
             => e is Player p ? (p.Name ?? (ReferenceEquals(p, GameCore.Instance.Player1) ? "己方角色" : "对方角色"))
              : (e as IHasName)?.CardName ?? "?";
+
+        // ======================================== F. P-1 稳定下标（2026-11-19） ========================================
+
+        /// <summary>F1 聚合 StableIndexVerifier（确定性/范围/Python 对拍/常量/碰撞报告）——
+        /// 失败项逐行折入 F1（计入总校验 FAIL 汇总）；全文报告另有独立菜单可看。</summary>
+        private static void SectionF()
+        {
+            var f = Of("F1");
+            string report = StableIndexVerifier.Run(out int fails, out int total);
+            f.Line($"稳定下标 {total - fails}/{total} 项（同值/范围/Python 对拍/常量对账/碰撞报告）");
+            foreach (var line in report.Split('\n'))
+            {
+                var t = line.TrimEnd('\r');
+                if (t.StartsWith("[FAIL]", StringComparison.Ordinal))
+                    f.FailWith(t);
+                if (t.StartsWith("[碰撞]", StringComparison.Ordinal))
+                    f.Line(t);
+            }
+        }
     }
 }
 

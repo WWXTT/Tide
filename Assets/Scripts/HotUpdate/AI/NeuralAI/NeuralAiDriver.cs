@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using CardCore;
 using CardCore.AI.NeuralEnv;
 using Cysharp.Threading.Tasks;
@@ -12,11 +11,10 @@ namespace SynergyUI
     /// 神经 AI 活体接入（2026-10-14 镜像对决定案）：IAiTurnDriver 适配器——把 NeuralAI
     /// （tide_policy.onnx 整回合策略）接进 BattleController 的 AI 槽位（此前只由编辑器
     /// 对战窗口直调，不接入活体对局）。
-    /// 接线序列镜像 AiBattleDeckWindow.ConfigureNeuralIdentity / 训练服务器 HandleReset：
-    /// ConfigureManifest（2026-11-05 manifest v2：不再锚定表指纹——旧格式/损坏清单=拒用作废，
-    /// embedding 串台比没 AI 更糟；模型与清单的新鲜度由部署三件套 sha 校验兜底）→ 全池+双方卡组
-    /// Register（追加式幂等）→ OnnxTidePolicy（进程共享 worker）→ 新对局换脑（GRU rstate 归零）。
-    /// 模型/清单缺失或指纹不符：一次性失败标记 + 响亮回落 SimpleAI（对局可继续，Console 留因）。
+    /// 接线（P-1 2026-11-19 稳定下标后）：身份下标纯派生（无 manifest/Register）→
+    /// OnnxTidePolicy（进程共享 worker；ValidateModelLayout 按图输入维度 + pool size
+    /// 拒旧代模型）→ 新对局换脑（GRU rstate 归零）。
+    /// 模型缺失/布局不符：一次性失败标记 + 响亮回落 SimpleAI（对局可继续，Console 留因）。
     /// 注意：战斗时序=训练口径 DrainStack——镜像局里人类的守卫响应窗口不开启
     /// （守卫交互在教学剧本局验证，ScriptedAi 走 SettleResponseWindowAsync）。
     /// </summary>
@@ -24,7 +22,6 @@ namespace SynergyUI
     {
         private static OnnxTidePolicy _sharedPolicy; // 模型加载贵：进程内跨局共享（rstate 归零在换脑时做）
         private static string _brokenReason;         // 一次性失败标记（本进程不再重试）
-        private static List<CardData> _poolCache;    // Cards.json 全池（登记用，载一次）
 
         private readonly SimpleAI _fallback = new SimpleAI();
         private NeuralAI _brain;
@@ -63,24 +60,18 @@ namespace SynergyUI
             if (ReferenceEquals(_lastCore, core)) return _brain != null;
             try
             {
-                // ① 卡身份清单（进程一次绑定；-1=旧格式清单（v1 table 指纹头）作废：
-                // 冻结前哈希混盐口径不同，旧模型下标本就无意义——重登记+重训+重导出后可用）
-                string manifest = Path.Combine(Application.dataPath, "..", "tide_rl", "card_identity_manifest.json");
-                if (TideCardIndex.Count == 0 && TideCardIndex.ConfigureManifest(manifest) < 0)
-                    return Fail("card_identity_manifest 为旧格式（v1 表指纹闸）——重生成清单+重导出后可用");
+                // P-1（2026-11-19 稳定下标）：身份下标纯派生（TideCardIndex.IndexOf / AtomTypeIndex），
+                // manifest 绑定/登记已废弃——不再 ConfigureManifest/Register（文件仅存档）。
 
-                // ② 身份登记（追加式幂等）：全池 + 双方卡组（训练 HandleReset 同序）
-                if (_poolCache == null) _poolCache = CardCatalog.LoadAll();
-                TideCardIndex.Register(_poolCache);
-                TideCardIndex.Register(DeckOf(core, ctrl.P1));
-                TideCardIndex.Register(DeckOf(core, ctrl.P2));
-
-                // ③ 模型（进程共享）；④ 新对局换脑（rstate 归零）
+                // 模型（进程共享）；新对局换脑（rstate 归零）——ValidateModelLayout 按图输入
+                // 维度 + pool size（16384/4096 embedding 表）拒旧代模型
                 if (_sharedPolicy == null) _sharedPolicy = new OnnxTidePolicy();
                 _brain = new NeuralAI(_sharedPolicy);
                 _brain.ResetEpisode();
                 _lastCore = core;
-                Debug.Log($"[NeuralAI] tide_policy 就绪（卡身份 {TideCardIndex.Count} 条）——镜像局开打");
+                Debug.Log($"[NeuralAI] tide_policy 就绪（稳定下标 P-1：cardPool {TideCardIndex.Capacity}"
+                          + $" / typePool {CardIdentityService.MaxTypeIndex + 1}"
+                          + $" / layout v{TideObservation.LayoutVersion}）——镜像局开打");
                 return true;
             }
             catch (Exception ex)
@@ -97,18 +88,6 @@ namespace SynergyUI
             Debug.LogError($"[NeuralAI] 接入失败：{reason}（本进程回落 SimpleAI 启发——"
                            + "重训 + 重跑 tide_rl/export_onnx.py 重导出后恢复）");
             return false;
-        }
-
-        private static List<CardData> DeckOf(GameCore core, Player p)
-        {
-            var cards = core?.ZoneManager?.GetCards(p, Zone.Deck) ?? new List<Card>();
-            var list = new List<CardData>(cards.Count);
-            foreach (var c in cards)
-            {
-                var d = (c as CardWrapper)?.GetData();
-                if (d != null) list.Add(d);
-            }
-            return list;
         }
     }
 }

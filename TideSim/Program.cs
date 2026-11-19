@@ -81,6 +81,11 @@ namespace TideSim
             if (args.Length > 0 && args[0] == "--land-probe")
                 return LandEligibilityProbe.Run();
 
+            // 残局求解器·阶段1（2026-11-19）：本回合斩杀判定——合法动作枚举 + 试打 + 重建/重放回溯。
+            // 口径：只解「打不打得死」，不解「要不要收手」；对手不响应=我方上界（见 EndgameSolver 注释）。
+            if (args.Length > 0 && args[0] == "--lethal-probe")
+                return EndgameSolver.Run();
+
             // 绿预组数据探针（2026-11-15 临时，跑完删）：推导费 / 选择模式 / 效果推导价 / 指纹
             if (args.Length > 0 && args[0] == "--green-probe")
             {

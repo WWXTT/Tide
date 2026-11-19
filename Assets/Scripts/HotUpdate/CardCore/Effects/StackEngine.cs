@@ -283,7 +283,8 @@ namespace CardCore
         /// 结算消费点见 GameActions.ResolveCardCastAsync（Option Y：扣费在响应窗口之后）。
         /// </summary>
         public bool PushCardCast(Card card, Player controller, List<Entity> targets, int modeIndex = 0,
-            List<Entity> references = null, IReadOnlyList<int> dynamicCounts = null)
+            List<Entity> references = null, IReadOnlyList<int> dynamicCounts = null,
+            InteractionParams interaction = null)
         {
             if (card == null || controller == null) return false;
             if (_isResolving) return false; // 结算中不可声明（与 SpeedCounter.CanActivate 同口径）
@@ -313,6 +314,7 @@ namespace CardCore
                 DynamicCounts = dynamicCounts != null && dynamicCounts.Count > 0
                     ? new List<int>(dynamicCounts) : null, // 动态数量（2026-11-14）：扣费/执行同表
                 ModeIndex = modeIndex, // 抉择：声明期选定模式（随 cast 上栈，对手可见、结算按此付费）
+                Interaction = interaction, // 声明期交互参数（P1 2026-11-19 v0.3）：移动格/宣言名随 cast 入栈
             };
 
             _speedCounter.RaiseTo(castSpeed); // ★ 记速器：更高才抬升
