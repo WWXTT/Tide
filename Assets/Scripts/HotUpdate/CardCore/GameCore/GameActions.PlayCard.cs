@@ -616,9 +616,30 @@ namespace CardCore
             return await Attribute.EffectHandlerRegistry.CollectDeclarationTargetsAsync(chosen, ctx);
         }
 
+        /// <summary>主序列召唤原子数量（v20 2026-11-20 计划 §3.2，UI 落位窗触发判定）：
+        /// 0=无召唤。召唤为独立原子（独占一条效果），主序列至多一只；数量=Max(1,value)
+        ///（与运行时 SummonTokenHandler 同口径钳）。</summary>
+        public static int MainSummonCount(EffectDefinition def)
+        {
+            if (def?.Effects == null) return 0;
+            foreach (var a in def.Effects)
+                if (a != null && a.Type == AtomicEffectType.SummonToken) return Math.Max(1, a.Value);
+            return 0;
+        }
+
+        /// <summary>法术（按模式）主序列召唤原子数量（同 MainSummonCount——模式序=GetCastableEffectDefinitions
+        /// 索引，与 CollectSpellDeclarationTargetsAsync 同取法）。0=无召唤。</summary>
+        public static int SpellMainSummonCount(Card card, int modeIndex)
+        {
+            var defs = GetCastableEffectDefinitions(card);
+            if (defs == null || defs.Count == 0) return 0;
+            var chosen = defs[Math.Clamp(modeIndex, 0, defs.Count - 1)];
+            return MainSummonCount(chosen);
+        }
+
         /// <summary>
         /// 主动效果/英雄技能发动前目标收集（2026-11-14 动态数量配套）：与法术声明收集同源
-        /// （CollectDeclarationTargetsAsync 单链），供本地 UI/网络服务器在 CanActivate 预检**之前**
+        ///（CollectDeclarationTargetsAsync 单链），供本地 UI/网络服务器在 CanActivate 预检**之前**
         /// 选定动态数量原子的目标数——扣费按 base×N、执行按 N 消费预选。0 费/无动态原子的效果
         /// 调用方可不走本口（行为不变）。
         /// </summary>

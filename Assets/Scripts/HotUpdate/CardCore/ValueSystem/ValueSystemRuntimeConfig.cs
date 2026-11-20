@@ -167,7 +167,8 @@ namespace CardCore
     /// 审计裁定硬编码数值不留在引擎）。消费方：GameCore（InitialLife/OpeningHandSize）、
     /// RuleHooks（DefaultHandLimit）、ZoneManager（BattlefieldCapacityPerPlayer）、
     /// ElementPool/ResourceCurveModel（LandCurveCap=自然上限）、EffectExecutor（MaxTriggersPerTurnPerEffect=
-    /// 自馈闸门）。MaxStackedLandCap 已删（2026-10-15：成长叠加无封顶）。
+    /// 自馈闸门）、CounterRules（AutoEffectDurabilityCost=结界自动效果每次触发扣的固定耐久）。
+    /// MaxStackedLandCap 已删（2026-10-15：成长叠加无封顶）。
     /// </summary>
     [Serializable]
     public class GameRulesConfig
@@ -182,6 +183,14 @@ namespace CardCore
         /// 效果已无「一回合一次」限制，本值只用于截断自循环（抽牌时抽牌/受伤时造成伤害等）。
         /// 常规触发远低于 30；引擎载荷与结界耐久经济不叠闸（各自天然上限）。</summary>
         public float MaxTriggersPerTurnPerEffect = 30f;
+
+        /// <summary>结界自动效果**每次触发**扣的固定耐久（整数值；2026-11-20 定案：简化为单值配置，
+        /// 默认 1——把原先写死在扣减口的「每次 −1」搬进表，改表即改数值）。消费方仅
+        /// <see cref="CardCore.Attribute.CounterRules.ConsumeTriggerDurability"/>（被动触发 + 引擎奖励同口），
+        /// 读取口 <see cref="CardCore.Attribute.CounterRules.AutoEffectDurabilityCost"/> 对 ≤0 兜底 1。
+        /// 与时机档位/宿主/一回合触发次数无关；受伤扣耐久不走本值（伤害 1:1）。
+        /// 2026-11-20 实测：试过默认 2，蓝控制跨红绿 400 局 35.5%→1.3%（红/绿镜像零变化），故默认保持 1。</summary>
+        public int AutoEffectDurabilityCost = 1;
     }
 
     /// <summary>

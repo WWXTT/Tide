@@ -631,11 +631,13 @@ namespace SynergyUI
         {
             List<Entity> targets = null;
             List<int> dynamicCounts = null;
-            // 发动前选目标（2026-11-14 动态数量 / 2026-11-20 无域可声明原子）：
+            InteractionParams summonInteraction = null;
+            // 发动前选目标（2026-11-14 动态数量 / 2026-11-20 无域可声明原子 / v20 召唤落位）：
             // 与英雄技能同口径——动态数量（-3）与无域牺牲/蛰伏（-1）都必须在声明期收目标，
             // 否则结算拿到空目标 = 只扣费不生效；可取消=不发动（不扣费）。
             if (def != null && (CardCore.CostDerivationService.HasDynamicAtom(def)
-                                || CardCore.Attribute.EffectHandlerRegistry.HasNoDomainDeclarable(def)))
+                                || CardCore.Attribute.EffectHandlerRegistry.HasNoDomainDeclarable(def)
+                                || GameActions.MainSummonCount(def) > 0))
             {
                 var decl = await GameActions.CollectEffectDeclarationTargetsAsync(def, card.CoreCard, P1);
                 if (decl == null || decl.Blocked)
@@ -644,12 +646,22 @@ namespace SynergyUI
                     RefreshField();
                     return;
                 }
+                // v20 召唤落位（计划 §3.2）：效果含召唤原子（如战斗母巢主动召唤）→ 逐只点选
+                ///（取消=不发动——0 事件/0 费；确认才带 Interaction 发动发事件）
+                int summonCount = GameActions.MainSummonCount(def);
+                if (summonCount > 0)
+                {
+                    var cells = await PickSummonPlacementAsync(card.CoreCard, summonCount);
+                    if (cells == null) { _toast.Show("已取消发动（落位取消）"); RefreshField(); return; }
+                    summonInteraction = new InteractionParams { SummonCells = cells };
+                }
                 targets = decl.Targets;
                 dynamicCounts = decl.DynamicCounts;
                 CardCore.CostDerivationService.ApplyDynamicCounts(def, dynamicCounts);
             }
             Debug.Log($"[BattleScreen] 单位效果发动：{card.Name}（{card.CardId}）→ {def.DisplayName ?? def.Id}");
-            bool ok = GameActions.ActivateEffect(Core, P1, def, card.CoreCard, targets, dynamicCounts, 0, out var activateReason);
+            // v20：interaction=召唤落位计划（随发动入栈，结算期 SummonTokenHandler 逐只按序消费）
+            bool ok = GameActions.ActivateEffect(Core, P1, def, card.CoreCard, targets, dynamicCounts, 0, summonInteraction, out var activateReason);
             if (!ok) _toast.Show(activateReason ?? "无法发动（费用/横置/耐久/阶段门禁）"); // 引擎真因（2026-11-03 失败提示细化）
             else _ctrl.SettleResponseWindow().Forget();
             RefreshField();

@@ -248,7 +248,7 @@ namespace SynergyUI
             // · 稀有（Rare）：被破坏/被除外/死亡/离场/墓地回场/角色死亡/占卜——比一回合一次更难触发，
             //   按概率给系数（表 Factor）；生物/结界可挂。
             // · 一回合多次（Multi）：抽牌/伤害/使用卡牌/结算观察/阶段起止/其他生物进出场/施法——
-            //   只能挂结界，每次触发扣 1 点耐久；生物/法术拒。
+            //   只能挂结界，每次触发扣表值耐久（GameRules.AutoEffectDurabilityCost，默认 1）；生物/法术拒。
             // 宿主过滤=EffectEligibility.HostCanTakeTiming 单源；效果库模式无宿主全开。
             bool hostFilters = _editingCard != null;
             _timings = TimingZh.Keys
@@ -275,7 +275,7 @@ namespace SynergyUI
                 + "稀有=被破坏/被除外/死亡/离场/墓地回场/角色死亡/占卜——更难以触发，沿用按概率得到的系数"
                 + "（如 被破坏 0.55、被除外 0.12）；"
                 + "一回合多次=抽牌/伤害/使用卡牌/结算观察/阶段起止/其他生物进出场等——只能挂在结界上，"
-                + "每次触发扣 1 点耐久，耐久归零销毁。"
+                + $"每次触发扣 {CounterRules.AutoEffectDurabilityCost} 点耐久，耐久归零销毁。"
                 + "系数单源=Configs/TimingWeights.json（Bucket 档位 + Factor 系数），改表即同步这里与计价。"
                 + "其余效果无次数限制，仅同一效果每回合超过 30 次按自循环截断。点选项看各时机说明。",
                 idx => idx >= 0 && idx < _timings.Count ? TimingDescZh(_timings[idx]) : null);

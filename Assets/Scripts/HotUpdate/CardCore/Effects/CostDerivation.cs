@@ -546,7 +546,8 @@ namespace CardCore
         /// <summary>发动时机计价系数（2026-11-14 档位制）：档位见 <see cref="TimingWeights.TierOf"/>——
         /// **一回合一次（PerTurn）恒 1**（攻击/守卫/回合开始/回合结束/登场…＝等效一张法术）；
         /// **稀有（Rare）读表 Factor**（被破坏 0.55 / 被除外 0.12…沿用之前按概率得到的系数）；
-        /// **一回合多次（Multi）恒 1**（次数由结界耐久支付——每次触发 −1）；主动（Active）恒 1。
+        /// **一回合多次（Multi）恒 1**（次数由结界耐久支付——每次触发扣固定表值，默认 1）；
+        /// 主动（Active）恒 1。
         /// 引擎载荷豁免：重复性属引擎通道，效果头时机=奖励发射窗，不代表主干发射次数；
         /// 非触发式（主动现付）不乘（恒 1）。</summary>
         public static float TimingCostFactor(EffectDefinition def)
@@ -558,7 +559,7 @@ namespace CardCore
 
         /// <summary>宿主挂载系数（2026-11-13 定案：「法术买速度 / 结界买次数」）：自动效果的时机系数 f
         /// 只对**生物宿主**计费——生物用元素买频率（卡层价=原价×f，无发动上限）；结界宿主价=原价，
-        /// 频率改由耐久支付（每次触发 −1，见 <see cref="Attribute.CounterRules.ConsumeTriggerDurability"/>）。
+        /// 频率改由耐久支付（每次触发扣表值固定耐久，默认 1，见 <see cref="Attribute.CounterRules.AutoEffectDurabilityCost"/>）。
         /// 生物的合法时机只有一回合一次（f=1）与稀有（f=概率）两档（一回合多次=结界专属，装载期拦截）——
         /// 因此生物挂载价只对**稀有档**打折，一回合一次按原价（2026-11-14 档位制）。
         /// 主动/非触发效果恒 1（现付不进时序；法术速度是类特性不入价）。</summary>
@@ -588,7 +589,8 @@ namespace CardCore
 
         /// <summary>一回合多次档判定（2026-11-14 档位制；合成器宿主过滤/装载校验/验证器共用）：
         /// <see cref="TimingWeights.TierOf"/>==Multi——抽牌/伤害/使用卡牌/结算观察/原子三阶段/
-        /// 阶段起止/其他生物进出场/施放法术。该档**只能挂结界**（耐久即次数池，每次触发 −1），
+        /// 阶段起止/其他生物进出场/施放法术。该档**只能挂结界**（耐久即次数池，每次触发扣固定表值
+        /// ——<see cref="Attribute.CounterRules.AutoEffectDurabilityCost"/>，默认 1），
         /// 生物/法术拒。一回合一次（PerTurn）与稀有（Rare）两档见 <see cref="TimingWeights.IsPerTurnTiming"/>/
         /// <see cref="TimingWeights.IsRareTiming"/>。</summary>
         public static bool IsMultiPerTurnTiming(TriggerTiming t)
@@ -629,7 +631,8 @@ namespace CardCore
 
             // 发动时机计价（2026-11-13 定案改版）：**时机系数 f 不再进效果锚价（锚价=原价）**——
             // 生物宿主在卡层按「原价×f」收（宿主用元素买频率，无发动上限）；结界宿主的频率由耐久支付
-            //（卡层价=原价，每次触发 −1，见 CounterRules.ConsumeTriggerDurability）。
+            //（卡层价=原价，每次触发扣固定表值（ValueSystemConfig GameRules.AutoEffectDurabilityCost，默认 1），
+            //  见 CounterRules.ConsumeTriggerDurability）。
             // f 单口仍在 HostMountFactor/TimingCostFactor 保留，供卡层挂载与展示消费。
 
             // 发动速度计价已退役（2026-10-19：速度特化法术专属=类特性非溢价——旧 ×1.5/×2 档随拆）。
@@ -905,7 +908,7 @@ namespace CardCore
         ///（BaseExprOf 各分档 / QuantityFactor），不另立计价口径。
         /// 系数顺序与 ComputeAtomCost 管线一致：基准内系（量级/表乘数/持续/控制/赋予档）→数量档
         ///（触发档已随 2026-10-30 无上限定案删除；时机档随 2026-11-13 宿主分叉改版退出锚价——
-        /// 生物宿主挂载时由卡层 ×f，结界宿主改由耐久 −1/次；错边拆分已随黑白获得经济删除，2026-10-28 P1）。
+        /// 生物宿主挂载时由卡层 ×f，结界宿主改由耐久 −固定表值（默认 1）/次；错边拆分已随黑白获得经济删除，2026-10-28 P1）。
         /// 基准内的乘法在数值侧折叠为一次 round（ComputeAtomBaseAmount），展开链只作显示——
         /// 末端结果由调用方取 DeriveElementCosts 实值，不重算。</summary>
         public static (string baseExpr, List<string> factorExprs) AtomCostFormula(
@@ -929,7 +932,7 @@ namespace CardCore
             }
             else AddFactor(factors, "数量档", n);
             // 时机档已随 2026-11-13 定案退出效果锚价：锚价=原价；f 只在**生物卡挂载**时由卡层乘
-            //（HostMountFactor），结界卡改由耐久每次触发 −1——本展开不再列时机档。
+            //（HostMountFactor），结界卡改由耐久每次触发扣固定表值（默认 1）——本展开不再列时机档。
             return (baseExpr, factors);
         }
 

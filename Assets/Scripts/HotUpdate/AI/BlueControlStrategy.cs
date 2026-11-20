@@ -13,7 +13,8 @@ namespace CardCore.AI
     /// · 判据=剩余元素差 **≥** 门槛（2026-11-13 起；旧「恰好=门槛」判据七退役）；
     /// · 深潭碑触发召唤潮痕碑衍生物（不入手牌、无遗忘到期）——潮痕碑本体不在卡组，只经召唤出现，
     ///   是主制胜轴；
-    /// · 碑的耐久按「每次触发 −1」消耗（2026-11-14 档位制；旧「每 3 次扣整份」退役）。
+    /// · 碑的耐久按「每次触发扣固定表值」消耗（2026-11-20：ValueSystemConfig
+    ///   GameRules.AutoEffectDurabilityCost，默认 1；旧「每次 −1」硬编码与「每 3 次扣整份」均已退役）。
     /// 乱锋/冻结作控制（只在对手回合响应：乱锋只控生物、冻结只冻对方地牌）；蛰伏（英雄技能，
     /// 2026-11-18 替换隐匿）：充盈踩不到档时
     /// 横置全部未横置地攒费，下个自己的准备阶段回本等量临时彩元素。
@@ -440,7 +441,7 @@ namespace CardCore.AI
 
         /// ① 两类碑都要续：场上数量少的一类优先（相等时先补伤害碑）；
         /// ② 己方碑略高于对面碑（同名复制，先拿自己的；镜像局对面碑也能补给）；
-        /// ③ 耐久 ≤1 的碑最优先（下次触发就碎，复制体=满耐久接力）；
+        /// ③ 耐久 ≤ 单次触发成本的碑最优先（下一次触发就碎，复制体=满耐久接力）；
         /// ④ 没有碑可选才兜底复制对面的大身材单位（多一份战力），己方普通卡垫底。
         /// 复制体带「遗忘」，回合末不在战场即出局——**必须在当回合打出去**。</summary>
         private static int EchoCopyScore(GameCore core, Player me, Entity e)
@@ -459,9 +460,9 @@ namespace CardCore.AI
             bool wanted = dmg ? dmgCount < copyCount : copyCount <= dmgCount;
             int durability = c.GetCounterCount(CounterRules.DurabilityCounter);
             int score = 3000 + (wanted ? 400 : 0) + (own ? 120 : 0);
-            // 耐久 ≤1：这块碑下一次触发就碎——复制体=满耐久接力。**复制碑（深潭碑）优先保住**：
+            // 耐久 ≤ 单次触发成本：这块碑下一次触发就碎——复制体=满耐久接力。**复制碑（深潭碑）优先保住**：
             // 回响源一断，两类碑都补不进手牌，整个循环停摆。
-            if (durability <= 1) score += dmg ? 250 : 700;
+            if (durability <= CounterRules.AutoEffectDurabilityCost) score += dmg ? 250 : 700;
             return score;
         }
 

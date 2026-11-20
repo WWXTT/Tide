@@ -107,14 +107,16 @@ namespace SynergyUI
                 if (picked == null) return; // 缺 Region=无交互（本已点「发动」，静默取消）
                 effectIndex = picked.Value;
             }
-            // 发动前选目标（2026-11-14 动态数量 / 2026-11-20 无域可声明原子）：
+            // 发动前选目标（2026-11-14 动态数量 / 2026-11-20 无域可声明原子 / v20 召唤落位）：
             // 动态数量原子（-3）与无域牺牲/蛰伏（-1，无域=结算期不弹选）都必须在声明期收目标，
             // 否则结算拿到空目标 → 只扣费不生效。可取消=不发动（不扣费）。
             List<Entity> targets = null;
             List<int> dynamicCounts = null;
+            InteractionParams summonInteraction = null;
             var fx = effects != null && effectIndex >= 0 && effectIndex < effects.Count ? effects[effectIndex] : null;
             if (fx != null && (CostDerivationService.HasDynamicAtom(fx)
-                               || CardCore.Attribute.EffectHandlerRegistry.HasNoDomainDeclarable(fx)))
+                               || CardCore.Attribute.EffectHandlerRegistry.HasNoDomainDeclarable(fx)
+                               || GameActions.MainSummonCount(fx) > 0))
             {
                 var decl = await GameActions.CollectEffectDeclarationTargetsAsync(fx, skill, P1);
                 if (decl == null || decl.Blocked)
@@ -122,10 +124,19 @@ namespace SynergyUI
                     _toast.Show(decl != null ? decl.BlockReason : "已取消发动（目标选择取消）");
                     return;
                 }
+                // v20 召唤落位（计划 §3.2）：技能含召唤原子 → 逐只点选（取消=不发动；确认才发事件）
+                int summonCount = GameActions.MainSummonCount(fx);
+                if (summonCount > 0)
+                {
+                    var cells = await PickSummonPlacementAsync(skill, summonCount);
+                    if (cells == null) { _toast.Show("已取消发动（落位取消）"); RefreshField(); return; }
+                    summonInteraction = new InteractionParams { SummonCells = cells };
+                }
                 targets = decl.Targets;
                 dynamicCounts = decl.DynamicCounts;
             }
-            bool ok = GameActions.ActivateHeroSkill(Core, P1, effectIndex, targets, dynamicCounts, out var skillReason);
+            // v20：interaction=召唤落位计划（随技能发动入栈，结算期 SummonTokenHandler 消费）
+            bool ok = GameActions.ActivateHeroSkill(Core, P1, effectIndex, targets, dynamicCounts, summonInteraction, out var skillReason);
             if (!ok) _toast.Show(skillReason ?? "无法发动技能（本回合已用/阶段不对/费用付不出）"); // 引擎真因（2026-11-03 失败提示细化）
             else _ctrl.SettleResponseWindow().Forget(); // 无候选自动双 Pass，无害
             RefreshField(); // 地牌横置/角色弹药随对账刷新（旧渲染链字段已不绑）

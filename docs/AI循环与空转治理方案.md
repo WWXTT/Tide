@@ -61,7 +61,8 @@
    做 **CardData 全量深克隆**（效果栏/引擎全保留），挂 1 层临时指示物后入手。
 3. **引擎**：[BranchEngines.EvaluateManaSurplusEngines](<C:/UnityProject/Tide_train/Assets/Scripts/HotUpdate/CardCore/Effects/BranchEngines.cs>)
    每次「卡牌结算」遍历己方战场**每一个**充盈引擎各触发一次；代码注释明说
-   **2026-11-13 起「无每回合次数上限」，刹车只靠「结界每次触发扣 1 点耐久」**。
+   **2026-11-13 起「无每回合次数上限」，刹车只靠「结界每次触发扣表值耐久」**
+   （`GameRules.AutoEffectDurabilityCost`，2026-11-20 定案默认 1）。
 4. **漏洞**：复制体是**新实例**（满耐久 + 新引擎），0 费打出去不消耗法力 → 充盈差值照样达标 →
    再触发 → 再复制。场上有 k 个碑，一次施放产 k 份复制 → **指数增长**。
    耐久这个刹车对"新实例"完全无效。

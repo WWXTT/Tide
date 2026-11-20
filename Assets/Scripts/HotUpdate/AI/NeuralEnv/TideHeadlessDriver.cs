@@ -213,6 +213,11 @@ namespace CardCore.AI.NeuralEnv
             _board = new GameBoard.BoardState(_core, _core.Player1, _core.Player2,
                 GameBoard.HalfFieldData.Flat(), GameBoard.HalfFieldData.Flat());
             _board.EnableAutoResync();
+            // v20（2026-11-20 计划 §2.4 装配缺口修复）：MoveUnitRules 接线——与 AiDuelRunner/
+            // BattleController 同口。此前训练环境读不到 MoveUnitRules.Current → 召唤聚集回落
+            // first-free、P2 永久物落格退化几何全格不筛占用、移动行恒空——本 Attach 后
+            // 召唤落位计划/永久物钉格/移动行在训练中真正生效。
+            GameBoard.MoveUnitRules.Attach(_board);
             CombatSystem.AdjacentResolver = _board.FlankNeighbors; // 碾压=左右同排生物（2026-10-04 语义修订）
             CombatSystem.RoleAdjacentResolver = _board.FlankNeighborsOfRole; // 碾压攻角色=角色格左右邻格（2026-10-16 改版）
             BranchEngines.UnityAdjacentCountOf = _board.AdjacentOccupantCount; // 团结=六邻单位数（2026-10-20 效果序位换轴）
@@ -399,6 +404,7 @@ namespace CardCore.AI.NeuralEnv
             CombatSystem.RoleAdjacentResolver = null;
             BranchEngines.UnityAdjacentCountOf = null; // 团结邻接注入同步归零
             GameBoard.LinkAuraSystem.Detach(); // 连接光环接线同步归零
+            GameBoard.MoveUnitRules.Detach(); // v20：与 Attach 成对清理（静态不清理会指向过期占用层）
             _board?.Dispose();
             _board = null;
         }

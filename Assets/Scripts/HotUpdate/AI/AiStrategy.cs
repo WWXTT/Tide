@@ -448,6 +448,14 @@ namespace CardCore.AI
             IReadOnlyList<(int x, int z)> cells)
             => cells != null && cells.Count > 0 ? cells[0] : (-1, -1);
 
+        /// <summary>召唤落位计划（2026-11-20 计划 §3.3）：plans=候选计划（首项恒为 null=默认计划
+        ///——结算期 SummonPlacementRules.DefaultCell 旧行为；其余=锚点计划 UnitCells 下标序列）。
+        /// 默认返回 null=默认计划（**现有打法零变化**，600 局镜像 A/B 基线不破）；想利用团结
+        ///（如母巢拼 2×3 块）时派生策略覆写选锚点计划。</summary>
+        public virtual List<int> PickSummonPlacement(GameCore core, Player me, Card source,
+            EffectDefinition effect, int count, IReadOnlyList<List<int>> plans)
+            => null;
+
         /// <summary>攻击前一拍（2026-11-04）：返回要「随这一击一起打出去」的牌（null=不打）。
         /// 由 SimpleAI.DoCombatAsync 在宣言攻击前调用——「攻击的同时使用法术」只是操作顺序。</summary>
         public virtual Card PickAttackTimeSpell(GameCore core, Player me, Card attacker, Entity target,

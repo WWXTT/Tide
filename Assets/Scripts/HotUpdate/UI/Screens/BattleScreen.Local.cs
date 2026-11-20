@@ -302,7 +302,8 @@ namespace SynergyUI
                     mySkillCardId: mirrorSkill, aiSkillCardId: mirrorSkill);
             else if (BattleEntry.Mode == BattleMode.Challenge)
             {
-                // 挑战模式（2026-10-06 单值联动）：难度 N = 电脑地牌槽 9+N、起手 6+N；
+                // 挑战模式（2026-10-06 单值联动）：难度 N → 电脑地牌槽曲线上移 N（封顶 10+N；旧「9+N」口径废止）、
+                // 电脑起手 = 起手基值+N（基值现 7：2026-11-15 定案 6→7）；
                 // AI 卡组缺省随机 30 张，策略按卡组主色自适配（AutoMatch：标签优先回落费用主色）
                 // 技能（2026-10-07 卡牌化）：玩家=卡组标记；AI 随机卡组自动挑一张合格结界
                 var difficulty = Mathf.Clamp(BattleEntry.ChallengeDifficulty, 1, ChallengeProgressManager.MaxDifficulty);

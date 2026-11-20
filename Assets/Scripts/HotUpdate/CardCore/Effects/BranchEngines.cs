@@ -61,12 +61,14 @@ namespace CardCore
         public static Func<Card, int> UnityAdjacentCountOf;
 
         // —— （2026-11-13 定案）引擎奖励**不再有单回合触发上限**：旧「每卡每回合 1 次」
-        //    （2026-10-22 全局规则）已删——自动效果的频率只由**结界耐久**（每次触发 −1）
+        //    （2026-10-22 全局规则）已删——自动效果的频率只由**结界耐久**（每次触发扣
+        //    GameRules.AutoEffectDurabilityCost，默认 1）
         //    与宿主挂载价（生物=原价×f；f 只留在生物计价侧）承担，和卡面自动效果同口径。
         //    TriggerLimitPerTurn 对引擎分支本就只是数据兼容列，不再有任何运行时闸。
 
         /// <summary>引擎奖励发动的耐久成本（2026-11-13 定案）：只有**结界宿主在战场**时付——
-        /// **每次触发扣 1 点耐久**（固定值）；生物宿主已在挂载价里按 ×f 付过、法术宿主无耐久。</summary>
+        /// **每次触发扣 AutoEffectDurabilityCost 点耐久**（表值，默认 1）；生物宿主已在挂载价里按 ×f
+        /// 付过、法术宿主无耐久。</summary>
         private static bool PaysTriggerDurability(Card source)
             => source != null
                && source is IHasSupertype st && st.Supertype == Cardtype.Enchantment
@@ -741,7 +743,7 @@ namespace CardCore
         /// 由 <see cref="FlushCardCastSettled"/> 在连锁终点对「施放者本人 + 施放物是法术」调用一次——
         /// 引擎主=owner，差=双方剩余元素总量（GetRemainingElementTotal=未横置地牌+钱包，与支付同资源口径）
         /// 之差（己−对，封顶 <see cref="SurplusCap"/>）**≥ x**（Then 锚价推导）即执行奖励；
-        /// 无每回合次数上限（2026-11-14：结界宿主每次触发扣 1 点耐久、生物宿主在挂载价 ×f 付费）；
+        /// 无每回合次数上限（2026-11-14：结界宿主每次触发扣表值耐久（默认 1）、生物宿主在挂载价 ×f 付费）；
         /// 同卡单载荷单次。历史：2026-11-06 起「双方施放·双方评估」→ 2026-11-18 定稿「己方施放法术」，
         /// 同时解决深潭碑回响自繁殖与蓝套自触发节奏。</summary>
         private static void EvaluateManaSurplusEngines(Player owner, GameCore core)
@@ -883,7 +885,8 @@ namespace CardCore
             Player controller, GameCore core, IGameEvent triggeringEvent = null)
         {
             if (BranchPayloadEmpty(payload)) return;
-            // 结界宿主的奖励发动成本（2026-11-14 档位制）：**每次触发扣 1 点耐久**（固定值）——
+            // 结界宿主的奖励发动成本（2026-11-14 档位制；2026-11-20 简化）：**每次触发扣表值耐久**
+            //（GameRules.AutoEffectDurabilityCost，默认 1，固定整数）——
             // 生物宿主在挂载价 ×f 里已付、法术宿主无耐久（PaysTriggerDurability 内判）。
             bool payDurability = PaysTriggerDurability(source);
             // 固定三（2026-11-08 阶段3）：主干与奖励不拆开——无论 tactivate/效果头声明恒直发
@@ -978,10 +981,13 @@ namespace CardCore
             bool payDurability = false)
         {
             if (BranchPayloadEmpty(payload)) return;
-            // 结界宿主：每次触发扣 1 点耐久（2026-11-14 档位制）。
+            // 结界宿主：每次触发扣表值耐久（2026-11-14 档位制；2026-11-20 简化——默认 1）。
             // 生物宿主在挂载价 ×f 已付、法术无耐久（payDurability=false）。
             if (payDurability && source != null)
-                Attribute.CounterRules.ConsumeTriggerDurability(core, source, "引擎奖励发动（耐久−1/次）");
+            {
+                int durCost = Attribute.CounterRules.AutoEffectDurabilityCost;
+                Attribute.CounterRules.ConsumeTriggerDurability(core, source, $"引擎奖励发动（耐久−{durCost}/次）");
+            }
             var ctx = new EffectExecutionContext
             {
                 Source = source,

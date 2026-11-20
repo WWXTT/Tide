@@ -257,8 +257,8 @@ namespace CardCore
         /// <summary>结界形态校验（2026-10-15 深夜三类卡改版；2026-11-05 充能系统动作化修订；
         /// **2026-11-14 档位制**）：只挂自动/光环，主动全拒；攻/守/横置/重置（4 值——生物动作族，
         /// 被攻击 OnAttacked 属双宿主不在此列）为生物专属 → Error 点名；一回合一次/稀有/一回合多次
-        /// 三档全开（一回合多次=耐久即次数池，每次触发 −1）。OnTurnStart 自 2026-11-14 起属一回合一次档，
-        /// 随本批开放，不再 Error。耐久语义保留（受击−1/被动触发每次 −1）。</summary>
+        /// 三档全开（一回合多次=耐久即次数池，每次触发扣固定表值，默认 1）。OnTurnStart 自 2026-11-14 起属一回合一次档，
+        /// 随本批开放，不再 Error。耐久语义保留（受击按伤害 1:1/被动触发扣表值）。</summary>
         private static void ValidateEnchantShape(List<CardData> cards)
         {
             foreach (var card in cards)
@@ -319,7 +319,7 @@ namespace CardCore
                     if (EffectEligibility.CreatureCanTakeTiming((TriggerTiming)t)) continue;
                     TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName})：效果 {e.Id} 时机"
                                   + $"「{(TriggerTiming)t}」一回合内会多次触发"
-                                  + "——一回合多次时机为结界专属（耐久即次数池，每次触发 −1），"
+                                  + "——一回合多次时机为结界专属（耐久即次数池，每次触发扣固定表值，默认 1），"
                                   + "生物只能挂一回合一次（攻击/守卫/回合开始/回合结束/登场等）"
                                   + "或稀有（被破坏/被除外/死亡等）时机——装载期报错（不拦截）");
                 }

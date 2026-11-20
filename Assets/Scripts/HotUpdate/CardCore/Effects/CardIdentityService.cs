@@ -121,6 +121,51 @@ namespace CardCore
         public static int AtomTypeIndex(string effectType)
             => StableIndex(Fnv1a64(effectType), MaxTypeIndex + 1);
 
+        /// <summary>引擎分支奖励摘要（v20 2026-11-20 计划 §3.4，**只读观测——不改 AtomHash/ContentId**，
+        /// 身份哈希仍 v19 口径）：首个 settle=Engine 分支的载荷概况——
+        /// count=branch.then 原子数 + effectId 引用计 1（钳 3）；type0=首 then 原子 AtomTypeIndex
+        ///（effectId 引用=0；无=0）；value0=首 then 原子 value（钳 99；无=0）。
+        /// 消费：TideObservation 卡特征 [154..156]（团结/倒计时/充盈卡「达标后给什么」可见）。</summary>
+        public static void EngineRewardOf(CardData data, out int count, out int type0, out float value0)
+        {
+            count = 0; type0 = 0; value0 = 0f;
+            if (data?.Effects == null) return;
+            foreach (var fx in data.Effects)
+            {
+                if (fx == null) continue;
+                // 步骤形态（合成器/现行主形态）与扁平 AtomicEffects（旧档/手写）双扫——
+                // 与 CollectAtoms 的两形态遍历同覆盖（2026-11-20 验收通用性修复）。
+                if (fx.Steps != null)
+                    foreach (var s in fx.Steps)
+                    {
+                        var b = s?.atomic?.branch;
+                        if (EngineRewardOfEntry(b, ref count, ref type0, ref value0)) return;
+                    }
+                if (fx.AtomicEffects != null)
+                    foreach (var a in fx.AtomicEffects)
+                    {
+                        var b = a?.branch;
+                        if (EngineRewardOfEntry(b, ref count, ref type0, ref value0)) return;
+                    }
+            }
+        }
+
+        /// <summary>单条目引擎奖励摘要（EngineRewardOf 内核）：命中真引擎分支填摘要返 true。</summary>
+        private static bool EngineRewardOfEntry(BranchEntryData b, ref int count, ref int type0, ref float value0)
+        {
+            if (b == null || BranchEntryRules.IsPhantom(b)) return false;
+            if (b.settle != (int)BranchSettleKind.Engine) return false;
+            int n = (b.then?.Count ?? 0) + (string.IsNullOrEmpty(b.effectId) ? 0 : 1);
+            count = Math.Min(n, 3);
+            var first = b.then != null && b.then.Count > 0 ? b.then[0] : null;
+            if (first != null)
+            {
+                type0 = AtomTypeIndex(Attribute.AtomicEffectTable.GetByHashId(first.refId)?.EnumName);
+                value0 = Math.Min(Math.Max(first.value, 0), 99);
+            }
+            return true; // 首个引擎分支即止（多效果卡摘要口径——计划「先 4 维」）
+        }
+
         /// <summary>原子参数块（AtomParamDim 维，幅度 Clamp 到观测口径 [-99, 999]）。null 原子记全 0。
         /// v19 2026-11-20 九维布局见 <see cref="AtomParamDim"/> 头注释（value/settleKind/branchParam/
         /// branchBudget/kinds 三槽/amp/costTotal）。costTotal=所属效果 Costs 合计（同效果原子共值）。</summary>

@@ -41,7 +41,7 @@ namespace SynergyUI
         /// 组双方卡组并初始化对局。myDeck/aiDeck 缺省时从本地卡池随机抽取
         /// （随机局仍不重复、每卡 1 张——新规下的合法卡组）；P2 由极简 AI 操作。
         /// 教学局参数（2026-10-02）：aiDriver 注入 ScriptedAi（剧本驱动）；lockDeckOrder 锁牌库顺序
-        /// （卡组列表序=摸牌序列，起手=前 6 张）；rngSeed 钉效果随机——三者合成完全确定的教学局。
+        /// （卡组列表序=摸牌序列，起手=前 OpeningHandSize 张〔现 7：2026-11-15 定案 6→7〕）；rngSeed 钉效果随机——三者合成完全确定的教学局。
         /// 预设场面（2026-10-06 教学直入）：scenario 非 null=双方卡组（并集）先全部入牌库、跳起手抽取、
         /// 不自动开局，TutorialScenarioSeeder 静默注入场面后再 StartGame——玩家直接站在起跳回合主阶段。
         /// 挑战模式（2026-10-06）：aiLandCapBonus/aiExtraOpeningDraws 直通 InitGame（P2 曲线上移+起手加抽）。

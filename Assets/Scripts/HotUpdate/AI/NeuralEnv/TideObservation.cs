@@ -93,7 +93,19 @@ namespace CardCore.AI.NeuralEnv
         // 删恒 0 的 Mana 两死维并修掉 dim=6/写 7 值的错位；分支身份进原子哈希）；同日晚批
         //死亡计数原子属性化（分支挂载退役）再补死亡计数维 [152]→卡特征 **153**。
         // 旧 checkpoint/ONNX/fixture 全部作废（v18 模型按 dims 拒载→回落 SimpleAI，重训后恢复）。
-        public const int LayoutVersion = 19;
+        // v20（2026-11-20 AI 召唤落位+团结观测，docs/AI召唤落位与团结观测_修改计划.md §3.3/§3.4/§5）：
+        // 动作 18→**20**——[17]placementCell 扩义「召唤计划行=计划首格（含 Activate 行——类型闸
+        // 修复，此前 9 个锚点行被 FoldEquivalentRows 误并）」；+[18]summonPlan（0=默认/1..9=锚点/-1）、
+        // +[19]summonUnityHits（该计划落位后团结达标数 0..6/-1，PredictUnityHits 单源；拍板保留）。
+        // 卡特征 153→**157**——+[153] 邻接己方生物数/6（团结口径=只数活生物，与
+        // BoardState.AdjacentOccupantCount 同过滤）、+[154..156] 引擎奖励摘要
+        // （CardIdentityService.EngineRewardOf：载荷数/首奖励原子类型/首奖励值——**不进身份哈希**）。
+        // globals 70→**88**——+g[70..78] 己方 9 单位格占用码（0=空/1=己/2=敌，/2）、
+        // +g[79..87] 各格 6 邻己方生物数/6（团结口径；SummonPlacementRules.AdjacentOwnCreatures 单源）。
+        // 无棋盘（服务器/纯核心）各块写 0 不炸。Python LAYOUT_VERSION/N_CARD_FEATURES/
+        // N_GLOBAL_FEATURES/N_ACTION_FEATURES 同步 20/157/88/20（副本随刷新）；旧 checkpoint/
+        // ONNX/fixture 全部作废（按 dims 拒载回落 SimpleAI）。
+        public const int LayoutVersion = 20;
         public const int MaxCardsPerPlayer = 77; // v10：43→77（墓地 4→30、除外 8 入册）
         // v9 己方牌库块（尾接全局块，不走 ZoneLayout 每玩家偏移语义——专用 DeckBase+排序名次路径）：
         public const int DeckSlots = 30;                                      // 截断护栏（初始整组 30 恰满；衍生物入库超出不编码）
@@ -137,7 +149,19 @@ namespace CardCore.AI.NeuralEnv
         // 死亡计数增幅=原子属性 deathToll（与 rand/defer 同级），手牌累计、满 6、进战场冻结、离场清零
         //——计数实时值此前完全不可见（模型只能从伤害反推），本维补盲。归一化分母 9=历史增幅档上限余量。
         public const int DeathTollSlot = ZoneKindSlot + 1;                     // [152]
-        public const int NCard = DeathTollSlot + 1; // v19：116→152（参数块 12×9=108）→153（+死亡计数维）；python N_CARD_FEATURES 同步
+        // 邻接维 [153]（v20 2026-11-20 计划 §3.4 团结观测）：战场卡所在格的 6 邻**己方生物数** /6
+        //（团结口径——只数 IsAlive∧IsLivingUnit∧同 controller，结界/角色格/地牌格/敌方不计；
+        // SummonPlacementRules.AdjacentOwnCreatures 与 BoardState.AdjacentOccupantCount 同过滤）。
+        // 团结卡参数块 branchParam=x 已在，本维减 x=触发差可算；非战场卡=0。分母 6=六邻上限。
+        public const int AdjacencySlot = DeathTollSlot + 1;                    // [153]
+        // 引擎奖励摘要 [154..156]（v20 计划 §3.4，CardIdentityService.EngineRewardOf 只读——**不进
+        // AtomHash/ContentId**，身份哈希仍 v19 口径）：[154] 奖励载荷数（branch.then 原子数+effectId
+        // 计 1，钳 3）；[155] 首奖励原子 AtomTypeIndex（effectId 引用=0；无=0）；
+        // [156] 首奖励原子 value（钳 99）。团结/引擎卡「达标后给什么」首次可见。
+        public const int EngineRewardCountSlot = AdjacencySlot + 1;            // [154]
+        public const int EngineRewardType0Slot = EngineRewardCountSlot + 1;    // [155]
+        public const int EngineRewardValue0Slot = EngineRewardType0Slot + 1;   // [156]
+        public const int NCard = EngineRewardValue0Slot + 1; // v19：116→153（+死亡计数维）；v20：→157（+邻接/奖励摘要 4 维）；python N_CARD_FEATURES 同步
         // globals v3（50 维，契约 §5——重排序+归一化+放逐计数+弹药维；v2 g[48] 冗余删除）：
         //   g[0..16] 双方生命/30、回合/40、相位、座次、各区计数（墓地/30、牌库/60、放逐新）；
         //   g[17..28] 临时钱包 12 维；g[29] 栈占用；g[30..31] 势能 Φ/30；g[32..33] 地牌上限/14；
@@ -151,7 +175,11 @@ namespace CardCore.AI.NeuralEnv
         //   g[64..67] 对方剩余可用元素（同四色，/10）；g[68] 对方 Any（/10）；g[69] 对方总量（/20）
         //   ——「还差 2 点就能出 14 费大哥」「对手能不能响应/斩杀」可算；归一化上限参照
         //   充盈差值封顶 6/地牌上限 14 的既有量级。Python N_GLOBAL_FEATURES 同步 70。
-        public const int NGlobal = 70; // v19：58→70（+12 剩余可用元素块）
+        // v20 尾加（2026-11-20 计划 §3.4 召唤落位/团结观测，Python 同步 88）：
+        //   g[70..78] 己方 9 单位格（UnitCells 下标序）占用码（0=空/1=己方/2=敌方，/2；无棋盘=0）
+        //   g[79..87] 上述 9 格各自的 6 邻**己方生物数** /6（团结口径——只数活生物；
+        //             空格邻接不可从卡特征导出，落格/召唤计划行（[17] 格下标）价值直读）
+        public const int NGlobal = 88; // v19：58→70（+12 元素块）；v20：→88（+9 占用码+9 格邻接）
         public const int DeckTagStart = 50; // v9 g[50..57] = DeckTagsOf（对方牌库开局标签）
         // 动作特征槽（v8 8→11 维；v13 11→12；v14 12→14；v17 14→17=P1 v0.3 移动/宣言）：
         // [0]valid [1]type [2]sourceIndex [3]targetIndex [4]modeIndex
@@ -164,7 +192,11 @@ namespace CardCore.AI.NeuralEnv
         // + v17 P1 v0.3 追加：[14]moveCellX / [15]moveCellZ（Interaction.MoveX/Z，-1=无/非展开行）
         // [16]declaredNameIndex（宣言候选序号 0..15，同效果内可比；-1=非宣言行）。
         // + v18 P2 追加：[17]placementCell（永久物落格=己方 UnitCells 格下标 0..8；-1=非落格行）。
-        public const int NAction = 18;
+        // + v20（2026-11-20 计划 §3.3/§5）扩义+两维：[17] 兼**召唤计划行=计划首格**（含
+        //   Activate/RespondActivate 行——类型闸修复）；+[18]summonPlan（0=默认/1..9=锚点/-1=非召唤）、
+        //   +[19]summonUnityHits（该计划落位后团结达标数 0..6/-1——与 [5]actionCost 同层非观测泄露，
+        //   2026-11-20 拍板保留）。
+        public const int NAction = 20;
 
         public float[] Cards = new float[MaxCardsTotal * NCard];
         public float[] Globals = new float[NGlobal];
@@ -197,7 +229,7 @@ namespace CardCore.AI.NeuralEnv
             obs.WriteOppDeckExposed(core, opp);  // v10：对方牌库被展示卡尾块（RevealRules 信息轴）
             obs.WriteFieldCard(core, seat, FieldBase);      // v15：场地专用槽 [189]=己方（无场地=空槽）
             obs.WriteFieldCard(core, opp, FieldBase + 1);   // v15：[190]=对方
-            obs.WriteGlobals(core, seat, opp, responseContext);
+            obs.WriteGlobals(core, seat, opp, responseContext, board); // v20：格邻接块带板
             return obs;
         }
 
@@ -349,10 +381,12 @@ namespace CardCore.AI.NeuralEnv
 
                 float posX = -1f, posZ = -1f;
                 bool tappedOverride = false;
+                float adjOwn = 0f; // v20 团结观测 [153]：战场卡 6 邻己方**生物**数/6（非战场=0）
                 if (zone == Zone.Battlefield && board != null && board.TryGetCell(c, out int x, out int z))
                 {
                     posX = (float)x / BoardLayout.Width;
                     posZ = (float)z / BoardLayout.Height;
+                    adjOwn = SummonPlacementRules.AdjacentOwnCreatures(board, x, z, c.GetController()) / 6f;
                 }
                 else if (zone == Zone.ElementPool && pooledOf != null)
                 {
@@ -364,7 +398,7 @@ namespace CardCore.AI.NeuralEnv
                     posZ = (float)lz / BoardLayout.Height;
                 }
 
-                WriteCard(layer, c, baseSlot + i, tappedOverride, posX, posZ, ZoneKindOf(zone));
+                WriteCard(layer, c, baseSlot + i, tappedOverride, posX, posZ, ZoneKindOf(zone), adjOwn);
             }
         }
 
@@ -516,7 +550,7 @@ namespace CardCore.AI.NeuralEnv
         }
 
         private void WriteCard(LayerEngine layer, Card c, int slot, bool tappedOverride, float posX, float posZ,
-            int zoneKind)
+            int zoneKind, float adjacencyOwn = 0f)
         {
             int b = slot * NCard;
             int power = layer.CalculatePower(c);
@@ -576,9 +610,18 @@ namespace CardCore.AI.NeuralEnv
             // 死亡计数维（2026-11-20 原子属性化补 1 维）：手牌累计的 DeathTollCounter /9（关/无=0；
             // 进战场冻结后保持读数——增幅幅度由此可读，配原子 deathToll 哈希段/卡特征可见）
             Cards[b + DeathTollSlot] = c.GetCounterCount(CounterRules.DeathTollCounter) / 9f;
+            // v20 团结观测 [153]：邻接己方生物数/6（战场卡由 WriteZoneCards 计入；其余区恒 0）
+            Cards[b + AdjacencySlot] = adjacencyOwn;
+            // v20 引擎奖励摘要 [154..156]（EngineRewardOf 只读——不进身份哈希）：
+            // 引擎分支卡「达标后给什么」首次可见（团结/倒计时/充盈通用）。
+            CardIdentityService.EngineRewardOf(data, out int rwCount, out int rwType0, out float rwValue0);
+            Cards[b + EngineRewardCountSlot] = rwCount;
+            Cards[b + EngineRewardType0Slot] = rwType0;
+            Cards[b + EngineRewardValue0Slot] = rwValue0;
         }
 
-        private void WriteGlobals(GameCore core, Player me, Player opp, bool responseContext)
+        private void WriteGlobals(GameCore core, Player me, Player opp, bool responseContext,
+            BoardState board = null)
         {
             var g = Globals;
             var zm = core.ZoneManager;
@@ -649,6 +692,22 @@ namespace CardCore.AI.NeuralEnv
             //「对手能不能响应/斩杀」可算；牺牲/蛰伏的 +1 Any 收益首次可见。
             WriteRemainingElements(ep, me, 58);
             WriteRemainingElements(ep, opp, 64);
+
+            // v20 己方格块（g[70..87]，计划 §3.4 召唤落位/团结观测）：UnitCells 下标序 9 格——
+            // [70..78] 占用码（0=空/1=己方/2=敌方，/2）；[79..87] 各格 6 邻己方**生物**数/6
+            //（团结口径单源 SummonPlacementRules.AdjacentOwnCreatures；空格邻接不可从卡特征导出，
+            // 落格/召唤计划行的价值直读输入）。无棋盘（无头降级/服务器）=全 0 不炸。
+            if (board != null && me != null)
+            {
+                var cells = BoardLayout.UnitCells(board.PlayerIndex(me));
+                for (int i = 0; i < cells.Count && i < 9; i++)
+                {
+                    var occupant = board.CardAt(cells[i].x, cells[i].z);
+                    g[70 + i] = (occupant == null ? 0f
+                        : ReferenceEquals(occupant.GetController(), me) ? 1f : 2f) / 2f;
+                    g[79 + i] = SummonPlacementRules.AdjacentOwnCreatures(board, cells[i].x, cells[i].z, me) / 6f;
+                }
+            }
         }
 
         /// <summary>v19 剩余可用元素 6 维块（g[58..63]=me / g[64..69]=opp，2026-11-20 绿套补盲）：

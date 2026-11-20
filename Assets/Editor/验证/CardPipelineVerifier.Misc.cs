@@ -1121,7 +1121,7 @@ namespace CardCore.Editor
             Assert(CardCore.EffectEligibility.RejectReason(Cardtype.Creature, multiDef) != null,
                    "P9-1 一回合多次时机（抽牌）挂生物：拒（耐久即次数池，结界专属）");
             Assert(CardCore.EffectEligibility.RejectReason(Cardtype.Enchantment, multiDef) == null,
-                   "P9-1b 一回合多次时机挂结界：过（每次触发耐久 −1，耐久归零销毁）");
+                   "P9-1b 一回合多次时机挂结界：过（每次触发扣固定表值耐久，默认 1，耐久归零销毁）");
             Assert(CardCore.EffectEligibility.RejectReason(Cardtype.Spell, multiDef) != null,
                    "P9-1c 一回合多次时机挂法术：拒（法术不驻场）");
             var repeatGraph = new SynergyUI.EffectGraphData("P9一回合多次")
@@ -1339,7 +1339,7 @@ namespace CardCore.Editor
 
         /// <summary>内容审计（**2026-11-14 档位制**；2026-11-18 定案：引擎载荷分支删除）：
         /// 教学/预组+训练全表——
-        /// ①生物 + 一回合多次（Multi）→ Error（结界专属，每次触发耐久 −1）；
+        /// ①生物 + 一回合多次（Multi）→ Error（结界专属，每次触发扣固定表值耐久，默认 1）；
         /// ②结界 + 生物动作族（攻/守/横置/重置 4 值）→ Error。
         /// 「生物+引擎载荷」不再作独立违规面（2026-11-13 收口曾以遗留债上限 22 计数、11-18 一度抬 26——
         /// 均作废）：团结/拼抢等引擎宿主是现行定案设计，其滥用面由时机档位闸（①）与挂载价承担；
@@ -1381,7 +1381,7 @@ namespace CardCore.Editor
                             hits.Add($"{label} {(string)c["cardName"]}({(string)c["id"]}) 效果 {id} timing={(TriggerTiming)t}"
                                      + $"（档位={CardCore.TimingWeights.TierOf((TriggerTiming)t)}"
                                      + $" 每回合≈{CardCore.TimingWeights.ExpectedOf((TriggerTiming)t):0.##} 次）"
-                                     + "——生物+一回合多次（结界专属，每次触发耐久 −1）");
+                                     + "——生物+一回合多次（结界专属，每次触发扣固定表值耐久，默认 1）");
                         // ③ 结界 + 生物动作族 4 值
                         if (enchant && CardCore.EffectEligibility.IsTapAnchoredTiming((TriggerTiming)t))
                             hits.Add($"{label} {(string)c["cardName"]}({(string)c["id"]}) 效果 {id} timing={(TriggerTiming)t}"
@@ -1565,7 +1565,7 @@ namespace CardCore.Editor
             // ---- ⑤ 35 行档位×f 表全量打印 ----
             var sb = new System.Text.StringBuilder();
             sb.AppendLine("[P9-9e 档位表] TimingWeights.json（2026-11-14 档位制：一回合一次/稀有/一回合多次/主动）"
-                          + "——λ/Expected 只作每回合频率留档，计价读 Factor；耐久：结界每次触发 −1");
+                          + "——λ/Expected 只作每回合频率留档，计价读 Factor；耐久：结界每次触发扣表值（默认 1）");
             foreach (var r in rows)
                 sb.AppendLine($"  {r.Timing,-26} {r.Bucket,-8} λ={r.Lambda,6:0.###} 每回合≈{r.Expected,6:0.###} f={r.Factor,6:0.###}  {r.Note}");
             Debug.Log(sb.ToString());

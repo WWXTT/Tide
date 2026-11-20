@@ -34,7 +34,7 @@ namespace SynergyUI
             { CounterRules.MinusOneCounter, "每层攻击力与生命 −1；换区清除" },
             { CounterRules.SilenceCounter, "持有者不可发动主动效果；换区清除" },
             { CounterRules.NullifyCounter, "持有者的自动效果失效（触发式与本体关键词；不影响光环——2026-10-31 失效改名定案：光环域整体退出压制）；换区清除" },
-            { CounterRules.DurabilityCounter, "发动次数池——主动发动与场上被动触发各 −1；战场归零销毁入墓，技能栏归零休眠（回合开始 +1 回充）" },
+            { CounterRules.DurabilityCounter, "发动次数池——场上被动触发每次扣表值耐久（GameRules.AutoEffectDurabilityCost，默认 1；结界主动已禁）；战场归零销毁入墓，技能栏归零休眠（回合开始 +1 回充）" },
             { CounterRules.PowerUpCounter, "每层攻击力 +1；仅场上，换区清除" },
             { CounterRules.PowerDownCounter, "每层攻击力 −1；仅场上，换区清除" },
             { CounterRules.LifeUpCounter, "每层生命上限与当前生命 +1；仅场上，换区清除" },

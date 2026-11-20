@@ -13,7 +13,7 @@ namespace SynergyUI
         /// （ScriptedAi）、响应窗口全让过——渲染/交互与本地 AI 局完全同轨。</summary>
         Tutorial,
         /// <summary>挑战模式（2026-10-06）：玩家自选卡组，电脑按难度 N 获得非对称优势——
-        /// 地牌槽上限 7+N（N≥7 触顶 14）、起手 6+N（InitGame 加成参数）。渲染/交互与本地 AI 局同轨。</summary>
+        /// 地牌槽曲线上移 N（封顶 10+N；2026-10-15 基值 7→10，旧「7+N 触顶14」废止）、电脑起手 = 起手基值+N（基值现 7：2026-11-15 定案 6→7；InitGame 加成参数）。渲染/交互与本地 AI 局同轨。</summary>
         Challenge,
         /// <summary>网络对局（P2P，2026-10-21 复活）：房主=进程内 NetSessionServer 权威服务器，
         /// 本端（房主/客人同一路径）以 NetGameClient 客户端运行——快照/事件流驱动渲染、intent 上行。
@@ -90,7 +90,7 @@ namespace SynergyUI
         /// 一次性消费防跨局残留（StartLocalFan 开局即置空）。注入方=TestStartFlow。</summary>
         public static TutorialScenario Scenario;
 
-        /// <summary>挑战模式难度（2026-10-06，1..9 单值联动）：电脑地牌槽上限 7+N（N≥7 触顶 14）、起手 6+N。
+        /// <summary>挑战模式难度（2026-10-06，1..9 单值联动）：电脑地牌槽曲线上移 N（封顶 10+N；2026-10-15 基值 7→10）、电脑起手 = 起手基值+N（基值现 7：2026-11-15 定案 6→7）。
         /// 与 TutorialId 同口径：注入方设值后保持到终局（ReportBattleResult 读取落档），
         /// 每次进挑战模式都会重设，无跨局残留问题。</summary>
         public static int ChallengeDifficulty = 1;

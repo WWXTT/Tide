@@ -14,7 +14,7 @@ namespace CardCore
     /// · **稀有（Rare）**——被破坏/被除外/死亡/离场/墓地回场/角色死亡/占卜：比一回合一次更难触发
     ///   （系数=触发概率）；生物✓ 结界✓；法术✗（不驻场）。
     /// · **一回合多次（Multi）**——抽牌/伤害/使用卡牌/结算观察/原子三阶段/阶段起止/其他生物进出场/
-    ///   施放法术：**结界专属**（耐久即次数池，每次触发 −1）；生物✗ 法术✗（不驻场）。
+    ///   施放法术：**结界专属**（耐久即次数池，每次触发扣固定表值，默认 1）；生物✗ 法术✗（不驻场）。
     /// · 攻/守/横置/重置四个生物动作族（IsTapAnchoredTiming）：**只有生物可挂**（结界不横置、
     ///   法术不驻场）——它们属一回合一次档（横置限频），系数 1。
     /// · 被攻击（OnAttacked）：一回合一次 + 双宿主（生物/结界都可挂，受击有真实事件锚）。
@@ -249,8 +249,8 @@ namespace CardCore
             return true;
         }
 
-        /// <summary>一回合多次档中**结界专属**的部分（耐久即次数池——每次触发 −1 耐久已支付次数，
-        /// 生物挂载=无对价白嫖）：2026-11-14 档位制= <see cref="TimingWeights.TierOf"/>==Multi。
+        /// <summary>一回合多次档中**结界专属**的部分（耐久即次数池——每次触发扣固定表值耐久，
+        /// 默认 1，已支付次数；生物挂载=无对价白嫖）：2026-11-14 档位制= <see cref="TimingWeights.TierOf"/>==Multi。
         /// 消费方：RejectReason 生物臂 / 合成器时机下拉宿主过滤 / 装载校验 / 验证器审计。</summary>
         public static bool IsEnchantExclusiveTiming(TriggerTiming t)
             => TimingWeights.TierOf(t) == TimingTier.Multi;

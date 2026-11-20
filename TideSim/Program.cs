@@ -53,6 +53,11 @@ namespace TideSim
             if (args.Length > 0 && args[0] == "--scenario")
                 return ScenarioCheck.Run();
 
+            // 召唤落位专项探针（2026-11-20 计划 §7-5/6/8）：LAE 计划行/特征/折叠、Apply 逐只落位、
+            // 默认计划 A/B、观测 v20 常量与数值——命令行可跑的自动化证据
+            if (args.Length > 0 && args[0] == "--summon-placement-probe")
+                return SummonPlacementProbe.Run();
+
             // 牺牲原子改版探针（2026-11-14 basics_10 修复验收）：域=候选声明 + handler 送墓入账
             if (args.Length > 0 && args[0] == "--sacrifice-probe")
                 return SacrificeProbe.Run();

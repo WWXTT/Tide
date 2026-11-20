@@ -13,7 +13,8 @@ namespace SynergyUI
     /// 挑战模式界面（2026-10-06）：选卡组 + 选难度（1-9 单值联动）后进战场。
     /// 纯代码屏（PrefabName=null，UiKit 构建）——节点按名稳定（deck-row-*、btn-diff-*、
     /// lbl-preview 等），验证走层级/字符串断言（截图验收禁令口径）。
-    /// 难度语义：电脑地牌槽上限 7+N（N≥7 触顶 14）、起手 6+N（GameCore.InitGame 加成参数 +
+    /// 难度语义：电脑地牌槽曲线上移 N（封顶 10+N；2026-10-15 基值 7→10，旧「7+N 触顶14」废止）、
+    /// 电脑起手 = 起手基值+N（基值现 7：2026-11-15 定案 6→7；GameCore.InitGame 加成参数 +
     /// ResourceCurve.ChallengeLandCurve）；九档全开自由选，战绩落 ChallengeProgressManager。
     /// </summary>
     public sealed class ChallengeScreen : UIScreen
@@ -51,7 +52,7 @@ namespace SynergyUI
             // ---- 难度选择 ----
             var diffHead = UiKit.Row("diff-header", Root, spacing: 8f);
             UiKit.Label("diff-title", diffHead, "难度", UiStyle.BodySize, UiStyle.TextBody);
-            UiKit.Label("diff-note", diffHead, "电脑：地牌槽上限 7+N（触顶14） · 起手 6+N（N=难度）",
+            UiKit.Label("diff-note", diffHead, "电脑：地牌槽上限 10+N · 起手 7+N（N=难度）",
                 UiStyle.SmallSize, UiStyle.TextFaint);
             var diffRow = UiKit.Row("diff-row", Root, spacing: 6f);
             for (int d = 1; d <= ChallengeProgressManager.MaxDifficulty; d++)

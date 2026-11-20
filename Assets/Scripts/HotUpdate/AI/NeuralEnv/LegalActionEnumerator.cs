@@ -50,8 +50,16 @@ namespace CardCore.AI.NeuralEnv
         public InteractionParams Interaction;
         /// <summary>永久物落格（P2 2026-11-19：BoardLayout.UnitCells(己方) 的格下标 0..8，-1=无/非落格行）。
         /// 构造点（BuildTargetedRow）显式置 -1（struct 默认 0 会误读为格 0）；特征 [17]。
-        /// Apply：声明成功后 PinCard（镜像 SimpleAI.TryPinPlacement 时点——入场 Resync 钉优先生效）。</summary>
+        /// Apply：声明成功后 PinCard（镜像 SimpleAI.TryPinPlacement 时点——入场 Resync 钉优先生效）。
+        /// v20 扩义（计划 §3.3）：召唤计划行复用承载「计划首格」（含 Activate/RespondActivate 行）。</summary>
         public int PlacementCell;
+        /// <summary>召唤落位计划（v20 2026-11-20 计划 §3.3，仅特征/签名用——Apply 不读，
+        /// 落位实际走 Interaction.SummonCells）：0=默认计划 / 1..9=锚点计划（首格 UnitCells 下标+1）/
+        /// -1=非召唤行。构造点显式置 -1。特征 [18]。</summary>
+        public int SummonPlan;
+        /// <summary>该计划落位后己方团结达标数 0..6（SummonPlacementRules.PredictUnityHits 单源；
+        /// -1=非召唤/不可估）。动作特征 [19]——与 [5]actionCost 同层非观测泄露（2026-11-20 拍板保留）。</summary>
+        public int SummonUnityHits;
         public EffectDefinition Effect;   // Activate/RespondActivate/VoluntaryTrigger 的效果定义
         public int ModeIndex;             // 抉择模式下标（非抉择恒 0；HeroSkill 行恒 0——技能卡在 Card 上）
         public PendingEffect Pending;     // VoluntaryTrigger/RespondActivate 的待发对象（引擎队列实例）
@@ -104,10 +112,13 @@ namespace CardCore.AI.NeuralEnv
                     ? "-" : string.Join(".", DynamicCounts);
                 // P1/P2 修复（2026-11-19 反馈）：Interaction（宣言名/移动格）与 PlacementCell 入键——
                 // 否则同目标集的不同宣言/落格行同键（拒一禁全、去重误并），强夺 3 候选行塌缩成 1。
+                // v20（计划 §3.3）：SummonCells/SummonPlan 入键——否则不同落位计划同键被
+                // FoldEquivalentRows 误并成 1 行（[17] 特征闸修复同批）。
                 string i = Interaction == null
                     ? "-"
-                    : $"{Interaction.DeclaredName ?? "-"}@{Interaction.MoveX},{Interaction.MoveZ}";
-                return $"{(int)Type}|{Card?.ID ?? "-"}|{Effect?.Id ?? "-"}|{t}|{ModeIndex}|{ctx}|{d}|{i}|{PlacementCell}";
+                    : $"{Interaction.DeclaredName ?? "-"}@{Interaction.MoveX},{Interaction.MoveZ}"
+                      + (Interaction.HasSummonCells ? "@" + string.Join(".", Interaction.SummonCells) : "");
+                return $"{(int)Type}|{Card?.ID ?? "-"}|{Effect?.Id ?? "-"}|{t}|{ModeIndex}|{ctx}|{d}|{i}|{PlacementCell}|{SummonPlan}";
             }
         }
 
@@ -964,6 +975,8 @@ namespace CardCore.AI.NeuralEnv
                 ReferenceIndex = reference is Card rc ? TideObservation.IndexOfCard(_core, _me, rc) : -1,
             };
             a.PlacementCell = -1; // P2：落格行由展开层写格下标（struct 默认 0 须显式哨兵化）
+            a.SummonPlan = -1;    // v20：召唤计划行由 EmitSummonPlanRows 写（哨兵化同理）
+            a.SummonUnityHits = -1;
             if (targets != null && targets.Count > 0)
             {
                 a.Target = targets[0];
@@ -1466,28 +1479,44 @@ namespace CardCore.AI.NeuralEnv
         /// <summary>（P2 2026-11-19 §3.1）永久物落格候选：BoardLayout.UnitCells(己方) 中**空格**的
         /// 格下标（0..8，≤MaxPlaceRows）。仅生物/结界（法术/场地不占单位区格）。
         /// 棋盘未装配（无头/服务器）=几何全格（占用不可知——声明侧不裁，引擎首格兜底；
-        /// Apply 侧无棋盘自然不 Pin）。返回 null=非落格行（法术/场地，单行直发）。</summary>
+        /// Apply 侧无棋盘自然不 Pin）。返回 null=非落格行（法术/场地，单行直发）。
+        /// v20：空格判定改走单源 SummonPlacementRules.FreeCells（与召唤落位计划共用口径）。</summary>
         private static List<int> PlacementCellChoices(GameCore core, Player me, Card card)
         {
             if (card == null || card.IsSpellCard() || card.IsFieldCard()) return null;
             var board = GameBoard.MoveUnitRules.Current;
-            int ownerIdx = board != null
-                ? board.PlayerIndex(me)
-                : (ReferenceEquals(core.Player1, me) ? 0 : 1);
-            var cells = GameBoard.BoardLayout.UnitCells(ownerIdx);
-            var free = new List<int>();
-            for (int i = 0; i < cells.Count && free.Count < MaxPlaceRows; i++)
+            if (board == null)
             {
-                if (board != null && board.CardAt(cells[i].x, cells[i].z) != null) continue; // 占用真值
-                free.Add(i);
+                // 无棋盘：几何全格（占用不可知——声明侧不裁，≤MaxPlaceRows）
+                int ownerIdx = ReferenceEquals(core.Player1, me) ? 0 : 1;
+                var geo = GameBoard.BoardLayout.UnitCells(ownerIdx);
+                var all = new List<int>();
+                for (int i = 0; i < geo.Count && all.Count < MaxPlaceRows; i++) all.Add(i);
+                return all;
             }
+            var free = GameBoard.SummonPlacementRules.FreeCells(board, me);
+            if (free.Count > MaxPlaceRows) free = free.Take(MaxPlaceRows).ToList();
             return free;
         }
 
-        /// <summary>（P1 v0.3 / P2）按目标集出行：无交互原子的效果单行直发；含移动/宣言原子的效果
-        /// 逐交互参数一行（变体空集=不产生行）；**永久物（生物/结界）再乘落格维一行一格**
-        ///（PlacementCell=UnitCells 下标，特征 [17]；无空格=该行不产生——上层 HasBattlefieldSpace
-        /// 已闸满区）。特征 [14]/[15]/[16]/[17] 由 BuildFeatures 读取。</summary>
+        /// <summary>主序列含召唤衍生物原子（v20 2026-11-20 计划 §3.3）：该动作的召唤带落位计划——
+        /// 召唤是独立原子（独占一条效果），主序列恰一只；计划行展开见 EmitSummonPlanRows，
+        /// 结算期 SummonTokenHandler 消费 Interaction.SummonCells。</summary>
+        private static bool HasMainSummon(EffectDefinition def)
+            => def?.Effects != null
+               && def.Effects.Any(a => a != null && a.Type == AtomicEffectType.SummonToken);
+
+        /// <summary>（P1 v0.3 / P2 / v20 计划 §3.3）按目标集出行：无交互原子的效果单行直发；
+        /// 含移动/宣言原子的效果逐交互参数一行（变体空集=不产生行）；**永久物（生物/结界）再乘
+        /// 落格维一行一格**（PlacementCell=UnitCells 下标，特征 [17]；无空格=该行不产生——上层
+        /// HasBattlefieldSpace 已闸满区）。
+        /// v20 召唤落位计划行（2026-11-20 计划）：主序列含召唤原子的**法术出牌/主动发动**效果
+        ///（非永久物出牌——永久物召唤以自身钉格为聚集核走默认计划）按「默认计划 1 行 + 每空格
+        /// 锚点计划各 1 行」展开（合计 ≤MaxSummonRows=12；去重同序列留首；候选空=0 行=不发动）。
+        /// 每行带 Interaction.SummonCells（结算期 SummonTokenHandler 逐只按序落位）、
+        /// SummonPlan（0=默认/1..9=锚点，特征 [18]）、SummonUnityHits（PredictUnityHits，
+        /// 特征 [19]）、PlacementCell=计划首格（特征 [17]——含 Activate 行，防 FoldEquivalentRows 误并）。
+        /// 特征 [14]/[15]/[16]/[17]/[18]/[19] 由 BuildFeatures 读取。</summary>
         private void AddRowsWithInteraction(GameCore core, Player me, EffectDefinition def,
             TideActionType type, Card card, int modeIndex, int sourceSlot, List<Entity> targets,
             bool response = false, Entity reference = null, List<int> dynamicCounts = null,
@@ -1495,6 +1524,17 @@ namespace CardCore.AI.NeuralEnv
         {
             var variants = InteractionVariants(core, me, card, def, targets, out var declaredNames);
             if (variants != null && variants.Count == 0) return; // 交互不可用（空格/候选空/多目标移动）
+
+            // v20 召唤计划行：独立分流（不入 InteractionVariants——不污染宣言/移动/预言路径；
+            // 召唤为独立原子独占效果，恒无宣言/移动变体）。永久物出牌仍走 P2 落格行（下方）。
+            bool permanentPlay = (type == TideActionType.PlayCard || type == TideActionType.RespondPlay)
+                                 && card != null && !card.IsSpellCard() && !card.IsFieldCard();
+            if (HasMainSummon(def) && !permanentPlay)
+            {
+                EmitSummonPlanRows(core, me, def, type, card, modeIndex, sourceSlot, targets,
+                    response, reference, dynamicCounts, effect);
+                return;
+            }
 
             // P2：落格维（仅 PlayCard/RespondPlay 的永久物行；Activate/技能不落格）
             List<int> placeCells = null;
@@ -1529,6 +1569,67 @@ namespace CardCore.AI.NeuralEnv
 
             if (variants == null) Emit(null);
             else foreach (var v in variants) Emit(v);
+        }
+
+        /// <summary>召唤计划行总数上限（计划 §3.3：默认 1 + 锚点 ≤9 + 去重余量）。</summary>
+        private const int MaxSummonRows = 12;
+
+        /// <summary>召唤计划行展开（v20 计划 §3.3）：默认计划 1 行（SummonCells=null=结算期
+        /// DefaultCell）+ 每空格锚点计划 1 行（BuildAnchorPlan 确定性填充）。行特征：
+        /// [17]=计划首格（默认行=-1）、[18]=SummonPlan、[19]=SummonUnityHits；Signature 含
+        /// plan/cells（防折叠误并）。无空格=0 行（不发动）。count 取召唤原子 value（Max(1,·)）。 </summary>
+        private void EmitSummonPlanRows(GameCore core, Player me, EffectDefinition def,
+            TideActionType type, Card card, int modeIndex, int sourceSlot, List<Entity> targets,
+            bool response, Entity reference, List<int> dynamicCounts, EffectDefinition effect)
+        {
+            var board = GameBoard.MoveUnitRules.Current;
+            var free = GameBoard.SummonPlacementRules.FreeCells(board, me);
+            if (free.Count == 0) return; // 计划 §3.3：候选空=0 行=不发动
+
+            var summonAtom = def.Effects.First(a => a.Type == AtomicEffectType.SummonToken);
+            int count = Math.Max(1, summonAtom.Value);
+            var battlefield = core.ZoneManager.GetCards(me, Zone.Battlefield);
+            // 计划格衍生物模板的团结门槛（模板自带团结卡时预测含新格自身）
+            int tplThreshold = 0;
+            if (!string.IsNullOrEmpty(summonAtom.StringValue))
+            {
+                var tpl = Attribute.Handlers.SummonTokenHandler.ResolveTemplate?.Invoke(summonAtom.StringValue);
+                if (tpl != null) tplThreshold = GameBoard.SummonPlacementRules.UnityThresholdOf(
+                    new CardWrapper(tpl) { ID = summonAtom.StringValue });
+            }
+
+            int emittedRows = 0;
+            void AddRow(List<int> cells, int planId)
+            {
+                var row = BuildTargetedRow(type, card, modeIndex, sourceSlot, targets, response, effect,
+                    reference, dynamicCounts);
+                if (cells != null)
+                {
+                    row.Interaction = new InteractionParams { SummonCells = new List<int>(cells) };
+                    row.PlacementCell = cells[0];
+                }
+                row.SummonPlan = planId; // 0=默认 / 1..9=锚点（锚点 UnitCells 下标+1）
+                // 默认行 [19]=-1（未估——2026-11-20 验收定案）：默认计划=结算期引擎自适应
+                //（母巢 2×3 块/贪心逐格现算），声明期格序未定、预测必低估（只算现有团结卡不含
+                // 新衍生物）——置 -1 不造假信号；锚点行才给真实预测（站位选择的学习信号）。
+                row.SummonUnityHits = cells != null
+                    ? GameBoard.SummonPlacementRules.PredictUnityHits(board, me, battlefield, cells, tplThreshold)
+                    : -1;
+                Actions.Add(row);
+                emittedRows++;
+            }
+
+            AddRow(null, 0); // 默认计划行（无 SummonCells → 结算期 DefaultCell）
+            var emitted = new HashSet<string> { "-" }; // 序列去重（默认行哨兵）
+            foreach (var anchor in free)
+            {
+                if (emittedRows >= MaxSummonRows) break; // 上限兜底（默认 1 + 锚点 ≤9 + 余量）
+                var plan = GameBoard.SummonPlacementRules.BuildAnchorPlan(board, me, anchor, count);
+                if (plan == null || plan.Count == 0) continue;
+                string key = string.Join(".", plan);
+                if (!emitted.Add(key)) continue; // 相同序列只留首
+                AddRow(plan, anchor + 1);
+            }
         }
 
         private static List<int> NewCounts(int atomCount, int atomIndex, int value)
@@ -1631,9 +1732,23 @@ namespace CardCore.AI.NeuralEnv
                 Features[b + 16] = expanded && a.Interaction != null ? a.Interaction.DeclaredIndex : -1;
                 // P2（2026-11-19 §3.1）落格维：永久物 PlayCard/RespondPlay 行=UnitCells(己方) 格下标
                 ///（0..8；-1=非落格行）。声明成功即 Pin（TryPinPlacementCell），入场 Resync 钉优先生效。
-                Features[b + 17] = (a.Type == TideActionType.PlayCard || a.Type == TideActionType.RespondPlay)
+                // v20（计划 §3.3）闸修复+扩义：召唤计划行（含 Activate/RespondActivate——战斗母巢
+                /// 主动召唤）也写「计划首格」——此前类型闸漏 Activate 致 9 个锚点行 [17] 恒 -1，
+                /// 被 FoldEquivalentRows 误并成 1 行（AI 看不到站位选择）。
+                Features[b + 17] = (a.Type == TideActionType.PlayCard || a.Type == TideActionType.RespondPlay
+                                    || a.Type == TideActionType.Activate || a.Type == TideActionType.RespondActivate)
                     ? a.PlacementCell
                     : -1;
+                // v20 召唤计划维（计划 §5，NAction 18→20）：[18]=计划 id（0=默认/1..9=锚点/-1=非召唤）；
+                // [19]=该计划落位后团结达标数（0..6/-1=默认行未估/非召唤）——站位计划与团结收益
+                // 直接关联（拍板保留）。**类型闸必加**（2026-11-20 验收修复）：Attack/Guard/PlayLand/
+                // TapCreature/EndTurn/DiscardChoice 等构造点不走 BuildTargetedRow，struct 默认 0
+                // 会被误读为「默认召唤计划」——与 [17] 同款类型闸 + BuildTargetedRow 哨兵 -1 双保险。
+                bool summonRow = a.SummonPlan >= 0
+                    && (a.Type == TideActionType.PlayCard || a.Type == TideActionType.RespondPlay
+                        || a.Type == TideActionType.Activate || a.Type == TideActionType.RespondActivate);
+                Features[b + 18] = summonRow ? a.SummonPlan : -1;
+                Features[b + 19] = summonRow ? a.SummonUnityHits : -1;
             }
         }
 

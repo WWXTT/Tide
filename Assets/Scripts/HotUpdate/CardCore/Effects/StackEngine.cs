@@ -206,9 +206,10 @@ namespace CardCore
                 // 同批多个触发出队时，结算期记账会让读数滞后。
                 _executor.RecordQueuedActivation(next.Effect, next.Source);
 
-                // 结界被动触发消耗（2026-11-14 档位制「结界用耐久买次数」）：**每次触发扣 1 点耐久**
-                // （固定值；时机系数 f 只用于生物挂载价，不进耐久）——一回合多次档只有结界能挂，
-                // 耐久即该档的次数池（D 点耐久 = 再触发 D 次）。
+                // 结界被动触发消耗（2026-11-14 档位制「结界用耐久买次数」；2026-11-20 简化为表值固定整数）：
+                // **每次触发扣 AutoEffectDurabilityCost 点耐久**（ValueSystemConfig
+                // GameRules.AutoEffectDurabilityCost，默认 1；时机系数 f 只用于生物挂载价，不进耐久）——
+                // 一回合多次档只有结界能挂，耐久即该档的次数池（D 点耐久 = 再触发 ⌊D/成本⌋ 次）。
                 // 豁免：登场族（OnPlay/OnSummon/OnReturnFromGraveyard——入场结算属出牌/入场流程，
                 // 仪典载体不受影响）；光环条目=存在经济常驻，不经触发路径；离场族触发时源卡已离场
                 //（下方战场判定不过）→ 自然不消耗，兼防"耗尽→销毁→亡语→再耗"递归。
@@ -218,8 +219,9 @@ namespace CardCore
                     && trigCard.GetZone() == Zone.Battlefield
                     && !IsEntranceTiming(next.Effect.TriggerTiming))
                 {
+                    int durCost = Attribute.CounterRules.AutoEffectDurabilityCost;
                     Attribute.CounterRules.ConsumeTriggerDurability(
-                        GameCore.Instance, trigCard, "被动触发（耐久−1/次）");
+                        GameCore.Instance, trigCard, $"被动触发（耐久−{durCost}/次）");
                 }
 
                 EventManager.Instance.Publish(new StackAddEvent

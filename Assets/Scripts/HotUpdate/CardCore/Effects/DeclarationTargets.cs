@@ -18,6 +18,11 @@ namespace CardCore
         /// <summary>动态数量：下标=def.Effects 原子序，值=本次所选目标数（0=该原子非动态/未选）。</summary>
         public List<int> DynamicCounts = new List<int>();
 
+        /// <summary>声明期交互参数（2026-11-20 计划 §3.1）：人类声明期收集结果携带的非目标交互
+        ///——现阶段=召唤落位计划（PickSummonPlacementAsync 写 SummonCells）；AI 走 LAE 直接写
+        /// TideAction.Interaction。随声明线进 PlayCard/ActivateEffect 的 interaction 参数。</summary>
+        public InteractionParams Interaction;
+
         /// <summary>空结果（无交互原子；仍按原子数建好计数表，保证下标对齐）。</summary>
         public static DeclarationTargets Empty(int atomCount)
         {

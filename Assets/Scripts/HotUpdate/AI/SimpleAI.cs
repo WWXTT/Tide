@@ -360,26 +360,53 @@ namespace SynergyUI
                 Console.WriteLine($"[dbg-ai] skip unsupported effect={key} src={source}");
         }
 
-        /// <summary>声明期交互参数构造（P1 2026-11-19 v0.3）：含移动/宣言原子的效果在发动前
-        /// 由策略择格（PickMoveCell）/择名（PickDeclaration），随 GameActions.* 透传到结算期
+        /// <summary>声明期交互参数构造（P1 2026-11-19 v0.3；v20 +召唤落位）：含移动/宣言/召唤原子的
+        /// 效果在发动前由策略择格（PickMoveCell）/择名（PickDeclaration）/择落位计划
+        ///（PickSummonPlacement——默认 null=默认计划，打法零变化），随 GameActions.* 透传到结算期
         /// handler。返回 false=不发动（无合法空格/候选空/策略放弃——不白付代价）。
         /// targets=已选目标（移动单目标 v1：取首个己方战场单位；多目标不发动，v0.3 §8）。</summary>
         private bool TryBuildInteraction(GameCore core, Player me, Card source, EffectDefinition def,
             List<Entity> targets, out InteractionParams interaction)
         {
             interaction = null;
-            AtomicEffectInstance moveAtom = null, declareAtom = null;
+            AtomicEffectInstance moveAtom = null, declareAtom = null, summonAtom = null;
             if (def?.Effects != null)
                 foreach (var a in def.Effects)
                 {
                     if (a == null) continue;
                     if (a.Type == AtomicEffectType.MoveUnit && moveAtom == null) moveAtom = a;
+                    if (a.Type == AtomicEffectType.SummonToken && summonAtom == null) summonAtom = a;
                     if ((a.Type == AtomicEffectType.SearchDeck
                          || a.Type == AtomicEffectType.DeclareHand
                          || a.Type == AtomicEffectType.DeclareDeck)
                         && string.IsNullOrWhiteSpace(a.StringValue) && declareAtom == null) declareAtom = a;
                 }
-            if (moveAtom == null && declareAtom == null) return true; // 无交互原子：旧行为
+            if (moveAtom == null && declareAtom == null && summonAtom == null) return true; // 无交互原子：旧行为
+
+            // v20 召唤落位（2026-11-20 计划 §3.3）：策略择计划——默认返回 null=默认计划
+            ///（结算期 SummonPlacementRules.DefaultCell 旧行为，600 局镜像基线不破）；锚点计划与
+            /// LAE EmitSummonPlanRows 同源（FreeCells/BuildAnchorPlan 单源）。
+            if (summonAtom != null)
+            {
+                var board = GameBoard.MoveUnitRules.Current;
+                var free = GameBoard.SummonPlacementRules.FreeCells(board, me);
+                if (free.Count > 0)
+                {
+                    int count = Math.Max(1, summonAtom.Value);
+                    var plans = new List<List<int>> { null }; // 首项恒 null=默认计划
+                    foreach (var anchor in free)
+                    {
+                        var plan = GameBoard.SummonPlacementRules.BuildAnchorPlan(board, me, anchor, count);
+                        if (plan != null && plan.Count > 0) plans.Add(plan);
+                    }
+                    var picked = _strategy.PickSummonPlacement(core, me, source, def, count, plans);
+                    if (picked != null && picked.Count > 0)
+                    {
+                        interaction ??= new InteractionParams();
+                        interaction.SummonCells = picked;
+                    }
+                }
+            }
 
             if (declareAtom != null)
             {

@@ -8,8 +8,11 @@ namespace CardCore.Attribute.Handlers
     /// 召唤衍生物（SummonToken）——时点接线配套原子（原 PutToBattlefield 枚举位收编）。
     ///
     /// 设计定案：
-    /// - 位置口径（2026-11-20）：**并列位**数量任意正整数；**奖励位**（branch.then 奖励/附加祝福
-    ///   载荷）数量恒 1（UI 锁定+保存/装载双闸；本 handler 按 Max(1,Value) 同口径兜底），
+    /// - 落位口径（2026-11-20 计划 §3.1）：**声明期计划** Interaction.SummonCells（人类落位窗/LAE
+    ///   计划行写入）逐只按序钉格，竞态被占取最近空格兜底；**无计划**（触发式/奖励/旧路径/AI 默认）
+    ///   走 SummonPlacementRules.DefaultCell（旧 2×3 母巢块/贪心聚集算法原样搬入——行为不变）。
+    /// - 数量/计价口径（2026-11-20）：**并列位**数量任意正整数；**奖励位**（branch.then 奖励/附加
+    ///   祝福载荷）数量恒 1（UI 锁定+保存/装载双闸；本 handler 按 Max(1,Value) 同口径兜底），
     ///   模板单只计价=推导费+2（CardCostService.SummonUnitPrice 单源）须 ≤ 分支奖励上限
     ///   （ComposerCatalog.BranchRewardCapOf；附加诅咒/祝福载荷位无上限）。附加诅咒位收不了
     ///   召唤——极性闸（CursePayloadError/装载校验）拦 +1 行，且载荷控制者=施加方（CurseSystem），
@@ -118,6 +121,7 @@ namespace CardCore.Attribute.Handlers
             // 临时卡类落手牌、毁灭/除外/弹回/洗回去向原生固定，均不经组合层落区）
             var dropZone = Zone.Battlefield;
 
+            var pinnedThisCast = new HashSet<(int x, int z)>(); // 本次召唤已钉格（计划模式竞态兜底排除集）
             for (int i = 0; i < count; i++)
             {
                 // 全参数工厂 + 对局临时实例 ID（IsToken：衍生物不作地牌——2026-10-03 地牌资格定案）
@@ -159,58 +163,80 @@ namespace CardCore.Attribute.Handlers
                         break;
 
                     default:
-                        // 2026-11-16 用户口径：召唤衍生物**聚集落格**，不要 first-free 摊成一排——
-                        // 团结4 需要相邻己方生物；一排 5 只只有 1 只能达标，聚集后应有 2 只达标。
-                        // 选空格时按“相邻己方生物数”最高者钉格；无棋盘（纯核心测试）回落原自动落位。
+                        // 落位计划（2026-11-20 计划 §3.1）：
+                        // · 声明期 Interaction.SummonCells（人类落位窗/LAE 计划行）——**逐只按序**钉格
+                        //   （第 i 只=SummonCells[i]；竞态被占→UnitCells 序最近可用空格兜底并记日志；
+                        //   仍无格→该只不 Pin 走默认入场/满场逻辑）。声明期已 ValidateCells，此处只兜竞态。
+                        // · 无计划（触发式/奖励/旧路径/AI 默认）——默认计划 SummonPlacementRules.DefaultCell
+                        //   （原 handler 算法 2026-11-16 口径原样搬入单源：5 只母巢 2×3 块/贪心聚集，
+                        //   行为逐字节不变；现状=所有只同格钉）。结算期触发的召唤恒走本支
+                        //  （口径：预选确认才发动；结算中选择不选就自动选）。
                         var board = GameBoard.MoveUnitRules.Current;
                         int pinX = -1, pinZ = -1;
+                        List<(int x, int z)> planCoords = null;
                         if (board != null)
                         {
-                            // 5 只战斗衍生物优先落成“2×3 六格块”（母巢+5 只），块里正好两只
-                            // 各有 4 个相邻己方生物 → 团结4 触发两次；落不成再回退到贪心聚集。
-                            // 主动效果的 context.Source 有时是玩家/效果而非母巢本体；落格计划必须拿母巢卡。
-                            Card mother = context.Source as Card;
-                            if (mother == null || !(mother is CardWrapper mw) || mw.GetData()?.CardName != "战斗母巢")
+                            if (context.Interaction != null && context.Interaction.HasSummonCells)
                             {
-                                foreach (var c in context.ZoneManager.GetCards(context.Controller, Zone.Battlefield) ?? new List<Card>())
+                                var layout = GameBoard.BoardLayout.UnitCells(board.PlayerIndex(context.Controller));
+                                planCoords = new List<(int x, int z)>(count);
+                                for (int pi = 0; pi < count; pi++)
                                 {
-                                    if (c is CardWrapper cw && cw.GetData()?.CardName == "战斗母巢") { mother = c; break; }
+                                    int idx = pi < context.Interaction.SummonCells.Count
+                                        ? context.Interaction.SummonCells[pi] : -1;
+                                    planCoords.Add(idx >= 0 && idx < layout.Count ? layout[idx] : (-1, -1));
                                 }
-                            }
-                            var plan = BuildClusterPlan(board, context.Controller, mother, count);
-                            if (plan != null && plan.Count > 0)
-                            {
-                                pinX = plan[0].x;
-                                pinZ = plan[0].z;
                             }
                             else
                             {
-                                var cells = GameBoard.BoardLayout.UnitCells(board.PlayerIndex(context.Controller));
-                                int bestScore = -1;
-                                foreach (var cell in cells)
-                                {
-                                    if (board.CardAt(cell.x, cell.z) != null) continue;
-                                    int score = 0;
-                                    foreach (GameBoard.BoardDirection dir in Enum.GetValues(typeof(GameBoard.BoardDirection)))
-                                    {
-                                        var (nx, nz) = GameBoard.BoardMath.Neighbor(cell.x, cell.z, dir);
-                                        if (!GameBoard.BoardMath.InBounds(nx, nz)) continue;
-                                        var occ = board.CardAt(nx, nz);
-                                        if (occ != null && ReferenceEquals(occ.GetController(), context.Controller)) score++;
-                                    }
-                                    if (score > bestScore)
-                                    {
-                                        bestScore = score;
-                                        pinX = cell.x;
-                                        pinZ = cell.z;
-                                    }
-                                }
+                                var (dx, dz) = GameBoard.SummonPlacementRules.DefaultCell(board,
+                                    context.Controller, context.Source as Card,
+                                    context.ZoneManager.GetCards(context.Controller, Zone.Battlefield), count);
+                                pinX = dx;
+                                pinZ = dz;
                             }
                         }
                         // 战场：满场入墓+失败事件、进场事件(TokenSpawned)、触发式注册 均由统一出口承担
                         context.ZoneManager.TryAddToBattlefield(token, context.Controller, EnterSource.TokenSpawned);
                         // PinCard 必须等 token 真正在战场后再钉（入场前 Resync 会清掉 stale pin）。
-                        if (pinX >= 0) board.PinCard(token, pinX, pinZ);
+                        if (planCoords != null)
+                        {
+                            // 逐只按序：目标格被占（竞态）→ 排除**本次已钉格**后的 UnitCells 序最近空格兜底
+                            //（不排除后续计划格——它们是后面几只的合法落位）。
+                            // 「被占」判定须排除**本只自身**：TryAddToBattlefield 的 auto-Resync 会先把
+                            // 本只 first-free 放上格（常恰好=本只计划格——首次空格即计划格），若不排除
+                            // 会把「自己已就位」误判竞态踢去兜底（2026-11-20 探针 B 实锤：#3 期望(3,2)
+                            // 实际(1,1)，格主=自己）——占用者==token 时直接按计划格钉（幂等）。
+                            var (tx, tz) = i < planCoords.Count ? planCoords[i] : (-1, -1);
+                            int px = -1, pz = -1;
+                            var holder = tx >= 0 ? board.CardAt(tx, tz) : null;
+                            if (tx >= 0 && (holder == null || ReferenceEquals(holder, token)))
+                            {
+                                px = tx; pz = tz;
+                            }
+                            else
+                            {
+                                if (tx >= 0)
+                                    TideLog.Warn($"[SummonTokenHandler] 计划格 ({tx},{tz}) 已被占（竞态）"
+                                                 + $"——第 {i + 1} 只取最近空格兜底（来源 {NameOf(context)}）");
+                                var layout = GameBoard.BoardLayout.UnitCells(board.PlayerIndex(context.Controller));
+                                foreach (var c in layout)
+                                {
+                                    if (pinnedThisCast.Contains(c) || board.CardAt(c.x, c.z) != null) continue;
+                                    px = c.x; pz = c.z;
+                                    break;
+                                }
+                                if (px < 0)
+                                    TideLog.Warn($"[SummonTokenHandler] 无空格可兜底——第 {i + 1} 只"
+                                                 + "不钉格（走默认入场位；来源 " + NameOf(context) + "）");
+                            }
+                            if (px >= 0)
+                            {
+                                board.PinCard(token, px, pz);
+                                pinnedThisCast.Add((px, pz));
+                            }
+                        }
+                        else if (pinX >= 0) board.PinCard(token, pinX, pinZ);
                         break;
                 }
 
@@ -228,44 +254,8 @@ namespace CardCore.Attribute.Handlers
             }
         }
 
-        /// <summary>5 只召唤衍生物 + 母巢落成 2×3 六格块：块内正好两只各有 4 个相邻己方生物，
-        /// 团结4 触发两次。返回块内尚空的 5 格（按块序）；母巢不在任何 2×3 块/格被占=null 回退。</summary>
-        private static List<(int x, int z)> BuildClusterPlan(GameBoard.BoardState board, Player controller,
-            Entity source, int count)
-        {
-            if (board == null || count != 5) return null;
-            if (!(source is Card sourceCard)) return null;
-            if (!board.TryGetCell(sourceCard, out int mx, out int mz)) return null;
-            var cells = GameBoard.BoardLayout.UnitCells(board.PlayerIndex(controller));
-            int mi = -1;
-            for (int i = 0; i < cells.Count; i++)
-                if (cells[i].x == mx && cells[i].z == mz) { mi = i; break; }
-            if (mi < 0) return null;
-
-            // 单位格序：远端 4 格 idx0-3，近端 5 格 idx4-8。四个 2×3 块（块内两只达标）。
-            int[][] patterns =
-            {
-                new[] { 0, 1, 2, 4, 5, 6 },
-                new[] { 0, 1, 2, 5, 6, 7 },
-                new[] { 1, 2, 3, 5, 6, 7 },
-                new[] { 1, 2, 3, 6, 7, 8 },
-            };
-            foreach (var pattern in patterns)
-            {
-                bool contains = false;
-                foreach (int idx in pattern) if (idx == mi) { contains = true; break; }
-                if (!contains) continue;
-                var result = new List<(int x, int z)>();
-                foreach (int idx in pattern)
-                {
-                    if (idx == mi) continue;
-                    var c = cells[idx];
-                    if (board.CardAt(c.x, c.z) == null) result.Add(c);
-                }
-                if (result.Count > 0) return result;
-            }
-            return null;
-        }
+        // 2026-11-20：默认落位算法（2×3 母巢块/贪心聚集）已原样搬入单源
+        // GameBoard.SummonPlacementRules.DefaultCell（计划 §3.1）——本 handler 不再持有副本。
 
         protected override string DescribeTemplate(AtomicEffectInstance effect) =>
             $"生成 {effect.Value} 个衍生物（各带 1 层遗忘——离场后回合末出局，{effect.StringValue}）";

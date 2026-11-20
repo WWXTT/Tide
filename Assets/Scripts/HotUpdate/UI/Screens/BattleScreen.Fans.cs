@@ -214,7 +214,7 @@ namespace SynergyUI
         /// 返回声明成败——法术流的乐观 UI（藏卡+转正贴片）由调用方按 false 清理（拒绝无引擎事件，
         /// 扇区/贴片不会随后续对账自愈）。</summary>
         private bool PlayCardFinal(BattleCardView card, List<Entity> targets, int modeIndex,
-            List<int> dynamicCounts = null)
+            List<int> dynamicCounts = null, InteractionParams interaction = null)
         {
             var core = Core;
             if (core == null || P1 == null) return false;
@@ -226,9 +226,11 @@ namespace SynergyUI
             string reject = null;
             // 出牌来源区（2026-10-29 阶段3b 牌库顶当手牌）：牌库顶虚拟手牌打出走 fromZone=Deck
             //（TopDeckPlaySource/IPlaySource 授权）；其余路径恒手牌（墓地施放已随 2026-10-30 归土改版退役）。
+            // v20（2026-11-20 计划 §3.2）：interaction=声明期召唤落位计划（PickSummonPlacementAsync
+            // 写 SummonCells），随声明入栈、结算期 SummonTokenHandler 逐只按序落位；null=旧行为。
             bool ok = GameActions.PlayCard(core, P1, card.CoreCard, targets,
                 card.CoreCard != null && card.CoreCard.GetZone() == Zone.Deck ? Zone.Deck : Zone.Hand,
-                modeIndex, null, dynamicCounts, out reject);
+                modeIndex, null, dynamicCounts, interaction, out reject);
             if (ok)
             {
                 // 出牌选格钉提前到声明成功即转 BoardState（2026-10-15 发动格拆除）：施放类型图标=玩家所选格，
@@ -322,9 +324,27 @@ namespace SynergyUI
                     return;
                 }
 
+                // v20 召唤落位（2026-11-20 计划 §3.2）：主序列含召唤原子 → 逐只点选落格；
+                // 取消=撤销发动（同 decl==null 清理——0 事件/0 费）；确认才带 Interaction 进
+                // PlayCardFinal（事件在引擎内照常发）。无空格=不发动（与 LAE 候选空 0 行同口径）。
+                int summonCount = GameActions.SpellMainSummonCount(card, modeIndex);
+                if (summonCount > 0)
+                {
+                    var summonCells = await PickSummonPlacementAsync(card, summonCount);
+                    if (summonCells == null)
+                    {
+                        _field?.HideCastingPreview();
+                        _selfFan?.SetCardActive(card.RuntimeId, true);
+                        _pendingPins.Remove(card.RuntimeId);
+                        RefreshLocal();
+                        return;
+                    }
+                    decl.Interaction = new InteractionParams { SummonCells = summonCells };
+                }
+
                 // 确认：预览贴片转正（选格单经 PlayCardFinal 声明成功 PinCard——PlaceCasting 钉优先落同格）
                 _field?.PromoteCastingPreview(card, cellX, cellZ);
-                if (!PlayCardFinal(view, decl.Targets, modeIndex, decl.DynamicCounts))
+                if (!PlayCardFinal(view, decl.Targets, modeIndex, decl.DynamicCounts, decl.Interaction))
                 {
                     // 声明被引擎终审拒（如弃牌代价·手牌无目标）：镜像取消路径清理。转正件已进
                     // _castings 正片表，HideCastingPreview 够不着——走 InterruptCasting 即清口
@@ -780,6 +800,85 @@ namespace SynergyUI
                 done.TrySetResult(idx);
             }, () => { RestoreFan(); done.TrySetResult(-1); });
             return await done.Task;
+        }
+
+        /// <summary>召唤落位多选窗（v20 2026-11-20 计划 §3.2，拍板 §10-3 四语义）：
+        /// 入口 Region 三选——**逐只点选 / 自动填充 / 取消**（自动填充=BuildAnchorPlan 确定性规则
+        /// 与 LAE 锚点行同源；取消=撤销发动 0 事件 0 费）。逐只模式：BattleCellPicker 逐只续开
+        ///（复用 PickMoveDestinationAsync 的 TCS 模式）；右键/ESC=**回退上一只**（首只=取消整窗）；
+        /// 选满/空格用尽自动确认=确认；空格不足按可选格数确认（toast 提示，不静默改默认）；
+        /// 无空格=null 不发动（与 LAE 候选空 0 行同口径）。
+        /// 「窗内常驻按钮条」留 prefab 烘焙后续（计划 §9 本批不建新 UI——Region 三选 + 右键回退
+        /// 已覆盖 取消/回退/自动填充/确认 四语义，交互原语全部复用既有件）。
+        /// 返回 UnitCells(己方) 下标序列（null=取消）；候选/占用=SummonPlacementRules.FreeCells 单源。</summary>
+        private async UniTask<List<int>> PickSummonPlacementAsync(Card source, int count)
+        {
+            var board = _ctrl?.Board;
+            if (board == null) return null; // 无棋盘（纯核心/降级）=默认计划路径不弹窗
+            var free = GameBoard.SummonPlacementRules.FreeCells(board, P1);
+            if (free.Count == 0)
+            {
+                _toast.Show("战场无空格——召唤无法落位（不发动）");
+                return null;
+            }
+            if (free.Count < count)
+                _toast.Show($"空格不足（{free.Count}/{count}）——按可选格数确认，剩余只结算期自动补位");
+            var layout = BoardLayout.UnitCells(board.PlayerIndex(P1));
+
+            // 入口三选（2026-11-20 拍板 §10-3 语义补齐）：0=逐只点选 / 1=自动填充 / null=取消
+            int? mode = await PickRegionOptionAsync("召唤落位", new List<string>
+            {
+                "逐只点选（右键可回退上一只）",
+                $"自动填充（按聚集规则落 {Math.Min(count, free.Count)} 只）",
+            });
+            if (mode == null) return null; // 取消=撤销发动
+            if (mode.Value == 1)
+            {
+                var auto = GameBoard.SummonPlacementRules.BuildAnchorPlan(board, P1, free[0], count);
+                return auto; // 确定性填充（首空格为锚）——与 LAE 锚点计划同源
+            }
+
+            var picked = new List<int>();
+            int need = Math.Min(count, free.Count);
+            while (picked.Count < need)
+            {
+                int made = picked.Count;
+                var origin = BoardLayout.CharacterCell(0);
+                if (source != null && board.TryGetCell(source, out int sx, out int sz)) origin = (sx, sz);
+                var options = new List<BattleCellPicker.CellOption>();
+                foreach (var idx in free)
+                    if (!picked.Contains(idx))
+                        options.Add(new BattleCellPicker.CellOption
+                            { X = layout[idx].x, Z = layout[idx].z, ColorIndex = -1 });
+                if (options.Count == 0) break; // 防御（need 已钳）
+
+                _toast.Show($"召唤落位：第 {made + 1}/{need} 只——点空格确认；右键/ESC=回退上一只（首只=取消）");
+                var done = new UniTaskCompletionSource<int>();
+                _choreo?.CancelTargeting();
+                _selfFan?.SetVisible(false);
+                _cellPicker.Begin(BattleBoardGrid.WorldPositionOf(origin.x, origin.z), options, opt =>
+                {
+                    RestoreFan();
+                    int hit = -1;
+                    for (int i = 0; i < layout.Count; i++)
+                        if (layout[i].x == opt.X && layout[i].z == opt.Z) { hit = i; break; }
+                    done.TrySetResult(hit);
+                }, () => { RestoreFan(); done.TrySetResult(-1); });
+
+                int cellIdx = await done.Task;
+                if (cellIdx < 0)
+                {
+                    if (picked.Count > 0)
+                    {
+                        picked.RemoveAt(picked.Count - 1);
+                        _toast.Show($"已回退上一只（现 {picked.Count}/{need}）——继续选格");
+                        continue;
+                    }
+                    return null; // 首只取消=撤销发动
+                }
+                picked.Add(cellIdx);
+            }
+            return picked;
         }
 
         /// <summary>点我方地牌（2026-10-11 现取现用 → 2026-10-14 按色叠格）：全自动结算口径不变——

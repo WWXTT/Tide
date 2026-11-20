@@ -42,12 +42,14 @@
 - 验收：阶段二后复验 6 格，仍 ≥ 基线+15pp（封顶 100%），且不低于阶段一末的水平。
 
 > 实现状态（2026-11-17 末次）：阶段一改三套后**尚未开训**（等重拷副本）。
-> 启动命令：`--model-theme all --eval-theme red,green,blue`（`relaunch_training.cmd` 里同步改；
-> 注意该文件在副本里，`/MIR` 刷新会被删，拷完要补回）。
+> 启动命令：`--model-theme all --eval-theme red,green,blue`（`--eval-model-theme` 默认 `all` 可省；
+> `relaunch_training.cmd` 里同步改；注意该文件在副本里，`/MIR` 刷新会被删，拷完要补回）。
 > **6 格评估已按「模型执哪套 × 座位」重构**（主工程，副本下次刷新后生效）：
 > - `tide_env_tcp.reset`：`model_theme == "all"` → 每局随机抽 red/green/blue 并显式下发；
 > - `evaluate_greedy(_multi)`：格键 = `(info.modelTheme 实际命中, info.modelSeat)`；
->   `--model-theme all` 时评测自动跑「3 模型卡组 × 3 对手主题」，每组合 `eval_episodes/3` 局（与单套成本持平）；
+>   **2026-11-21 起**评测卡组由 `--eval-model-theme`（默认 `all`）决定，与 `--model-theme` 解耦：
+>   跑「3 模型卡组 × 3 对手主题」，每组合 `eval_episodes/3` 局（旧口径「跟随 --model-theme」需显式
+>   `--eval-model-theme ""` 复现）。
 > - 常量 `PRESET_SEAT_BASELINES` + `cell_threshold`（+15pp 封顶），`eval.jsonl` 每格一行
 >   `metric=vs_script_cell`（带 `threshold`/`pass`），`stats.jsonl` 增 `cell_win_rates`/`cells_pass`。
 > - 早停/best：有格数据即按 **6 格最小 margin**；无格数据才回落旧口径。
@@ -187,15 +189,26 @@ FSP 口径；开启后日志/config 标注 `fsp=true`，`info.fsp=True`。
   必印**（控制台 Multi-theme Evaluation 块 + `eval.jsonl` 每主题一行 + 总行 theme=ALL +
   `stats.jsonl` 的 `theme_win_rates`）——否则看不出对某主题的退化被总胜率掩盖。
 - 自对弈训练时另有先手座次胜率口径（只记录不选点，衡量先后手失衡）。
-- **6 格评估口径（2026-11-17 一期课程）**：**模型执哪套预组 × 先/后手** = 6 格。`--model-theme all`
-  时评测自动跑「3 模型卡组 × 3 对手主题」（每组合 `eval_episodes/3` 局），按 `info.modelTheme`
-  （实际命中）与 `info.modelSeat` 拆格；每格目标 = 该预组该座位脚本基线 + 15pp（封顶 100%，见 §0.2）。
+- **6 格评估口径（2026-11-17 一期课程；2026-11-21 起评估卡组与训练口径解耦）**：
+  **模型执哪套预组 × 先/后手** = 6 格。评估局模型卡组由 `--eval-model-theme` 决定
+  （**默认 `all`**）= 每局红/绿/蓝抽一套 → 评测跑「3 模型卡组 × 3 对手主题」（每组合
+  `eval_episodes/3` 局），按 `info.modelTheme`（实际命中）与 `info.modelSeat` 拆格；每格目标
+  = 该预组该座位脚本基线 + 15pp（封顶 100%，见 §0.2）。
   出口 = 6 格全达标（`cells_pass` 每次评估写盘，作**过程信号**；验收判定按 §3.4.1
   池化三态 + 训练后认证评估）；早停/best 按 6 格最小 margin（**best 初值 = −∞，首个评估点
-  必存一次**；2026-11-20 修复「初值 0.0 与负 margin 不兼容 → best 从不落盘」，见 §9）。单主题
-  `--model-theme red` 时只填红的两格（旧口径兼容）。
-- 评估局模型侧卡组：`--model-theme all` = 三预组各评一遍（一期课程口径）；单主题 = 只评该套；
-  缺省 = Cards 随机 30（旧行为）。
+  必存一次**；2026-11-20 修复「初值 0.0 与负 margin 不兼容 → best 从不落盘」，见 §9）。
+  旧行为（只评训练那一套、只填两格）要显式 `--eval-model-theme ""` 才复现。
+  **单主题训练（如绿 bootcamp `--model-theme green`）也出 6 格，但红/蓝四格是未训练策略的
+  floor——只作参照，不作该轮验收依据**（这个模型从没训过红/蓝套）。
+- 评估局模型侧卡组（2026-11-21 起独立于训练口径）：`--eval-model-theme all`（默认）= 三预组
+  各评一遍（6 格口径）；单主题名 = 只评该套（调试）；空串 = 回落 `--model-theme`（旧行为）。
+  局数 = 每组合 `max(10, eval_episodes // 卡组数)` 局 × 对手主题数 × 卡组数：默认 50 局基数
+  × 3 卡组 × 3 主题 = **144 局/次评估（≈29 分钟）**，每格约 24 局（§3.4.1 分辨率的前提）。
+- **补评工具 `tide_rl/eval_checkpoint.py`（2026-11-21）**：对已有 checkpoint 跑一次完整 6 格评估，
+  只评估不训练。用于两类场景：① 训练进程改不了参数、中途发现评估口径不全（如 v20 绿 bootcamp 只
+  评了 2 格）→ 训练结束后对 `best` 补评；② 验收复核。用法（**必须在训练副本目录**
+  `C:\UnityProject\Tide_train\tide_rl` 下跑，主工程 Library 被编辑器占着）：
+  `python eval_checkpoint.py --run logs/<run名>`，结果写 `<run>/six_cell_eval.json`。
 
 #### 3.4.1 判定口径：池化三态（2026-11-20 定案，取代「单次评估 pass/fail」）
 
@@ -206,6 +219,8 @@ FSP 口径；开启后日志/config 标注 `fsp=true`，`info.fsp=True`。
 
 - 每次评估 144 局（`evaluate_greedy_multi`：3 模型卡组 × 3 对手主题 × `50//3=16`），6 格平分后
   **每格 17~31 局、均值 24**。
+  - 2026-11-21 起该口径对**所有** run 成立（含绿 bootcamp 这类单主题训练，此前只评 48 局/2 格）；
+    单主题 run 的红/蓝格是未训练 floor，池化时不要与「该模型真训过的格」混谈。
 - 24 局下，真值**恰在门槛**时判「达标」的概率 = **50%**；真值高 5pp 也只有 72%，高 10pp 才 89%
   （门槛取 72.5% 档；数值单源 = `eval_stats.single_pass_prob`）—— 单次 `pass` 字段约等于翻硬币。
   实证：`blue/P2` 13 次评估里 6 次达标 / 7 次未达标，而池化真值 56.6%、门槛 57.2%（骑线）。
@@ -612,6 +627,7 @@ FSP 口径；开启后日志/config 标注 `fsp=true`，`info.fsp=True`。
 | 2026-11-20 | **6 格标尺判定改池化三态**（新增 §3.4.1；§7 判定口径同步）：单次评估 `pass/fail` 降级为观测点，验收改「同门槛代池化 + 95% Wilson」三态（pass/fail/骑线）；新增 `tide_rl/eval_stats.py`（统计单源）+ `monitor_training.py` 摘要「6 格标尺」块 | 只读审计历史 `eval.jsonl` 发现：每格仅 17~31 局（均值 24），真值骑门槛时单次判达标概率 50%、真值高 5pp 也只有 72%；判 5pp 趋势需每格 1429 局（现 60 倍）——单次标签不能当结论。池化后 blue/P1、green/P2 确认达标，blue/P2 骑线，red 两格与 green/P1 确认不达标；其中 red/P1 58.1% ≈ 脚本基线 57.5%，**与绿格「动作空间缺行」性质不同**，需单独立项 |
 | 2026-11-20 | **best 落盘修复**：`best_win_rate` 初值 `0.0 → −∞`（`train_tide_complete.py` L661）；收尾打印对「本 run 未跑到评估点」显式提示而非 `-inf%` | 6 格口径的选择值 = min(格胜率−门槛)**恒为负**（实测 −0.28~−0.59），`select_rate > 0.0` 永不成立 → 2026-11-17 切 6 格口径后 4 个 run 全无 `best/`；`export_onnx.py` 因此一直回落 `last` 导出。旧口径（镜像/总胜率 ≥0）不受影响 |
 | 2026-11-20 | **学习率退火归零修复**：`transition_steps` 由 `num_updates` 改为 `num_updates × update_epochs`（`train_tide_complete.py` L587-600） | **optax 的 count 是优化器步数**，而每个 update 在 PPO 段连调 `update_epochs`=4 次 `apply_gradients`——原写法让 lr 在总步数 25% 处就精确归零：300k 两 run 均 u294/step 75,264（elapsed 10,034s 与 10,084s 不同、update 相同），2M run u1954/step 500,224。归零后 `pg_loss`≈1e-8、`approx_kl`≈1e-10、`clipfrac`=0；`1795132376` 冻结后又跑 115k 步（约 4h15m）白烧，评估 49,920/99,840/149,760 = 100%/98%/98%、绿/P1 恒 1.00。修复后 u293 lr 1.87e-4、到 u1171 末步才为 0。**2026-11-20 两轮绿 bootcamp（`1795132376`/`1795157731`）作废**，停训待深潭碑规则修正后重跑 |
+| 2026-11-21 | **评估模型卡组与训练口径解耦**（§3.4）：新增 `--eval-model-theme`（默认 `all`）+ `eval_model_themes()`（`train_tide_complete.py`）——周期评估与最终评估都显式传 `model_themes`，默认三预组都评；新增 `tide_rl/eval_checkpoint.py`（对已有 checkpoint 单独跑 6 格评估，不训练）；「vs_script ALL」行局数改为实计 `wins+losses+draws`（旧写法 `eval_episodes×主题数` 在 3 卡组下少报 2/3） | v20 绿 bootcamp（`...1795178705`，`--model-theme green --eval-theme green`）每 50k 只评出 green/P1、green/P2 两格，**6 格标尺缺 4 格**，单次评估仅 48 局；6 格判定（§3.4.1 池化）本该由三套 × 先后手铺满。影响：单次评估 10min → **约 29min**（144 局），300k run 6 次评估约 +2h |
 
 ## 10. 未来拓展：人类对局日志（模仿学习）
 

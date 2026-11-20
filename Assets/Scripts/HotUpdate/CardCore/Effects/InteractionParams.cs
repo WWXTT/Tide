@@ -5,7 +5,7 @@ namespace CardCore
     /// <summary>声明期交互参数（2026-11-15 v0.3 移动/宣言规格；P1 2026-11-19 落地）：随发动入栈
     ///（GameActions.PlayCard/PlayCardInResponse/ActivateEffect/ActivateHeroSkill 的 trailing optional
     /// 参数 → PendingEffect/EffectInstance.Interaction → 执行上下文），结算期由 handler 消费
-    ///（MoveUnitHandler 选格 / ProphecyHandlerUtil.AskCardNameAsync 卡名）。
+    ///（MoveUnitHandler 选格 / ProphecyHandlerUtil.AskCardNameAsync 卡名 / v20 SummonTokenHandler 落位计划）。
     /// null=无（行为与旧版完全一致，UI 桥/预置照旧）。</summary>
     public sealed class InteractionParams
     {
@@ -20,6 +20,15 @@ namespace CardCore
 
         /// <summary>是否携带有效落格。</summary>
         public bool HasMoveCell => MoveX >= 0 && MoveZ >= 0;
+
+        /// <summary>召唤落位（声明期，2026-11-20 计划 §3.1）：按召唤顺序的己方单位格下标
+        ///（BoardLayout.UnitCells 的 0..8）；null/空=无（触发式/奖励/旧路径走默认计划）。
+        /// 消费：SummonTokenHandler 结算期逐只按序落位（竞态兜底=最近空格）；单源算法在
+        /// CardCore/Board/SummonPlacementRules（默认计划/候选/团结预测）。</summary>
+        public List<int> SummonCells;
+
+        /// <summary>是否携带召唤落位计划。</summary>
+        public bool HasSummonCells => SummonCells != null && SummonCells.Count > 0;
 
         /// <summary>宣言候选序号（动作特征 [16]，P1 v0.3）：DeclaredName 在该效果候选表的下标
         ///（0..15 钳位；-1=未设置）。由 LAE 展开时写入，仅随行特征消费（引擎不读）。</summary>

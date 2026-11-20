@@ -252,7 +252,7 @@ namespace SynergyUI
                        + "请把引擎效果移到结界卡，或改为普通自动效果";
             if (_editingCard.Supertype == Cardtype.Creature && TimingWeights.TierOf(t) == TimingTier.Multi)
                 return $"本卡宿主（{_editingCard.CardName}）挂不住一回合多次时机「{zh}」"
-                       + $"（每回合期望 {CardCore.TimingWeights.ExpectedOf(t):0.##} 次）——结界专属（耐久即次数池，每次触发 −1）；"
+                       + $"（每回合期望 {CardCore.TimingWeights.ExpectedOf(t):0.##} 次）——结界专属（耐久即次数池，每次触发扣 {CounterRules.AutoEffectDurabilityCost} 点耐久）；"
                        + "请改一回合一次时机（攻击/守卫/回合开始/回合结束/登场等）或稀有（被破坏/被除外/死亡等），"
                        + "或把卡改为结界配耐久";
             return null;

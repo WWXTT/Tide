@@ -12,7 +12,8 @@ namespace CardCore
     ///   更难触发，**沿用之前按概率得到的系数**（表 Factor，如 被破坏 0.55、被除外 0.12）；
     ///   登场（OnPlay）/进场（OnSummon）2026-11-16 归档本档：一生一次<一回合一次，Factor 0.9；
     /// · <see cref="Multi"/> 一回合多次：抽牌/伤害/使用卡牌/结算观察/原子三阶段/阶段起止/其他生物
-    ///   进出场/施放法术——**只能挂结界**，每次触发扣 1 点耐久（耐久即次数池），系数 1；
+    ///   进出场/施放法术——**只能挂结界**，每次触发扣固定耐久（表值
+    ///   GameRules.AutoEffectDurabilityCost，默认 1；耐久即次数池），系数 1；
     /// · <see cref="Active"/> 主动：Activate_* 三值，现付不进时序，恒 1。
     /// </summary>
     public enum TimingTier
@@ -58,7 +59,7 @@ namespace CardCore
     /// 消费方：<see cref="TierOf"/>（宿主资格：生物只能挂 PerTurn/Rare，Multi=结界专属；
     /// 合成器下拉/装载校验/验证器共用）、CostDerivationService.TimingCostFactorOf /
     /// HostMountFactor（生物挂载价 ×f，结界 ×1）与 CounterRules.ConsumeTriggerDurability
-    /// （结界每次触发 −1，不读 f）。缺行/表不可读回落内置档位镜像（安全侧兜底）。
+    /// （结界每次触发扣固定耐久——表值 GameRules.AutoEffectDurabilityCost，默认 1，不读 f）。缺行/表不可读回落内置档位镜像（安全侧兜底）。
     /// 文件缺失/解析失败：告警一次并回落；Invalidate 后重读。
     /// </summary>
     public static class TimingWeights
@@ -104,8 +105,9 @@ namespace CardCore
         /// <summary>典型耐久（同上退役——只留档）。</summary>
         public static float Base => Table?.Base ?? 0f;
 
-        /// <summary>旧「每次触发消耗的耐久比例」（2026-11-14 档位制后退役——耐久改按每次触发 −1，
-        /// 本列与 TriggersPerDeduction 仅留档/展示，不再有运行时消费方）。</summary>
+        /// <summary>旧「每次触发消耗的耐久比例」（2026-11-14 档位制后退役——耐久改为每次触发扣
+        /// 固定表值（GameRules.AutoEffectDurabilityCost，默认 1），本列与 TriggersPerDeduction 仅留档/展示，
+        /// 不再有运行时消费方）。</summary>
         public static float DurabilitySharePerTrigger => Table?.DurabilitySharePerTrigger ?? 0f;
 
         /// <summary>旧「每满 N 次触发扣整份耐久 D」（仅留档）。share 缺失/非法时返回 1。</summary>

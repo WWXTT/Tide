@@ -216,8 +216,9 @@ namespace CardCore.Attribute
         /// 归零销毁入墓（Smash 同款直毁）。正面常驻（净化可削——对位手段）。</summary>
         public const string DurabilityCounter = "Durability";
         /// <summary>触发计数（2026-11-10 规格 §4；**2026-11-13 定案后退役**）：旧「每满 3 次触发扣整份
-        /// 入场耐久 D」的累计层——2026-11-14 档位制起耐久按「每次触发 −1」直接扣（见
-        /// ConsumeTriggerDurability），本计数不再读写。保留注册只为旧存档/快照 Counters 兼容
+        /// 入场耐久 D」的累计层——2026-11-14 档位制起耐久按「每次触发扣表值」（2026-11-20 起
+        /// =GameRules.AutoEffectDurabilityCost，默认 1；见 ConsumeTriggerDurability）直接扣，
+        /// 本计数不再读写。保留注册只为旧存档/快照 Counters 兼容
         ///（Reading 层、UI 全隐藏、换区清）。</summary>
         public const string DurabilityTriggerCounter = "DurabilityTrigger";
         /// <summary>过载（2026-11-09 §11 裁定；2026-11-10 实现）：每卡效果预算（CardEffectBudget）
@@ -491,7 +492,8 @@ namespace CardCore.Attribute
         // ==================== 耐久公共路径（2026-10-02 结界实装定案） ====================
 
         /// <summary>是否耐久经济体（2026-10-10 三类卡=发数经济定案）：结界（战场或技能栏）的
-        /// 一切发动以耐久为次数池——主动=耐久−1+元素费现付（横置退役）、场上非光环被动触发=每次−1；
+        /// 一切发动以耐久为次数池——主动已禁（2026-10-15 起结界不发动主动）；场上非光环被动触发
+        /// =每次扣 <see cref="AutoEffectDurabilityCost"/>（表值，默认 1）；
         /// 生物维持横置经济（KeywordRules.ShouldTap），法术一次性（施放即发动）。
         /// 归零语义分域：战场=销毁入墓（本方法）、技能栏=休眠待回充（HeroSkillSystem.RechargeSkill）。</summary>
         public static bool UsesDurabilityEconomy(Card card)
@@ -561,19 +563,30 @@ namespace CardCore.Attribute
                : new CounterSpec { Id = id, Polarity = CounterPolarity.Positive, DisplayName = id };
 
         /// <summary>
-        /// 结界自动效果发动的耐久成本单口（2026-11-14 档位制定案「结界用耐久买次数」）：
-        /// **每次触发扣 1 点耐久**（固定值——时机系数 f 只保留在**生物挂载价**（原价×f）与展示侧，不进耐久）。
-        /// 覆盖普通被动触发（StackEngine 入栈口）与引擎奖励直发（BranchEngines.FireRewards）——
-        /// 一回合多次（Multi）档只有结界能挂，耐久即该档的次数池：D 点耐久 = 再触发 D 次。
+        /// 结界自动效果发动的耐久成本**单口**（2026-11-14 档位制定案「结界用耐久买次数」；
+        /// 2026-11-20 简化为一个固定整数）：每次触发扣 <see cref="AutoEffectDurabilityCost"/> 点耐久
+        /// （表值 ValueSystemConfig GameRules.AutoEffectDurabilityCost，默认 1——时机系数 f 只保留在
+        /// **生物挂载价**（原价×f）与展示侧，不进耐久）。
+        /// 覆盖普通被动触发（StackEngine 入栈口）与引擎奖励直发（BranchEngines.FireRewards）。
+        /// 一回合多次（Multi）档只有结界能挂，耐久即该档的次数池：D 点耐久 = 再触发 ⌊D/成本⌋ 次。
         /// 生物宿主不扣（频率已在挂载价 ×f 里付），受伤扣耐久 1:1 不经本口。
-        /// 旧「每 3 次触发扣整份入场耐久 D」「每次 −f 浮点累计」「每次 −2」三版均已退役。
+        /// 旧「每 3 次触发扣整份入场耐久 D」「每次 −f 浮点累计」「固定每次 −1」三版均已退役
+        /// （−1 自 2026-11-20 起改为表值，默认 1）。
         /// </summary>
         public static void ConsumeTriggerDurability(CardCore.GameCore core, Card enchant, string reason)
         {
             if (core?.ZoneManager == null || enchant == null) return;
             if (enchant is CardWrapper w && (w.GetData() == null || w.GetData().Durability <= 0)) return; // 非耐久体不扣
-            LoseDurability(core, enchant, 1, reason);
+            LoseDurability(core, enchant, AutoEffectDurabilityCost, reason);
         }
+
+        /// <summary>结界自动效果每次触发的固定耐久成本（2026-11-20 定案）：读 ValueSystemConfig
+        /// GameRules.AutoEffectDurabilityCost（默认 1；≤0 兜底 1——耐久扣减必须有正量）。
+        /// **单一数值口**：不随时机档位/宿主/一回合触发次数变化；被动触发与引擎奖励都经
+        /// <see cref="ConsumeTriggerDurability"/> 同口消费；受伤扣耐久（伤害 1:1）不走本值。
+        /// 消费方含 UI 文案（合成器时机说明）——改表即同步显示。</summary>
+        public static int AutoEffectDurabilityCost
+            => Math.Max(1, ValueSystemConfigManager.Instance.GetOrCreateConfig().GameRulesConfig.AutoEffectDurabilityCost);
 
         /// <summary>加层口统一层数解析（2026-10-31 晚定案）：系统指示物（Class=System，
         /// 引擎主干内部驱动，如倒计时）恒 1 层不叠加；其余指示物一次发动按 value 给层
