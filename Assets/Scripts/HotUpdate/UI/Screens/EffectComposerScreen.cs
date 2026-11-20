@@ -663,11 +663,13 @@ namespace SynergyUI
             => enumName == "Attack" || enumName == "Guard";
 
         /// <summary>锁定关键词行（移出原子库、不可组合、不展示）：攻击/守卫
-        /// + 位 6 系统内部行（2026-10-04：修改攻击力/生命值/费用——留给系统，不暴露给玩家组合）。
+        /// + 位 4 系统内部行（2026-10-04：修改攻击力/生命值/费用等——留给系统，不暴露给玩家组合）
+        /// + 直接引用专属行（2026-11-20：动态费用位——模拟/变形自系统位摘除后由本口隐藏，卡直接引用照旧）。
         /// 引擎主干行（位 5，2026-10-05 回表）**不在锁定期**——玩家直接在原子库选，填槽即自由分支。</summary>
         private static bool IsLockedKeywordRow(AtomicEffectConfig r)
             => r != null && (IsFixedBattleAtom(r.EnumName)
-                || ComposerCatalog.HasMountBit(r, MountKind.SystemInternal));
+                || ComposerCatalog.HasMountBit(r, MountKind.SystemInternal)
+                || ComposerCatalog.IsDirectReferenceOnlyRow(r));
 
     }
 }

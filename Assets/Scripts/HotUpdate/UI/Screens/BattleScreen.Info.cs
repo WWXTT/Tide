@@ -107,16 +107,19 @@ namespace SynergyUI
                 if (picked == null) return; // 缺 Region=无交互（本已点「发动」，静默取消）
                 effectIndex = picked.Value;
             }
-            // 动态数量（2026-11-14）：技能效果含动态原子→发动前先选目标/数量（可取消=不发动）
+            // 发动前选目标（2026-11-14 动态数量 / 2026-11-20 无域可声明原子）：
+            // 动态数量原子（-3）与无域牺牲/蛰伏（-1，无域=结算期不弹选）都必须在声明期收目标，
+            // 否则结算拿到空目标 → 只扣费不生效。可取消=不发动（不扣费）。
             List<Entity> targets = null;
             List<int> dynamicCounts = null;
             var fx = effects != null && effectIndex >= 0 && effectIndex < effects.Count ? effects[effectIndex] : null;
-            if (fx != null && CostDerivationService.HasDynamicAtom(fx))
+            if (fx != null && (CostDerivationService.HasDynamicAtom(fx)
+                               || CardCore.Attribute.EffectHandlerRegistry.HasNoDomainDeclarable(fx)))
             {
                 var decl = await GameActions.CollectEffectDeclarationTargetsAsync(fx, skill, P1);
-                if (decl == null)
+                if (decl == null || decl.Blocked)
                 {
-                    _toast.Show("已取消发动（目标选择取消）");
+                    _toast.Show(decl != null ? decl.BlockReason : "已取消发动（目标选择取消）");
                     return;
                 }
                 targets = decl.Targets;

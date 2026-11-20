@@ -573,8 +573,11 @@ namespace CardCore
         /// <summary>拼抢（2026-11-18 改版）：攻击宣言时双方各从手牌暗选舍弃一张卡（可拒绝=费用0），
         /// 同时公示落墓后比费用——己方舍弃费用 − 对手 ≥ 门槛（=奖励锚价合计，封顶6；抉择卡取最高分支费用）→ 执行奖励</summary>
         Clash = 3,
-        /// <summary>死亡计数（2026-09-22 定案）：本回合**双方合计**生物死亡数 ≥ x 时执行奖励（计数单调，
-        /// 每回合达标时刻唯一→天然一次/回合）；奖励预算=x（奖励原子锚价合计 ≤ x，引擎零计价）。x∈[1,9]</summary>
+        /// <summary>**已退役（2026-11-20 原子属性化）**：死亡计数不再是事件引擎——增幅开关改为原子属性
+        /// <see cref="AtomicEffectEntry.deathToll"/>（与 rand/defer 同级，见 AtomicEffectInstance.DeathToll）。
+        /// 枚举位保留兼容旧档序号（=4），数据/代码不再产生该分支：装载侧 CardEffectConverter 遇
+        /// engine=DeathToll 残留分支即剥离告警。历史口径（2026-09-22 定案→2026-11-10 改 value 增幅→
+        /// 本日属性化）：双方生物死亡计数、满值 6、{value} 原子增幅。</summary>
         DeathToll = 4,
         /// <summary>元素充盈（2026-09-22 定案；2026-11-06 判据七·充盈改造；2026-11-13 条件开放为 ≥）：
         /// **只能是自动效果**——任一方施放的卡成功结算、且整条连锁结算完成后（连锁终点稳定点补发
@@ -647,6 +650,12 @@ namespace CardCore
         /// <summary>每原子目标选择方式（2026-10-20：entry.defer；0=发动前预选=默认/1=效果处理时选——
         /// 结算期必须选不可取消（类自动效果）。声明期收集器与预选归属段双消费。</summary>
         public int DeferSelect;
+
+        /// <summary>死亡计数增幅开关（2026-11-20 原子属性化定案）：entry.deathToll 直通——与
+        /// RandomTarget/DeferSelect 同级的原子属性。开=宿主卡手牌累计 DeathTollCounter（满 6，
+        /// 进战场冻结/离场清零），该卡 {value} 原子结算吃增幅（EffectHandlerRegistry.DeathTollBonusOf）。
+        /// 原 settle=3 engine=DeathToll 分支挂载同日退役（枚举位保留为 dead）。</summary>
+        public bool DeathToll;
 
         /// <summary>声明数量（含动态哨兵 -3；不解析已选值）：声明期收集器用它区分「动态=任意数量窗」。</summary>
         public int DeclaredTargetCount(EffectDefinition def)

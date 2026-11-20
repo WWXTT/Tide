@@ -771,6 +771,7 @@ namespace CardCore
                 TargetCount = effectiveCount, // 每原子数量覆盖（-2=未声明回落效果级；全域仅限战场/手牌域）
                 RandomTarget = entry.rand,   // 每原子随机覆盖（-1=未声明回落效果级）
                 DeferSelect = entry.defer,   // 每原子目标选择方式（0=预选=默认/1=效果处理时选）
+                DeathToll = entry.deathToll, // 死亡计数增幅开关（2026-11-20 原子属性化：与 rand/defer 同级直通）
                 Filter = filter,             // 域词表双读后的合并 filter（无域声明=表行 TargetFilter ?? ""，与旧口径一致）
                 Axis = axis,                 // 两轴（P1-b）：行声明 Region 且实例无显式域时挂载；null=回落旧口径
                 ReferenceAxis = refAxis,     // 参照轴（步2 只读落库）：行 RefDomain 产轴；null=非分段原子
@@ -850,11 +851,16 @@ namespace CardCore
                     if (inst != null) payload.Then.Add(inst);
                 }
             }
-            // 2026-11-10 死亡计数改版：DeathToll 是效果原子上的 value 增幅标记，
-            // 不再需要 Then/effectId——空载荷也要保留（否则增幅标记被折叠掉）。
+            // 2026-11-20 死亡计数原子属性化：DeathToll 分支挂载退役（枚举位保留为 dead）——
+            // 旧档残留的 engine=DeathToll 分支装载时剥离（增幅开关改由原子 deathToll 布尔承载），
+            // 告警点名防静默丢增幅（数据侧应已迁移为 deathToll:true）。
             if (payload.Settle == BranchSettleKind.Engine
                 && payload.EngineKind == BranchEngineKind.DeathToll)
-                return payload;
+            {
+                TideLog.Warn("[CardEffectConverter] 原子残留 engine=DeathToll 分支（2026-11-20 已退役）——"
+                             + "剥离；增幅开关请迁移为原子属性 deathToll:true");
+                return null;
+            }
             // 无载荷的条件空转——折叠为无分支（EffectId 引用通道同计：2026-11-06 附加诅咒/祝福
             // 载荷=组合效果引用，Then 空但有引用不折叠）
             return payload.Then.Count > 0 || !string.IsNullOrEmpty(payload.EffectId) ? payload : null;

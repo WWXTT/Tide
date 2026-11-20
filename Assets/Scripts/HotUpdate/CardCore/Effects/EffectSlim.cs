@@ -482,6 +482,7 @@ namespace CardCore
             if (a.rand != -1) o["rand"] = a.rand;
             if (a.valueMax != 0) o["valueMax"] = a.valueMax; // 数值静态上界（步6：按值省略——0=未声明，存量零漂移）
             if (!string.IsNullOrEmpty(a.valueExpr)) o["valueExpr"] = a.valueExpr; // 动态值表达式（步6：白名单 ref.power/life/cost）
+            if (a.deathToll) o["deathToll"] = true; // 死亡计数增幅开关（2026-11-20 原子属性化：按值省略——false 不写）
             if (!BranchEntryRules.IsPhantom(a.branch))
             {
                 var b = new JObject { ["settle"] = a.branch.settle };

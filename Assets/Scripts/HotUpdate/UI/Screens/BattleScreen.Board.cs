@@ -631,12 +631,16 @@ namespace SynergyUI
         {
             List<Entity> targets = null;
             List<int> dynamicCounts = null;
-            if (def != null && CardCore.CostDerivationService.HasDynamicAtom(def))
+            // 发动前选目标（2026-11-14 动态数量 / 2026-11-20 无域可声明原子）：
+            // 与英雄技能同口径——动态数量（-3）与无域牺牲/蛰伏（-1）都必须在声明期收目标，
+            // 否则结算拿到空目标 = 只扣费不生效；可取消=不发动（不扣费）。
+            if (def != null && (CardCore.CostDerivationService.HasDynamicAtom(def)
+                                || CardCore.Attribute.EffectHandlerRegistry.HasNoDomainDeclarable(def)))
             {
                 var decl = await GameActions.CollectEffectDeclarationTargetsAsync(def, card.CoreCard, P1);
-                if (decl == null)
+                if (decl == null || decl.Blocked)
                 {
-                    _toast.Show("已取消发动（目标选择取消）");
+                    _toast.Show(decl != null ? decl.BlockReason : "已取消发动（目标选择取消）");
                     RefreshField();
                     return;
                 }

@@ -543,10 +543,11 @@ namespace CardCore.Editor
         // ======================================== 牺牲原子（2026-11-14 域=候选声明改版） ========================================
 
         /// <summary>
-        /// 牺牲原子端到端（2026-11-14 域=候选声明改版）：①表行锚=0费 Pol=0、域=己方战场:生物/
-        /// 己方战场:结界/己方元素池:卡（TargetKind 1/3/13，无 filter）——行域即牺牲候选；
-        /// ②候选域=己方三区卡（对手单位不入候选）；③行为：目标卡**规则送墓**（非效果死亡：
-        /// 不发 CardDestroyEvent，不灭无从拦），每张按归属者 +1 临时彩元素；地牌先出池再入墓。
+        /// 牺牲原子端到端（2026-11-19 P0 无域化）：①表行锚=0费 Pol=0、**无 Domain/TargetKinds**
+        ///（候选域不在行——写死在 NoDomainTargetScopes 白名单：己方战场:生物/结界+己方元素池:卡，
+        /// Prefix 行模式，与 LAE/声明期闸同源）；②候选域=白名单域串产轴解析（对手单位不入候选）；
+        /// ③行为：目标卡**规则送墓**（非效果死亡：不发 CardDestroyEvent，不灭无从拦），
+        /// 每张按归属者 +1 临时彩元素；地牌先出池再入墓。
         /// 数量档由解析层选定，handler 逐目标送墓（不再自建弹窗/自收集候选）。
         /// </summary>
         private static void TestSacrificeAtom(GameCore core, Player p1, Player p2)
@@ -566,20 +567,30 @@ namespace CardCore.Editor
             foreach (var orphan in core.ZoneManager.GetCards(p1, Zone.ElementPool).ToList())
                 core.ZoneManager.GetZoneContainer(p1).Remove(orphan, Zone.ElementPool);
 
-            // ---- 1. 表行锚（2026-11-14 域=候选声明：0费 Pol=0 己方战场生物/结界+己方元素池地牌） ----
+            // ---- 1. 表行锚（2026-11-19 P0 无域化：行无 Domain/TargetKinds，候选域在 NoDomainTargetScopes 白名单） ----
             var cfg = CardCore.Attribute.AtomicEffectTable.GetByType(AtomicEffectType.Sacrifice);
-            CardCore.TargetAxis sacAxis = null;
-            bool sacAxisOk = cfg != null && CardCore.TargetAxisRules.TryParseDomain(cfg.Domain, out sacAxis);
             Assert(cfg != null && cfg.TotalUnitCost == 0f && cfg.Polarity == 0f
-                   && cfg.GetTargetKindList().SequenceEqual(new[] { 1, 3, 13 })
+                   && string.IsNullOrEmpty(cfg.Domain)
+                   && (cfg.GetTargetKindList()?.Count ?? 0) == 0
                    && (cfg.TargetFilter ?? "") == ""
-                   && sacAxisOk && sacAxis != null
+                   && ElementAffinities.GetAffinityForEffect(AtomicEffectType.Sacrifice).IsGeneric,
+                   $"牺牲表行：0费 Pol=0 无 Domain（P0 2026-11-19 无域原子——候选域在 NoDomainTargetScopes 白名单，"
+                   + $"不在行；Domain='{cfg?.Domain ?? "<null>"}'；kinds="
+                   + $"{(cfg != null && cfg.GetTargetKindList() != null ? string.Join("/", cfg.GetTargetKindList()) : "<null>")}）");
+            // 无域白名单（与 LAE/声明期闸同源）：牺牲=己方战场生物/结界+己方元素池卡，Prefix 行模式
+            string sacScopeDomain, sacScopeFilter;
+            CardCore.TargetAxis sacAxis = null;
+            bool sacScopeOk = CardCore.NoDomainTargetScopes.TryGet(
+                AtomicEffectType.Sacrifice, out sacScopeDomain, out sacScopeFilter, out var sacScopeMode);
+            bool sacAxisOk = sacScopeOk
+                             && CardCore.TargetAxisRules.TryParseDomain(sacScopeDomain, out sacAxis);
+            Assert(sacAxisOk && sacScopeMode == CardCore.TargetRowMode.Prefix
+                   && (sacScopeFilter ?? "") == ""
                    && sacAxis.Zh.Contains("己方战场:生物")
                    && sacAxis.Zh.Contains("己方战场:结界")
-                   && sacAxis.Zh.Contains("己方元素池:卡")
-                   && ElementAffinities.GetAffinityForEffect(AtomicEffectType.Sacrifice).IsGeneric,
-                   $"牺牲表行：0费 Pol=0 域=己方战场:生物/结界 + 己方元素池:卡（2026-11-14 域=候选声明；" +
-                   $"kinds={string.Join("/", cfg.GetTargetKindList())}；axis={sacAxis?.Zh ?? "<null>"}）");
+                   && sacAxis.Zh.Contains("己方元素池:卡"),
+                   "牺牲作用域白名单：NoDomainTargetScopes=己方战场:生物/结界+己方元素池:卡（Prefix 行模式）"
+                   + $"——实际 domain='{sacScopeDomain ?? "<未命中>"}'；axis={sacAxis?.Zh ?? "<null>"}");
 
             // ---- 2. 候选域：表行域即候选（己方生物/结界/池内地牌；对手单位不入）----
             var ctx = new EffectExecutionContext
@@ -619,7 +630,7 @@ namespace CardCore.Editor
                 return card;
             }
 
-            // 候选：己方生物 + 己方结界 + 己方池内地牌；对手单位不入（行域=己方三区）
+            // 候选：己方生物 + 己方结界 + 己方池内地牌；对手单位不入（无域白名单轴=己方三区）
             var mine = Spawn(p1, 2, 2);
             var mineEnchant = SpawnEnchant(p1);
             var foeUnit = Spawn(p2, 3, 3, Attribute.KeywordRules.Indestructible); // 不灭也不入对手候选
@@ -633,11 +644,12 @@ namespace CardCore.Editor
             };
             var land = InjectCard(core, p1, landData);
             Assert(GameActions.AddToElementPool(core, p1, land), "牺牲段：地牌入池");
+            // 无域白名单域串产轴收候选（与声明期闸 NoDomainDeclarableBlockReason/LAE 同一口径——行 kinds 恒空）
             var rowCandidates = CardCore.Attribute.EffectHandlerRegistry.ResolveCandidates(
-                cfg.GetTargetKindList(), null, ctx);
+                null, sacScopeFilter, ctx, sacAxis);
             Assert(rowCandidates.Contains(mine) && rowCandidates.Contains(mineEnchant) && rowCandidates.Contains(land)
                    && !rowCandidates.Contains(foeUnit) && !rowCandidates.Contains(foeEnchant),
-                   "牺牲候选域：己方生物/结界/池内地牌入候选，对手单位不入（行域=己方三区）");
+                   "牺牲候选域：己方生物/结界/池内地牌入候选，对手单位不入（无域白名单轴=己方三区，2026-11-19 P0）");
 
             // 行为：目标卡规则送墓（非死亡；不灭无从拦）——每张按归属者 +1 临时彩元素
             var atom = new CardCore.AtomicEffectInstance { Type = AtomicEffectType.Sacrifice, Value = 1 };
@@ -708,6 +720,107 @@ namespace CardCore.Editor
 
             // 段界卫生：对手侧探针卡退场（不参与后续段）
             RetireCards(core, p2, foeUnit, foeEnchant);
+        }
+
+        // ======================================== 蛰伏原子（2026-11-19 P0 无域化 + 2026-11-20 未横置收口） ========================================
+
+        /// <summary>
+        /// 蛰伏原子声明口径（2026-11-19 P0 无域化；2026-11-20「没有可横置的地牌无法发动」收口）：
+        /// ①表行锚=0费 Pol=0 无 Domain/TargetKinds（候选域写死在 NoDomainTargetScopes 白名单）；
+        /// ②白名单=己方元素池:卡（Prefix 行模式）；③声明候选只含**未横置**的地（声明窗 spec 与
+        /// 拒发闸同走 NoDomainScopeCandidates 收口——人类窗口不列已横置地）；④handler：横置写
+        /// PooledCard 包装+蛰伏层数，已横置防御跳过；⑤全横置=候选空不建 spec（=拒发闸同口拦下，
+        /// 不扣费）。
+        /// </summary>
+        private static void TestDormancyAtom(GameCore core, Player p1, Player p2)
+        {
+            EnsureMainPhase(core, p1);
+            // 段界清池（口径同牺牲段——前序残池毒化候选）
+            foreach (var pc in core.ElementPool.GetPool(p1).PooledCards.ToList())
+            {
+                var leftover = pc.SourceCard;
+                core.ElementPool.RemoveCardFromPool(leftover, p1);
+                if (leftover.GetZone() == Zone.ElementPool)
+                    core.ZoneManager.MoveCard(leftover, p1, Zone.ElementPool, Zone.Graveyard);
+                else core.ZoneManager.GetZoneContainer(p1).Remove(leftover, Zone.ElementPool);
+            }
+            foreach (var orphan in core.ZoneManager.GetCards(p1, Zone.ElementPool).ToList())
+                core.ZoneManager.GetZoneContainer(p1).Remove(orphan, Zone.ElementPool);
+
+            // ---- 1. 表行锚：0费 Pol=0 无 Domain（无域原子——候选域在 NoDomainTargetScopes 白名单）----
+            var cfg = CardCore.Attribute.AtomicEffectTable.GetByType(AtomicEffectType.Dormancy);
+            Assert(cfg != null && cfg.TotalUnitCost == 0f && cfg.Polarity == 0f
+                   && string.IsNullOrEmpty(cfg.Domain)
+                   && (cfg.GetTargetKindList()?.Count ?? 0) == 0
+                   && (cfg.TargetFilter ?? "") == "",
+                   $"蛰伏表行：0费 Pol=0 无 Domain（P0 2026-11-19 无域原子——Domain='{cfg?.Domain ?? "<null>"}'）");
+            // ---- 2. 白名单锚：己方元素池:卡（Prefix 行模式）----
+            string dorDomain, dorFilter;
+            Assert(CardCore.NoDomainTargetScopes.TryGet(
+                       AtomicEffectType.Dormancy, out dorDomain, out dorFilter, out var dorMode)
+                   && dorMode == CardCore.TargetRowMode.Prefix
+                   && dorDomain == "己方元素池:卡" && (dorFilter ?? "") == ""
+                   && CardCore.TargetAxisRules.TryParseDomain(dorDomain, out _),
+                   "蛰伏作用域白名单：NoDomainTargetScopes=己方元素池:卡（Prefix 行模式）");
+
+            // ---- 3. 声明候选只列未横置（声明窗 spec 收口——与拒发闸同口，2026-11-20）----
+            Card MakeLand(string id, string name)
+            {
+                var data = new CardData
+                {
+                    // 2/2 身材推导绿 1——锁色候选非空才可入池（同牺牲段地牌配方）
+                    ID = id, CardName = name, Supertype = Cardtype.Creature,
+                    AttackAbility = true, GuardAbility = true, Power = 2, Life = 2,
+                };
+                var card = InjectCard(core, p1, data);
+                Assert(GameActions.AddToElementPool(core, p1, card), $"蛰伏段：地牌入池（{name}）");
+                return card;
+            }
+            var landA = MakeLand("VERIFY_DOR_LAND_A", "蛰伏之地甲");
+            var landB = MakeLand("VERIFY_DOR_LAND_B", "蛰伏之地乙");
+            var wrapB = core.ElementPool.GetPool(p1).PooledCards.FirstOrDefault(pc => pc.SourceCard == landB);
+            Assert(wrapB != null, "蛰伏段：地牌乙池包装就位");
+            wrapB.IsTapped = true; // 乙已横置——不得进候选/不得重复蛰伏
+
+            var def = new CardCore.EffectDefinition { PerAtomTargets = true, TargetCount = -1 };
+            def.Effects.Add(new CardCore.AtomicEffectInstance { Type = AtomicEffectType.Dormancy });
+            var planCtx = new EffectExecutionContext
+            {
+                Source = p1, Controller = p1, ZoneManager = core.ZoneManager, ElementPool = core.ElementPool,
+            };
+            var plan = CardCore.Attribute.EffectHandlerRegistry.CollectSpecPlan(def, planCtx);
+            Assert(plan.Count == 1 && plan[0].Candidates != null
+                   && plan[0].Candidates.Contains(landA) && !plan[0].Candidates.Contains(landB)
+                   && !plan[0].AutoTake,
+                   "蛰伏声明候选：只列未横置的地（NoDomainScopeCandidates 收口——人类窗口不列已横置地）");
+
+            // ---- 4. handler：横置写池包装+蛰伏层数；已横置防御跳过 ----
+            var execCtx = new EffectExecutionContext
+            {
+                Source = p1, Controller = p1, ZoneManager = core.ZoneManager, ElementPool = core.ElementPool,
+                Targets = new List<Entity> { landA, landB },
+            };
+            Assert(CardCore.Attribute.EffectHandlerRegistry.ExecuteEffect(
+                       new CardCore.AtomicEffectInstance { Type = AtomicEffectType.Dormancy, Value = 2 }, execCtx),
+                   "蛰伏原子执行（目标=未横置甲+已横置乙）");
+            var wrapA = core.ElementPool.GetPool(p1).PooledCards.FirstOrDefault(pc => pc.SourceCard == landA);
+            Assert(wrapA != null && wrapA.IsTapped && wrapA.DormancyLayers == 1
+                   && wrapB.DormancyLayers == 0,
+                   "蛰伏行为：甲横置+1 层；乙已横置防御跳过（层数不涨）");
+
+            // ---- 5. 全横置=候选空不建 spec（拒发闸同口——没有可横置的地牌无法发动，不扣费）----
+            var plan2 = CardCore.Attribute.EffectHandlerRegistry.CollectSpecPlan(def, planCtx);
+            Assert(plan2.All(s => s.Candidates == null || s.Candidates.Count == 0),
+                   "蛰伏全横置：候选空=不建声明窗（拒发闸同收口——无法发动，2026-11-20）");
+
+            // 段界卫生：池内地牌清出（余量写回+入墓，口径同段界清池）
+            foreach (var pc in core.ElementPool.GetPool(p1).PooledCards.ToList())
+            {
+                var leftover = pc.SourceCard;
+                core.ElementPool.RemoveCardFromPool(leftover, p1);
+                if (leftover.GetZone() == Zone.ElementPool)
+                    core.ZoneManager.MoveCard(leftover, p1, Zone.ElementPool, Zone.Graveyard);
+            }
         }
 
         // ======================================== 守护（2026-11-05 简化定案：固定护角色） ========================================

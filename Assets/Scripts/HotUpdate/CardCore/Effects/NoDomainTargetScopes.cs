@@ -21,9 +21,11 @@ namespace CardCore
     /// 未知无域原子保持原跳过（handler 自结算），不静默改行为。
     /// 域串必须用新语法（不能用 TargetKind.OwnLivingUnit 塞 kinds——那个枚举含「己方角色」，
     /// 而牺牲的作用域是「己方战场:生物」（不含角色），把英雄选进牺牲名单是数据错误）。
-    /// 候选顺序/排除规则单源在 CardCore.AI.HeroSkillTargetPolicy（LAE 与 GreenRampStrategy 共用）；
-    /// 蛰伏的「未横置」过滤也走 policy（池内地牌横置态在 PooledCard 包装上，TargetFilter 的
-    /// Untapped token 读 Card._isTapped 对池地无效——本表 filter 恒空）。
+        /// 候选顺序/排除规则单源在 CardCore.AI.HeroSkillTargetPolicy（LAE 与 GreenRampStrategy 共用）；
+        /// 蛰伏的「未横置」过滤也走 policy（池内地牌横置态在 PooledCard 包装上，TargetFilter 的
+        /// Untapped token 读 Card._isTapped 对池地无效——本表 filter 恒空）。
+        /// 2026-11-20 起声明窗 spec 与拒发闸候选口同走该过滤（EffectHandlerRegistry.NoDomainScopeCandidates）
+        /// ——全横置=候选空=拒发不扣费（「没有可横置的地牌无法发动」定案）。
     /// </summary>
     public static class NoDomainTargetScopes
     {
@@ -55,10 +57,15 @@ namespace CardCore
             }
         }
 
-        /// <summary>是否 prefix 行原子（LAE 展开口）：Sacrifice/Dormancy 且数量档=任意（-1）。
-        /// **必须带 def**：原子自身 count 常为 -2（未声明），-1 在效果级 def.TargetCount——
-        /// 数量有效值按 DeclaredTargetCount(def) 取（-2 回落效果级）；固定数量的 Sacrifice
-        ///（如教学 61D64777「牺牲一个」count=1）不得走 Prefix——仍按原口径跳过。</summary>
+        /// <summary>是否「自行选择目标」的牺牲/蛰伏原子（LAE 展开口 + 声明期闸共用）。
+        ///
+        /// **语义归属（2026-11-20 用户定案）**：「牺牲/蛰伏没有 Domain、目标由玩家自行选择」是**写在效果里**的
+        /// 语义——不是由「数量档 = 任意」这类通用档位规则推出来的。数量档（-1）只是这些效果在当前数据里的
+        /// 表达形式，**不是判据来源**；固定数量的牺牲原子（如旧教学 61D64777「牺牲一个」count=1）
+        /// **不提供支持**——不做 prefix 行、不做声明期窗口，维持原跳过。
+        ///
+        /// 必须带 def：原子自身 count 常为 -2（未声明），-1 落在效果级 def.TargetCount——
+        /// 有效值按 DeclaredTargetCount(def) 取（-2 回落效果级）。</summary>
         public static bool IsPrefixAtom(AtomicEffectInstance atom, EffectDefinition def)
             => atom != null
                && (atom.Type == AtomicEffectType.Sacrifice || atom.Type == AtomicEffectType.Dormancy)

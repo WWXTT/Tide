@@ -26,6 +26,23 @@ namespace CardCore
             return r;
         }
 
+        /// <summary>拒发标记（2026-11-20）：无域可声明原子（牺牲/蛰伏）候选为空时，发动只会
+        /// 扣费空转——收集口直接拦下并给出原因。**调用方读到 Blocked 必须中止发动**：
+        /// 不扣费、不入栈、不消耗耐久（与「玩家取消」同一条中止路径，只是提示文案不同）。</summary>
+        public bool Blocked;
+
+        /// <summary>拒发原因（给玩家看的短句；Blocked=false 时为空串）。</summary>
+        public string BlockReason = "";
+
+        /// <summary>构造拒发结果（AtomCount 仍需对齐，消费方按 Empty 同口径读）。</summary>
+        public static DeclarationTargets Refused(int atomCount, string reason)
+        {
+            var r = Empty(atomCount);
+            r.Blocked = true;
+            r.BlockReason = reason ?? "";
+            return r;
+        }
+
         /// <summary>写入某原子（或同域共享组的全部原子）的动态数量。</summary>
         public void SetDynamic(int atomIndex, int count, List<int> atomIndices = null)
         {

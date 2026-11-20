@@ -622,6 +622,81 @@ namespace CardCore.Attribute
             });
         }
 
+        /// <summary>无域可声明原子（牺牲/蛰伏，「自行选择目标」）的**结构判定**（2026-11-20 人类发动闸修复）。
+        ///
+        /// 为什么需要它：这类原子在**结算期不弹选**——无域原子的 resolve 是「有预选透传 / 无预选空列表」
+        /// （见 ResolveAtomTargetsAsync 无域分支），所以目标只能在**声明期**收。
+        /// 而人类发动前的闸（BattleScreen 英雄技能/单位主动效果）原先只查「含动态数量原子（-3）」，
+        /// 牺牲/蛰伏探测不到 → 闸恒 false → 不收集 → 结算拿到空列表 → handler 遍历 0 个目标
+        /// = 只扣费不生效（2026-11-20 实测复现）。调用方据本判定决定是否走声明收集口。
+        ///
+        /// **语义归属（2026-11-20 用户定案）**：「无 Domain + 玩家自行选择目标」写在**效果**上，
+        /// 不是通用档位规则；固定数量的牺牲原子**不提供支持**（维持原跳过）。
+        /// 判据统一走 NoDomainTargetScopes.IsPrefixAtom（与 LAE 同源，避免两套口径）。
+        ///
+        /// 注意：法术施放路径（BattleScreen.Fans）本来就无条件走声明收集口，不受此闸影响。</summary>
+        public static bool HasNoDomainDeclarable(EffectDefinition def)
+        {
+            if (def?.Effects == null) return false;
+            if (!def.PerAtomTargets) return false; // header 域走组合问选，无逐原子 spec（见 CollectAtomTargetSpecs 早退）
+            foreach (var atom in def.Effects)
+            {
+                if (atom == null) continue;
+                if (!NoDomainTargetScopes.IsPrefixAtom(atom, def)) continue;   // 与 LAE 同源：自行选择的牺牲/蛰伏
+                if (!NoDomainTargetScopes.TryGet(atom.Type, out _, out _, out _)) continue;
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>无域白名单候选收口（2026-11-20「没有可横置的地牌无法发动」定案）：
+        /// 白名单域串产轴解析候选；**蛰伏再过「未横置」过滤**（HeroSkillTargetPolicy.OrderDormancy
+        /// 单源——池地横置态在 PooledCard 包装上，域串/TargetFilter 均不可达）。声明窗 spec
+        /// （AppendNoDomainSpec）与拒发闸（NoDomainDeclarableBlockReason）两口同走本收口：
+        /// 全横置=候选空=拒发（不扣费不入栈），人类窗口也只列可横置的地。
+        /// 牺牲照旧原始候选（战场标死照常入候选 2026-11-05 救回窗口定案——handler 同判跳过）。
+        /// 候选=null 表示域串解析失败（保守：闸不拦、不建 spec，与既有口径一致）。</summary>
+        private static List<Entity> NoDomainScopeCandidates(
+            AtomicEffectType type, string domain, string filter, EffectExecutionContext context, out TargetAxis axis)
+        {
+            if (!TargetAxisRules.TryParseDomain(domain, out axis)) return null;
+            var candidates = ResolveCandidates(null, filter, context, axis);
+            if (type == AtomicEffectType.Dormancy)
+                candidates = CardCore.AI.HeroSkillTargetPolicy.OrderDormancy(
+                    context != null ? context.ElementPool : null,
+                    context != null ? context.Controller : null, candidates);
+            return candidates;
+        }
+
+        /// <summary>无域可声明原子「候选为空」的拒发原因（2026-11-20）；null=不拦。
+        ///
+        /// 口径：整条效果的**非引擎原子全部**是这类无域原子、且至少一个的候选为空 → 拒发
+        /// （发动只会扣费空转）；复合效果里还有别的原子能干活时维持旧口径不拦（不静默改行为）。
+        /// 候选口径与 AppendNoDomainSpec / LAE 同一函数（NoDomainScopeCandidates 收口 +
+        /// 白名单域串；蛰伏含未横置过滤——全横置视同候选空拒发，2026-11-20）。</summary>
+        private static string NoDomainDeclarableBlockReason(EffectDefinition def, EffectExecutionContext context)
+        {
+            if (def?.Effects == null) return null;
+            if (!def.PerAtomTargets) return null; // header 域：目标由组合问选收，不走逐原子 spec
+            string reason = null;
+            foreach (var atom in def.Effects)
+            {
+                if (atom == null) continue;
+                // 引擎主干=条件载体，不算「能干活的原子」（与执行器 IsEngineTrunk 同判）
+                if (atom.Branch?.Settle == BranchSettleKind.Engine
+                    || ComposerCatalog.EngineKindOf(atom.Type) != BranchEngineKind.None) continue;
+                if (!NoDomainTargetScopes.IsPrefixAtom(atom, def)
+                    || !NoDomainTargetScopes.TryGet(atom.Type, out var domain, out var filter, out _))
+                    return null; // 还有别的原子 → 不拦
+                var candidates = NoDomainScopeCandidates(atom.Type, domain, filter, context, out _);
+                if (candidates != null && candidates.Count > 0) continue;            // 有候选 → 不拦
+                reason ??= atom.Type == AtomicEffectType.Sacrifice
+                    ? "没有可牺牲的目标（己方生物/结界/元素池地牌）——技能未发动，不扣费"
+                    : "没有可横置的地（己方元素池未横置地牌）——技能未发动，不扣费";
+            }
+            return reason;
+        }
+
         /// <summary>逐原子交互选择规格（2026-11-02 LAE 动作空间 v8 单源）：收集"结算期会弹选"的
         /// 原子清单——声明期收集器（人类弹选）、LAE（神经动作行展开）、SimpleAI（预选排序）三方共用，
         /// 跳过条件与结算路径 ResolveAtomTargetsAsync 的自动档逐条同判：引擎主干/defer/全隐藏区/
@@ -708,17 +783,19 @@ namespace CardCore.Attribute
         }
 
         /// <summary>无域白名单 spec（P0 2026-11-19 无域原子目标）：牺牲/蛰伏（数量档=任意 -1，
-        /// IsPrefixAtom 单源判定——固定 1/2/3 档不走白名单）按 NoDomainTargetScopes 域串产轴解析候选
-        /// （引擎解析序；排除/排序单源在 CardCore.AI.HeroSkillTargetPolicy——LAE 展开 prefix-k
-        /// 前缀行前过滤，SimpleAI 预选同源）。候选空不建 spec（该效果行回落单行 null=handler 自结算，
-        /// 与白名单前口径一致）。Kinds 置空（无域原子无 kinds 视图；同域分组/隐藏区等 kinds 消费口对 null 已安全）。</summary>
+        /// IsPrefixAtom 单源判定——固定 1/2/3 档不走白名单）候选经 NoDomainScopeCandidates 收口
+        /// （白名单域串产轴 + 蛰伏未横置过滤，2026-11-20——与拒发闸同口；引擎解析序；
+        /// 排除/排序单源在 CardCore.AI.HeroSkillTargetPolicy——LAE 展开 prefix-k 前缀行前过滤，
+        /// SimpleAI 预选同源）。候选空不建 spec（含蛰伏全横置——拒发闸同口拦下不扣费；
+        /// 该效果行回落单行 null=handler 自结算，与白名单前口径一致）。Kinds 置空（无域原子
+        /// 无 kinds 视图；同域分组/隐藏区等 kinds 消费口对 null 已安全）。</summary>
         private static void AppendNoDomainSpec(EffectDefinition def, AtomicEffectInstance atom, int atomIndex,
             EffectExecutionContext context, List<AtomTargetSpec> specs)
         {
             if (!NoDomainTargetScopes.IsPrefixAtom(atom, def)) return; // 只开任意数量档（-1）
             if (!NoDomainTargetScopes.TryGet(atom.Type, out var domain, out var filter, out _)) return;
-            if (!TargetAxisRules.TryParseDomain(domain, out var axis)) return; // 表内常量域串——解析失败=数据错误，保守跳过
-            var candidates = ResolveCandidates(null, filter, context, axis);
+            // 收口（2026-11-20）：蛰伏候选过「未横置」过滤（与拒发闸 NoDomainDeclarableBlockReason 同口）
+            var candidates = NoDomainScopeCandidates(atom.Type, domain, filter, context, out var axis);
             if (candidates == null || candidates.Count == 0) return;
             specs.Add(new AtomTargetSpec
             {
@@ -875,6 +952,11 @@ namespace CardCore.Attribute
             if (def == null || context == null) return DeclarationTargets.Empty(0);
             int atomCount = def.Effects?.Count ?? 0;
 
+            // 2026-11-20 拒发闸：无域可声明原子（牺牲/蛰伏）候选为空 → 发动只会扣费空转，
+            // 在收集口直接拦下（调用方读到 Blocked 中止发动，不扣费不入栈）。
+            var blockReason = NoDomainDeclarableBlockReason(def, context);
+            if (blockReason != null) return DeclarationTargets.Refused(atomCount, blockReason);
+
             // header 域（PerAtomTargets=false）：组合目标共享一次问选
             if (!def.PerAtomTargets)
             {
@@ -1018,14 +1100,23 @@ namespace CardCore.Attribute
         public static List<Entity> ResolveCandidates(List<int> kinds, string filter, EffectExecutionContext context,
             TargetAxis axis = null)
         {
-            if (axis != null) return TargetAxisResolver.GetCandidates(axis, context);
-            var resolver = new TargetResolver(context.ZoneManager);
-            var candidates = resolver.GetCandidates(kinds, filter, context);
-            if (!string.IsNullOrEmpty(filter))
+            List<Entity> candidates;
+            if (axis != null) candidates = TargetAxisResolver.GetCandidates(axis, context);
+            else
             {
-                var filters = resolver.ParseFilters(filter);
-                candidates = resolver.ApplyFilters(candidates, filters, context);
+                var resolver = new TargetResolver(context.ZoneManager);
+                candidates = resolver.GetCandidates(kinds, filter, context);
+                if (!string.IsNullOrEmpty(filter))
+                {
+                    var filters = resolver.ParseFilters(filter);
+                    candidates = resolver.ApplyFilters(candidates, filters, context);
+                }
             }
+            // AI/自动代选：剔除对手侧「已标死未送墓」——否则会对着尸体反复选目标，
+            // 每段伤害都被 IsAlive 校验判无效（2026-11-20，问题=连锁多段伤害全打一具尸体）。
+            // 人类与无头脚本 context.Controller 非 AI → 候选不变（救回机制照旧）。
+            if (context?.Controller != null && context.Controller.IsAI)
+                candidates = TargetResolver.FilterEnemyDeadForAi(candidates, context.Controller);
             return candidates;
         }
 

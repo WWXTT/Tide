@@ -581,9 +581,10 @@ namespace CardCore
 
         // ======================================== 死亡计数 / 元素充盈（2026-09-22 定案） ========================================
 
-        /// <summary>死亡事件计数（2026-11-08 阶段3：只扫战场——手牌卡不计数）：场上此卡计数双方生物死亡——
-        /// 每次生物死亡 +1 死亡计数指示物（系统层，换区清=使用后清零）；满值 <see cref="DeathTollCap"/>
-        /// 达满不再计数；计数 ≥ 门槛（Then 锚价推导）即触发奖励（每次递增都触发，触发不清零）。
+        /// <summary>死亡事件计数：双方每次生物死亡，给**手牌中**携带死亡计数原子（deathToll=true）的卡
+        /// +1 死亡计数指示物（系统层，进战场冻结/离场清零——CounterRules 换区口径）；满值
+        /// <see cref="DeathTollCap"/> 达满不再计数。计数是该卡 {value} 原子的增幅
+        ///（EffectHandlerRegistry.DeathTollBonusOf 消费，2026-11-10 改版后无门槛奖励）。
         /// MatchStats 订阅序依赖已全解除（手牌序位引擎 2026-10-19 退役后无读序消费方）。</summary>
         private static void OnCreatureDestroyed(CardDestroyEvent e)
         {
@@ -597,41 +598,50 @@ namespace CardCore
             var anchor = e?.DestroyedCard?.GetOwner() ?? e?.DestroyedCard?.GetController();
             if (anchor == null) return;
 
-            EvaluateDeathTollEngines(anchor, zm, core);
-            EvaluateDeathTollEngines(anchor.Opponent, zm, core);
+            EvaluateDeathTollCounters(anchor, zm);
+            EvaluateDeathTollCounters(anchor.Opponent, zm);
         }
 
-        /// <summary>死亡计数满值（2026-10-19 定案）：计数上限 6，达满不再计数——[x,6] 区间每次递增都触发，
-        /// 满值即总触发次数天然封顶（6−x+1 次/充电周期）。</summary>
+        /// <summary>死亡计数满值（2026-10-19 定案；2026-11-20 原子属性化后恒 6）：计数上限 6，
+        /// 达满不再计数。原「普通6/增幅9」双档（engineParam=9 走 9）随分支挂载退役。</summary>
         private const int DeathTollCap = 6;
 
         /// <summary>元素充盈差额满值（2026-10-20 判据六）：剩余元素差读数封顶 6——门槛 x&gt;6 的奖励
         /// 天然不可达（与死亡计数满值 6 / 运势 x∈[1,6] 同族）。</summary>
         private const int SurplusCap = 6;
 
-        private static void EvaluateDeathTollEngines(Player player, ZoneManager zm, GameCore core)
+        /// <summary>死亡计数累计（2026-11-20 原子属性化定案）：扫**手牌**卡的效果原子——任一原子开
+        /// <see cref="AtomicEffectInstance.DeathToll"/> 即该卡计数（不再走 EnginePayloadsOf/DeathToll
+        /// 分支载荷）；满值恒 <see cref="DeathTollCap"/>。每卡每次死亡事件至多 +1。</summary>
+        private static void EvaluateDeathTollCounters(Player player, ZoneManager zm)
         {
-            // 2026-11-10 用户定案：死亡计数只在**手牌中**累计；进战场后冻结、不再加；
-            // 不再有门槛奖励——计数留作该卡 {value} 的增幅（离场才清，见 CounterRules.ClearAll 重载）。
             foreach (var card in zm.GetCards(player, Zone.Hand).ToList())
             {
                 if (card == null || !card.IsAlive) continue;
-                foreach (var (def, payload) in EnginePayloadsOf(card, BranchEngineKind.DeathToll))
+                if (!CardHasDeathTollAtom(card)) continue;
+                int count = card.GetCounterCount(Attribute.CounterRules.DeathTollCounter);
+                if (count >= DeathTollCap) continue; // 满值不再计数
+                card.AddCounters(Attribute.CounterRules.DeathTollCounter, 1);
+                count++;
+                EventManager.Instance.Publish(new KeywordAppliedEvent
                 {
-                    int count = card.GetCounterCount(Attribute.CounterRules.DeathTollCounter);
-                    int cap = payload.EngineParam > 0 ? payload.EngineParam : DeathTollCap; // 增幅9/普通6
-                    if (count >= cap) break; // 满值不再计数
-                    card.AddCounters(Attribute.CounterRules.DeathTollCounter, 1);
-                    count++;
-                    EventManager.Instance.Publish(new KeywordAppliedEvent
-                    {
-                        Target = card, Keyword = "死亡计数",
-                        Detail = $"手牌计数 +1 → {count}（满值 {cap}；进战场冻结，离场清零，增幅 value）",
-                    });
-                    _ = def;
-                    break;
-                }
+                    Target = card, Keyword = "死亡计数",
+                    Detail = $"手牌计数 +1 → {count}（满值 {DeathTollCap}；进战场冻结，离场清零，增幅 value）",
+                });
             }
+        }
+
+        /// <summary>卡是否携带死亡计数原子（deathToll=true——扫全部效果实例原子，任一命中即真；
+        /// def.Effects 覆盖扁平/Steps 双形态，与 EnginePayloadsOf 同遍历口径）。</summary>
+        private static bool CardHasDeathTollAtom(Card card)
+        {
+            foreach (var def in DefsOf(card))
+            {
+                if (def?.Effects == null) continue;
+                foreach (var atom in def.Effects)
+                    if (atom != null && atom.DeathToll) return true;
+            }
+            return false;
         }
 
         /// <summary>主动发动条件评估（2026-10-30 双选组主动路径——EffectExecutionEngine.ApplyActiveEngineTrunkAsync
@@ -675,7 +685,9 @@ namespace CardCore
                 {
                     // 2026-11-10：死亡计数改为被动 value 增幅（手牌累计、进战场冻结、离场清零），
                     // 不再有“计数≥x 触发奖励”的主动发动口。
-                    detail = "死亡计数为被动增幅：手牌累计，进战场冻结，离场清零";
+                    // 2026-11-20 原子属性化：分支挂载退役——本 case 仅作旧档残留防御位（converter
+                    // 已剥离 engine=DeathToll 分支，正常数据不可达）。
+                    detail = "死亡计数为被动增幅（原子属性 deathToll）：手牌累计，进战场冻结，离场清零";
                     return false;
                 }
                 case BranchEngineKind.Unity:

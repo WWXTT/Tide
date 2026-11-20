@@ -401,6 +401,17 @@ namespace CardCore.Attribute
             return _enumNameMap.TryGetValue(enumName, out var config) ? config : null;
         }
 
+        /// <summary>门槛行 GateId → Budget 列（灰，奖励锚价上限；v19 2026-11-20 绿套补盲：
+        /// CardIdentityService 观测参数块 [3] branchBudget 的查表口）。查不到=0（观测按无预算编码）。
+        /// SituationGate 行族 GateId 全表唯一（装载序），取首命中即可。</summary>
+        public static int GateBudgetOf(string gateId)
+        {
+            if (string.IsNullOrEmpty(gateId)) return 0;
+            foreach (var cfg in _idMap.Values)
+                if (cfg != null && cfg.GateId == gateId) return cfg.Budget;
+            return 0;
+        }
+
         /// <summary>遍历所有已加载配置行（EnumName 为英文枚举名；供关键词目录等派生用）。
         /// 2026-09-13 修正：改返回 _idMap.Values（全行）——此前返回 _typeMap.Values，
         /// 同 EffectType 多行（效果/指示物分离，如 Sleep 沉睡行族）只暴露覆盖后的末行，

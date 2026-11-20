@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Cysharp.Threading.Tasks;
@@ -113,10 +113,12 @@ namespace CardCore.Network
                         .FirstOrDefault(def => def.Id == intent.EffectId);
                     if (effect == null) { error = $"源卡无该效果 EffectId={intent.EffectId}"; return false; }
 
-                    // 动态数量（2026-11-14）：单位主动效果的联机声明期预选尚未接（UI 不发送本 intent）；
-                    // 直接放行会按 base×1 少收——显式拒绝，待接线后开放。
-                    if (CostDerivationService.HasDynamicAtom(effect))
-                    { error = "动态数量主动效果暂不支持联机发动（无声明期预选通道）"; return false; }
+                    // 动态数量（2026-11-14）+ 无域可声明原子（2026-11-20）：单位主动效果的联机声明期
+                    // 预选尚未接（客户端 UI 不发该 intent 的 targets，服务端也没有反问通道）；
+                    // 直接放行会按 base×1 少收 / 无域原子拿空目标只扣费空转——显式拒绝，待接线后开放。
+                    if (CostDerivationService.HasDynamicAtom(effect)
+                        || Attribute.EffectHandlerRegistry.HasNoDomainDeclarable(effect))
+                    { error = "该效果须在发动前选目标（动态数量/牺牲/蛰伏），联机单位效果暂不支持——请改用英雄技能或法术"; return false; }
 
                     if (!NetEntityDirectory.TryResolveAll(core, intent.Targets, out var targets))
                     { error = "目标解析失败"; return false; }
@@ -264,7 +266,11 @@ namespace CardCore.Network
             var effects = HeroSkillSystem.SkillEffectsOf(skillCard);
             if (effects == null || effects.Count == 0) return false;
             var def = effects[Math.Clamp(intent.EffectIndex, 0, effects.Count - 1)];
-            if (def == null || !CostDerivationService.HasDynamicAtom(def)) return false;
+            // 2026-11-20：无域可声明原子（牺牲/蛰伏·任意数量档 -1）与动态数量（-3）同属
+            // 「结算期不弹选、必须声明期收目标」——联机英雄技能走服务器 SelectRequest 反问收集
+            // （PreselectHeroSkillAsync → CollectDeclarationTargetsAsync 的任意数量窗）。
+            if (def == null || !(CostDerivationService.HasDynamicAtom(def)
+                                 || Attribute.EffectHandlerRegistry.HasNoDomainDeclarable(def))) return false;
             effect = def;
             context = new EffectExecutionContext
             {
@@ -363,3 +369,4 @@ namespace CardCore.Network
         }
     }
 }
+

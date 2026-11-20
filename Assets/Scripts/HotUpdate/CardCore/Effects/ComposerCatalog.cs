@@ -484,6 +484,14 @@ namespace CardCore
             => CanBeTrunkRow(row) && !HasMountBit(row, MountKind.EngineTrunk)
                && !HasMountBit(row, MountKind.DynamicCost);
 
+        /// <summary>直接引用专属行（2026-11-20 定案）：位 9 动态费用行=补差随局内动态情况、
+        /// 构筑期无法锚价——组合排除不依赖系统位，效果合成器库整库隐藏（IsLockedKeywordRow 读本谓词）。
+        /// 现行仅模拟/变形（2026-11-08 曾挂「系统」位整库隐藏，2026-11-20 摘除改挂本位）；
+        /// 蛰伏/牺牲等无域原子不经本口——无 Domain 由并列槽谓词天然排除。
+        /// 资格/装载/执行照旧：CanBeTrunkRow 保留（数据可挂），卡直接引用与卡组合界面绑定引用卡不变。</summary>
+        public static bool IsDirectReferenceOnlyRow(Attribute.AtomicEffectConfig row)
+            => HasMountBit(row, MountKind.DynamicCost);
+
         /// <summary>独立原子（2026-11-18 用户定案，留扩展口）：无 Domain、不能与其他效果组合，
         /// 但仍需在「并列效果」库可见并可编辑自身时机/数量。现仅召唤衍生物；
         /// 未来同类无域原子在此登记（UI 的槽封锁/库屏蔽/落槽清空均读本谓词）。</summary>

@@ -53,16 +53,24 @@ namespace CardCore.AI
 
         /// <summary>蛰伏候选过滤（DormancyHandler 作用域同口径）：只留「己方元素池**未横置**的地」，保持传入序。
         /// 未横置态查 PooledCard 包装——池内地牌的横置态不在 Card._isTapped 上（支付/蛰伏横置
-        /// 都写包装位），TargetFilter 的 Untapped token 对池地无效，必须经池包装判定。</summary>
+        /// 都写包装位），TargetFilter 的 Untapped token 对池地无效，必须经池包装判定。
+        /// 2026-11-20 起声明窗/拒发闸候选口同走本过滤（EffectHandlerRegistry.NoDomainScopeCandidates
+        /// 单源重载）——全横置=候选空=拒发不扣费（「没有可横置的地牌无法发动」定案）。</summary>
         public static List<Entity> OrderDormancy(GameCore core, Player me, List<Entity> candidates)
+            => OrderDormancy(core != null ? core.ElementPool : null, me, candidates);
+
+        /// <summary>重载（2026-11-20 声明窗/拒发闸共用单源）：直接吃元素池实例——
+        /// EffectHandlerRegistry 声明路径上下文只持 context.ElementPool（无 GameCore 引用；
+        /// 无头/训练环境 GameCore.Instance 可为 null，不得经 core 口转发）。</summary>
+        public static List<Entity> OrderDormancy(ElementPoolSystem pool, Player me, List<Entity> candidates)
         {
             var result = new List<Entity>();
-            if (candidates == null || core?.ElementPool == null || me == null) return result;
+            if (candidates == null || pool == null || me == null) return result;
             var untapped = new HashSet<Card>();
-            foreach (var pc in core.ElementPool.GetPooledCards(me))
+            foreach (var pc in pool.GetPooledCards(me))
                 if (pc?.SourceCard != null && !pc.IsTapped) untapped.Add(pc.SourceCard);
             foreach (var e in candidates)
-                if (e is Card c && untapped.Contains(c)) result.Add(e);
+                if (e is Card c && untapped.Contains(c)) result.Add(c);
             return result;
         }
     }

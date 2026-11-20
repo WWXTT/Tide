@@ -208,7 +208,10 @@
    ```
    - `OrderSacrifice`：先“场上单位/结界，排除 `归根` 与场上的 `阿格洛斯`”，再“元素池全部（含池里的阿格洛斯）”，
      组内保持引擎候选序、去重保序——与 `GreenRampStrategy.HeroSkillTargets` 现有顺序一致。
-   - `OrderDormancy`：只留“己方元素池未横置的地”，引擎序。
+   - `OrderDormancy`：只留“己方元素池未横置的地”，引擎序。**2026-11-20 追加（已落地）**：
+     拆出 `OrderDormancy(ElementPoolSystem, Player, List<Entity>)` 单源重载，声明窗 spec 与拒发闸
+     候选口同走该过滤（`EffectHandlerRegistry.NoDomainScopeCandidates`）——全横置=候选空=拒发不扣费
+     （「没有可横置的地牌无法发动」定案），人类窗口也只列未横置地；牺牲照旧原始候选。
    - `GreenRampStrategy.HeroSkillTargets` 改为调用 `OrderSacrifice`（行为不变，A/B 验证）；
      `HeroSkillTargetCap` 不动。
 5. **`TideAction` 不新增字段**：`Targets` 列表长度即 k；动作特征 `[10]nTargets` 需从 **0..8 钳位提到 0..16**

@@ -318,6 +318,8 @@ namespace CardCore.Editor
             TestFullDomainCompose(core, p1, p2);
             Crumb("→TestSacrificeAtom");
             TestSacrificeAtom(core, p1, p2);
+            Crumb("→TestDormancyAtom");
+            TestDormancyAtom(core, p1, p2);
             Crumb("→TestGuardianRelay");
             TestGuardianRelay(core, p1, p2);
             Crumb("→TestTriggerCap");

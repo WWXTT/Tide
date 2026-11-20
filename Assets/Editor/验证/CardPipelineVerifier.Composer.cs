@@ -259,25 +259,44 @@ namespace CardCore.Editor
             // 可随机性与滑条随表 NoRandom 位漂移，不再单独锚定冻结行）
 
             // ---- 1d. 位 4 SystemInternal（2026-10-04 定案；2026-10-07 位 0/3 删除后挂载资格走派生——
-            // 资格保留、仅 UI 隐藏；晚间并行扩容：攻击/守卫/设置三行/宣告胜利并入系统位；
-            // 2026-11-08 模拟/变形退役出组合：挂「系统」位整库隐藏——卡直接引用（引用卡=卡组合界面绑定）----
+            // 资格保留、仅 UI 隐藏；晚间并行扩容：攻击/守卫/设置三行/宣告胜利并入系统位）----
+            // 2026-11-08 模拟/变形退役出组合曾挂「系统」位整库隐藏；2026-11-20 定案摘除：
+            // 组合排除不再依赖系统位标注——模拟/变形改挂「动态费用」位（直接引用专属·库隐藏走
+            // ComposerCatalog.IsDirectReferenceOnlyRow），蛰伏（2026-11-19 P0 无域化后已非系统行）
+            // 无 Domain 由并列槽谓词天然排除——三者均非系统行，只是不参与组合。----
             var internalRows = CardCore.Attribute.AtomicEffectTable.GetAll()
                 .Where(r => r != null && CardCore.ComposerCatalog.HasMountBit(r, CardCore.MountKind.SystemInternal)).ToList();
-            Assert(internalRows.Count == 10
+            Assert(internalRows.Count == 7
                    && new HashSet<string>(internalRows.Select(r => r.EnumName))
                        .SetEquals(new[] { "Attack", "Guard", "SetPower", "SetLife", "SetCost",
-                           "DeclareVictory", "RevealCard", "Morph", "GrantMorph", "Dormancy" }),
-                   "系统位 10 行：攻击/守卫/设置攻击力/设置生命值/设置费用/对手胜利+展示+模拟/变形/蛰伏"
-                   + "（2026-11-08 模拟/变形退役出组合——挂「系统」位整库隐藏，卡直接引用+卡组合界面绑定引用卡；"
-                   + "2026-11-18 蛰伏并入：蓝技能系统原子同口径直引不进组合）");
+                           "DeclareVictory", "RevealCard" }),
+                   "系统位 7 行：攻击/守卫/设置攻击力/设置生命值/设置费用/对手胜利+展示"
+                   + "（2026-11-20 模拟/变形/蛰伏摘除——组合排除改挂各自机制，不再依赖系统位）");
             foreach (var row in internalRows)
             {
-                bool dynamicCost = CardCore.ComposerCatalog.HasMountBit(row, CardCore.MountKind.DynamicCost);
                 Assert(CardCore.ComposerCatalog.CanBeTrunkRow(row),
                        $"系统行 {row.EnumName} 保留主干挂载资格（数据可挂——仅 UI 不暴露）");
-                Assert(dynamicCost || CardCore.ComposerCatalog.CanBeRewardRow(row),
-                       $"系统行 {row.EnumName} 奖励挂载资格（动态费用行除外——不作 Then 奖励，2026-10-31 定案）");
+                Assert(CardCore.ComposerCatalog.CanBeRewardRow(row),
+                       $"系统行 {row.EnumName} 奖励挂载资格");
             }
+            // 模拟/变形（2026-11-20 摘系统位）：动态费用位=直接引用专属——库隐藏但不锁资格，卡直接引用照旧
+            var morphRows = new[] { "Morph", "GrantMorph" }
+                .Select(n => CardCore.Attribute.AtomicEffectTable.GetByEnumName(n)).ToList();
+            Assert(morphRows.All(r => r != null
+                   && !CardCore.ComposerCatalog.HasMountBit(r, CardCore.MountKind.SystemInternal)
+                   && CardCore.ComposerCatalog.IsDirectReferenceOnlyRow(r)
+                   && CardCore.ComposerCatalog.CanBeTrunkRow(r)
+                   && !CardCore.ComposerCatalog.CanBeRewardRow(r)),
+                   "模拟/变形：非系统、动态费用位=直接引用专属（库隐藏·主干资格保留·不作 Then 奖励——"
+                   + "卡直接引用+卡组合界面绑定引用卡照旧）");
+            // 蛰伏：非系统、无 Domain——并列槽谓词（无 TargetKind 不入）天然排除，不参与组合
+            var dormancyRow = CardCore.Attribute.AtomicEffectTable.GetByEnumName("Dormancy");
+            Assert(dormancyRow != null
+                   && !CardCore.ComposerCatalog.HasMountBit(dormancyRow, CardCore.MountKind.SystemInternal)
+                   && string.IsNullOrEmpty(dormancyRow.Domain)
+                   && (dormancyRow.GetTargetKindList()?.Count ?? 0) == 0
+                   && CardCore.ComposerCatalog.CanBeTrunkRow(dormancyRow),
+                   "蛰伏：非系统、无 Domain（并列槽谓词排除——不参与组合；无域直引照旧，2026-11-19 P0）");
             // 2026-11-18 召唤衍生物退出动态费用：引用卡填入后费用即定，普通/引擎奖励均允许。
             var summonRowForReward = CardCore.Attribute.AtomicEffectTable.GetByType(
                 CardCore.AtomicEffectType.SummonToken);

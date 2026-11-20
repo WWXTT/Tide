@@ -88,7 +88,8 @@ namespace SynergyUI
                 case ComposeMode.FreeBranch:
                 {
                     // 自由分支：单主干槽（引擎行）+ 槽内 Then 奖励块（引擎预设锁效果头）
-                    //（模拟/变形 2026-11-08 退役出组合——挂「系统」位整库隐藏，卡直接引用+卡组合界面绑定）
+                    //（模拟/变形 2026-11-08 退役出组合·2026-11-20 摘「系统」位——改挂「动态费用」位
+                    //  直接引用专属整库隐藏，卡直接引用+卡组合界面绑定）
                     var slot = MakeSlot("主干（引擎行）");
                     if (slot == null) break; // 模板缺失——MakeSlot 已报
                     MarkSelected(slot, SelKind.Parallel, 0);

@@ -86,7 +86,14 @@ namespace CardCore.AI.NeuralEnv
         // UnitCells 格下标 0..8，-1=非落格行）。永久物（生物/结界）PlayCard/RespondPlay 行×空格
         // 逐格展开（MaxPlaceRows=9），Apply 声明成功即 PinCard（镜像 SimpleAI.TryPinPlacement 时点）。
         // 旧 checkpoint/ONNX/fixture 全部作废。
-        public const int LayoutVersion = 18;
+        // v19（2026-11-20 绿套补盲，docs/AI绿套学习与观测补盲_修改计划.md）：globals 58→**70**
+        //——尾加 g[58..69] 剩余可用元素块（己方四色/Any/总量 + 对方四色/Any/总量——「还差几点出
+        // 大哥」「对手能不能响应」可算；牺牲/蛰伏的 +1 Any 收益首次可见）；卡特征 116→152
+        //（原子参数块 AtomParamDim 6→9：+settleKind/branchParam/branchBudget/costTotal 四槽，
+        // 删恒 0 的 Mana 两死维并修掉 dim=6/写 7 值的错位；分支身份进原子哈希）；同日晚批
+        //死亡计数原子属性化（分支挂载退役）再补死亡计数维 [152]→卡特征 **153**。
+        // 旧 checkpoint/ONNX/fixture 全部作废（v18 模型按 dims 拒载→回落 SimpleAI，重训后恢复）。
+        public const int LayoutVersion = 19;
         public const int MaxCardsPerPlayer = 77; // v10：43→77（墓地 4→30、除外 8 入册）
         // v9 己方牌库块（尾接全局块，不走 ZoneLayout 每玩家偏移语义——专用 DeckBase+排序名次路径）：
         public const int DeckSlots = 30;                                      // 截断护栏（初始整组 30 恰满；衍生物入库超出不编码）
@@ -107,8 +114,10 @@ namespace CardCore.AI.NeuralEnv
         //   [27]     组合结构哈希下标（时点/条件/代价/Steps 骨架 =「怎么组合」）
         //   [28]     关键词/tag/光环组合哈希下标
         //   [29..40] 原子 EffectType 下标（原子表内排名，参数无关）
-        //   [41..112] 原子参数浮点块（12 槽 × CardIdentityService.AtomParamDim 维）
-        //   [113][114] 格坐标 x/Width、z/Height（未落格 = -1）
+        //   [41..148] 原子参数浮点块（12 槽 × CardIdentityService.AtomParamDim=9 维；v19 布局见其头注释：
+        //            value(引擎门槛x)/settleKind/branchParam/branchBudget/kinds三槽/amp/costTotal）
+        //   [149][150] 格坐标 x/Width、z/Height（未落格 = -1）
+        //   [151] zoneKind；[152] 死亡计数 /9（2026-11-20 原子属性化补 1 维；关/无=0）
         // 精确哈希 = 冻结的查表身份；类型 + 参数 = 泛化通路。0 = 无该成分 / token / 未登记。
         public const int HashIdStart = 15;
         public const int AtomIdSlots = 12; // 2026-10-16 6→12（正式卡满配9+余量3）
@@ -118,19 +127,31 @@ namespace CardCore.AI.NeuralEnv
         public const int ParamStart = TypeIdStart + AtomIdSlots;               // [41..] 参数块
         public const int PosXSlot = ParamStart + AtomIdSlots * CardIdentityService.AtomParamDim; // [113]
         public const int PosZSlot = PosXSlot + 1;                              // [114]
-        // v9 区域种类 [115]：显式映射（不依 Zone 枚举序，防重排）——0=战场 1=元素池 2=手牌 3=墓地
+        // v9 区域种类 [151]：显式映射（不依 Zone 枚举序，防重排）——0=战场 1=元素池 2=手牌 3=墓地
         // 4=发动区 5=场地区 6=己方牌库块；v10 扩 7=牌库顶虚拟手牌 8=对方牌库被展示 9=除外区；
         // v15 扩 10=场地卡（场地专用槽 WriteFieldCard 直写；战场槽仍 0=只含单位）。
         // 对方隐藏手牌=2（WriteConcealedCard；被展示卡豁免为全特征，仍写 2=手牌）。
-        public const int ZoneKindSlot = PosZSlot + 1;                          // [115]
-        public const int NCard = ZoneKindSlot + 1; // v9：115→116（尾加 zoneKind）；python N_CARD_FEATURES 同步
+        // v19：[115]→[151]（参数块 6→9 维整体后移；语义不变）。
+        public const int ZoneKindSlot = PosZSlot + 1;                          // [151]
+        // 死亡计数维 [152]（2026-11-20 原子属性化补 1 维）：该卡 DeathTollCounter 层数 /9（关/无=0）。
+        // 死亡计数增幅=原子属性 deathToll（与 rand/defer 同级），手牌累计、满 6、进战场冻结、离场清零
+        //——计数实时值此前完全不可见（模型只能从伤害反推），本维补盲。归一化分母 9=历史增幅档上限余量。
+        public const int DeathTollSlot = ZoneKindSlot + 1;                     // [152]
+        public const int NCard = DeathTollSlot + 1; // v19：116→152（参数块 12×9=108）→153（+死亡计数维）；python N_CARD_FEATURES 同步
         // globals v3（50 维，契约 §5——重排序+归一化+放逐计数+弹药维；v2 g[48] 冗余删除）：
         //   g[0..16] 双方生命/30、回合/40、相位、座次、各区计数（墓地/30、牌库/60、放逐新）；
         //   g[17..28] 临时钱包 12 维；g[29] 栈占用；g[30..31] 势能 Φ/30；g[32..33] 地牌上限/14；
         //   g[34..37] 黑白已获得/14；g[38..45] 双方英雄技能块（P1 绝对序）[has,tapped,uses/10,弹药/5]；
         //   g[46..48] 栈深度/16、栈顶来源/MaxCardsTotal、栈顶 effectIdentity/1024；g[49] 决策上下文。
         // v9 尾加 g[50..57]（对方牌库开局标签快照，DeckTagsOf——随卡组创建保留、整局恒定）。
-        public const int NGlobal = 58; // v9：50→58（+8 对方牌库标签）
+        // v19 尾加 g[58..69] 剩余可用元素块（2026-11-20 绿套补盲；视角与 g[0]/g[1] 一致 me/opp）：
+        //   g[58..61] 己方剩余可用元素 灰/红/蓝/绿（/10；=该色钱包余额+该色未横置地牌张数）
+        //   g[62]     己方 Any 彩元素（/10；牺牲/蛰伏入账的临时彩，单独成维——收益首次可见）
+        //   g[63]     己方剩余可用总量（/20；GetRemainingElementTotal=四色+Any 钱包+未横置地牌）
+        //   g[64..67] 对方剩余可用元素（同四色，/10）；g[68] 对方 Any（/10）；g[69] 对方总量（/20）
+        //   ——「还差 2 点就能出 14 费大哥」「对手能不能响应/斩杀」可算；归一化上限参照
+        //   充盈差值封顶 6/地牌上限 14 的既有量级。Python N_GLOBAL_FEATURES 同步 70。
+        public const int NGlobal = 70; // v19：58→70（+12 剩余可用元素块）
         public const int DeckTagStart = 50; // v9 g[50..57] = DeckTagsOf（对方牌库开局标签）
         // 动作特征槽（v8 8→11 维；v13 11→12；v14 12→14；v17 14→17=P1 v0.3 移动/宣言）：
         // [0]valid [1]type [2]sourceIndex [3]targetIndex [4]modeIndex
@@ -552,6 +573,9 @@ namespace CardCore.AI.NeuralEnv
             Cards[b + PosXSlot] = posX;
             Cards[b + PosZSlot] = posZ;
             Cards[b + ZoneKindSlot] = zoneKind; // v9 区域种类（契约 §4）
+            // 死亡计数维（2026-11-20 原子属性化补 1 维）：手牌累计的 DeathTollCounter /9（关/无=0；
+            // 进战场冻结后保持读数——增幅幅度由此可读，配原子 deathToll 哈希段/卡特征可见）
+            Cards[b + DeathTollSlot] = c.GetCounterCount(CounterRules.DeathTollCounter) / 9f;
         }
 
         private void WriteGlobals(GameCore core, Player me, Player opp, bool responseContext)
@@ -584,7 +608,8 @@ namespace CardCore.AI.NeuralEnv
             // g[17..28] 临时钱包（现取现用：效果授予元素，回合末清空）——原六色块（维度 v3 冻结）：
             // 2026-10-28 P2 席位收缩删白/黑后实际四色（Gray/Red/Blue/Green=枚举 0..3），
             // g[21][22]/g[27][28] 死位恒 0（同 g[34..37] 口径）；
-            // Any 彩元素（2026-10-23）不进观测，AI 感知其支付力走 CanAfford 规则口（PlanBill 含链尾 Any）
+            // Any 彩元素（2026-10-23 起）**已进观测**：v19 剩余可用元素块 g[62]/g[68] 单独成维
+            //（牺牲/蛰伏入账的临时彩——旧口径「不进观测」2026-11-20 作废，绿套补盲定案）
             for (int i = 0; i <= (int)ManaType.Green; i++) g[17 + i] = ep.GetPool(me).TempElements[(ManaType)i];
             for (int i = 0; i <= (int)ManaType.Green; i++) g[23 + i] = ep.GetPool(opp).TempElements[(ManaType)i];
             g[29] = core.StackEngine.IsEmpty ? 0f : 1f; // 栈占用（二值）
@@ -618,6 +643,34 @@ namespace CardCore.AI.NeuralEnv
             var deckTags = DeckTagsOf(core.OriginalDeckOf(opp));
             for (int i = 0; i < deckTags.Length; i++)
                 g[DeckTagStart + i] = deckTags[i];
+
+            // v19 剩余可用元素块（g[58..63]=me / g[64..69]=opp，绿套补盲）：
+            // 逐色「钱包余额 + 未横置地牌张数」+ Any 单独成维 + 总量——「还差几点出大哥」
+            //「对手能不能响应/斩杀」可算；牺牲/蛰伏的 +1 Any 收益首次可见。
+            WriteRemainingElements(ep, me, 58);
+            WriteRemainingElements(ep, opp, 64);
+        }
+
+        /// <summary>v19 剩余可用元素 6 维块（g[58..63]=me / g[64..69]=opp，2026-11-20 绿套补盲）：
+        /// [b..b+3] 四色剩余（=该色钱包余额 + 该色未横置地牌张数，/10）、[b+4] Any 彩元素（/10，
+        /// 地牌不锁 Any——只在钱包）、[b+5] 剩余总量（/20，GetRemainingElementTotal 同源）。
+        /// 与脚本侧判据（BlueControlStrategy/RedAggroStrategy 的 GetRemainingElementTotal 族）
+        /// 同资源口径；计数不设钳（钱包无上限，线性外推与手牌计数 g[5]/g[6] 同族）。</summary>
+        private void WriteRemainingElements(ElementPoolSystem ep, Player p, int b)
+        {
+            var g = Globals;
+            var pool = ep.GetPool(p);
+            for (int i = 0; i <= (int)ManaType.Green; i++)
+            {
+                int wallet = pool.TempElements.ContainsKey((ManaType)i) ? pool.TempElements[(ManaType)i] : 0;
+                int untapped = 0;
+                if (pool.PooledCards != null)
+                    foreach (var pc in pool.PooledCards)
+                        if (pc != null && !pc.IsTapped && pc.LockedColor == (ManaType)i) untapped++;
+                g[b + i] = (wallet + untapped) / 10f;
+            }
+            g[b + 4] = (pool.TempElements.ContainsKey(ManaType.Any) ? pool.TempElements[ManaType.Any] : 0) / 10f;
+            g[b + 5] = ep.GetRemainingElementTotal(p) / 20f;
         }
 
         /// <summary>英雄技能 4 维块（契约 g[38..41]=P1 / g[42..45]=P2，绝对座次序）：

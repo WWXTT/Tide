@@ -365,6 +365,24 @@ namespace CardCore
             }).ToList();
         }
 
+        /// <summary>AI/自动代选专用过滤（2026-11-20）：剔除**对手侧「已标死未送墓」**的候选。
+        ///
+        /// 背景：<see cref="CreaturesOf"/> 按 2026-11-05 定案把已标死未送墓的卡留在候选里
+        /// （为「治疗解标死」= 救回机制保留）。但那也意味着 AI 可以对着一具尸体反复选目标：
+        /// 伤害管线只认 <c>IsAlive</c>（DefaultTargetValidator），打到尸体的每一段都会被判无效丢弃
+        /// —— 实测表现为「一次连锁里多段伤害全打同一个 0 血单位、后续本该打角色的全空转」。
+        ///
+        /// 口径：**只剔对手侧尸体**；己方侧（含己方尸体）保留——救回/治疗是己方对己方的动作，
+        /// 设计不变，人类 UI 也不经此口（人类仍可对尸体做救回操作）。
+        /// 调用点单源：EffectHandlerRegistry.ResolveCandidates 在 <c>context.Controller.IsAI</c> 时启用，
+        /// 覆盖 LAE 动作行、SimpleAI 预选、AI 结算期自动代选三路（人类与无头脚本走原候选）。</summary>
+        public static List<Entity> FilterEnemyDeadForAi(List<Entity> candidates, Player chooser)
+        {
+            if (candidates == null || candidates.Count == 0 || chooser == null) return candidates;
+            bool Dead(Entity e) => e is Card card && !card.IsAlive && card.GetController() != chooser;
+            return candidates.Any(Dead) ? candidates.Where(e => !Dead(e)).ToList() : candidates;
+        }
+
         /// <summary>edict 原子（2026-09-13；2026-10-09 摒弃并档后唯一成员=牺牲）：选择权在目标方——
         /// 作用对象=角色、持有者自行选择自家单位结算（牺牲池=生物+结界+地牌，2026-11-03 扩定）。**豁免帷幕**：
         /// 帷幕只约束对手的选择，不管目标方自己选（用户定案）。</summary>

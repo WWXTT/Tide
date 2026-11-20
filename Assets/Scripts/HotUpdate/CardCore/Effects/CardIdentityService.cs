@@ -27,12 +27,21 @@ namespace CardCore
     /// </summary>
     public static class CardIdentityService
     {
-        /// <summary>原子参数浮点布局（观测参数槽 / Python ATOM_PARAM_DIM 对齐，逐原子 7 维）：
-        /// [0]Value [1]Value2 [2]ManaTypeParam [3]Duration [4]DurationValue [5]TargetCountOverride
-        /// [6]DynamicTargetCount。幅度由 AppendAtomParams 统一 Clamp（与观测数值特征同口径）。
+        /// <summary>原子参数浮点布局（v19 2026-11-20 绿套补盲扩维；观测参数槽 / Python ATOM_PARAM_DIM 对齐，逐原子 **9** 维）：
+        /// [0]value（引擎主干原子=解析后门槛 x：显式 value&gt;1 优先 → engineParam&gt;0 → Then/effectId 锚价推导兜底；
+        ///          普通原子（含开 deathToll 增幅的原子）=本体声明值）
+        /// [1]settleKind（0=无分支 / 1=有限分支 Gate / 2=产出条件 Outcome / 3=事件引擎 Engine——分支形态可见）
+        /// [2]branchParam（settle=2 → condParam；settle=3 → engineParam；无分支=0。死亡计数 2026-11-20
+        ///          原子属性化后不走分支——增幅开关=原子 deathToll 布尔，计数实时值在卡特征 [152] 死亡计数维）
+        /// [3]branchBudget（settle=1 → 门槛行 Budget 列（灰，奖励锚价上限）；其余=0）
+        /// [4]kinds.Count [5]kinds[0] [6]kinds[last] [7]amp（沿用 2026-09-14 目标域模型四槽）
+        /// [8]costTotal（该原子所属效果 e.Costs 合计全价 ≤3——「代价进观测」的直接落点，同效果原子共值冗余无害）
+        /// 幅度由 AppendAtomParams 统一 Clamp（与观测数值特征同口径 [-99,999]）。
         /// 与类型下标构成「参数数值通路」：EffectType 嵌入行跨参数共享 + 参数线性投影 →
-        /// 「造成5伤」可从「造成4伤」插值迁移（精确哈希行另走通路，双保险；见 TideObservation [23..]）。</summary>
-        public const int AtomParamDim = 6; // 2026-09-10 目标域模型：Value/Mana总量/Mana色数/kind数/min/max
+        /// 「造成5伤」可从「造成4伤」插值迁移（精确哈希行另走通路，双保险；见 TideObservation [41..]）。
+        /// 历史：2026-09-10 目标域模型缩 6 维，2026-09-14 amp 回加后写入器实写 7 值与 dim=6 错位
+        ///（第 2+ 原子参数块整体偏移一格——观测侧按 stride 6 切片读到前原子尾巴）；v19 全量重键一并消灭。</summary>
+        public const int AtomParamDim = 9; // v19 2026-11-20：6→9（settleKind/branchParam/branchBudget/costTotal 四新槽；删恒 0 的 Mana 两维）
 
         // 2026-11-05 ID 冻结收口：TableFingerprint 整表盐及其缓存一并拆除——身份哈希锚定冻结 ID，
         // 原子表内容编辑（含新增无人引用的行）不再触发训练身份换血。
@@ -113,31 +122,91 @@ namespace CardCore
             => StableIndex(Fnv1a64(effectType), MaxTypeIndex + 1);
 
         /// <summary>原子参数块（AtomParamDim 维，幅度 Clamp 到观测口径 [-99, 999]）。null 原子记全 0。
-        /// 2026-09-10 目标域模型后 6 维：[0]Value [1]Mana总量 [2]Mana色数 [3]kind数 [4]最小kind [5]最大kind。</summary>
-        private static void AppendAtomParams(List<float> parms, AtomicEffectEntry a)
+        /// v19 2026-11-20 九维布局见 <see cref="AtomParamDim"/> 头注释（value/settleKind/branchParam/
+        /// branchBudget/kinds 三槽/amp/costTotal）。costTotal=所属效果 Costs 合计（同效果原子共值）。</summary>
+        private static void AppendAtomParams(List<float> parms, AtomicEffectEntry a, float costTotal)
         {
             if (a == null)
             {
                 for (int i = 0; i < AtomParamDim; i++) parms.Add(0f);
                 return;
             }
-            // 2026-09-14 彻底引用化：参数向量随字段重构（ManaList 删除——两维归零；amp 入向量）
+            var branch = BranchEntryRules.IsPhantom(a.branch) ? null : a.branch;
             var kinds = (a.kinds ?? new List<int>()).Distinct().OrderBy(k => k).ToList();
-            parms.Add(Clamp(a.value));
-            parms.Add(0f); // 原 mana 总量（ManaList 已删）
-            parms.Add(0f); // 原 mana 条数
+            // [0] value：普通原子（含开 deathToll 增幅的原子——2026-11-20 原子属性化，value 仍是本体值）
+            // =声明值；引擎主干原子（settle=Engine；DeathToll 分支已退役，排除子句为旧档残留防御）
+            // =解析后门槛 x——显式 value>1 优先，其次 engineParam，缺省按 Then/effectId 锚价推导
+            //（与运行时判定同源），模型由此可读「攒几费触发 / 倒计时几回合」。
+            bool engineTrunk = branch != null && branch.settle == (int)BranchSettleKind.Engine
+                               && (BranchEngineKind)branch.engine != BranchEngineKind.DeathToll;
+            float v0 = a.value;
+            if (engineTrunk && a.value <= 1) v0 = EngineThresholdX(branch);
+            parms.Add(Clamp(v0));
+            parms.Add(Clamp(branch?.settle ?? 0));
+            parms.Add(Clamp(BranchParamOf(branch)));
+            parms.Add(Clamp(BranchBudgetOf(branch)));
             parms.Add(Clamp(kinds.Count));
             parms.Add(kinds.Count > 0 ? kinds[0] : 0f);
             parms.Add(kinds.Count > 0 ? kinds[kinds.Count - 1] : 0f);
             parms.Add(Clamp(a.amp));
+            parms.Add(Clamp(costTotal));
+        }
+
+        /// <summary>[2] branchParam：settle=Outcome → condParam / settle=Engine → engineParam；
+        /// 无分支/有限分支=0。幽灵分支按无分支处理。死亡计数不走分支（2026-11-20 原子属性化——
+        /// 增幅开关=原子 deathToll 布尔，计数实时值在卡特征 [152] 死亡计数维，不再兜底满值）。</summary>
+        private static float BranchParamOf(BranchEntryData branch)
+        {
+            if (BranchEntryRules.IsPhantom(branch)) return 0f;
+            if (branch.settle == (int)BranchSettleKind.Outcome) return branch.condParam;
+            if (branch.settle == (int)BranchSettleKind.Engine && branch.engineParam > 0)
+                return branch.engineParam;
+            return 0f;
+        }
+
+        /// <summary>[3] branchBudget：settle=Gate（有限分支）→ 门槛行 Budget 列（灰，奖励锚价上限
+        ///——原子表_系统 门槛行预算），gateId 查表；其余/查不到行=0。</summary>
+        private static float BranchBudgetOf(BranchEntryData branch)
+            => branch != null && branch.settle == (int)BranchSettleKind.Gate
+               ? Attribute.AtomicEffectTable.GateBudgetOf(branch.gateId)
+               : 0f;
+
+        /// <summary>引擎门槛 x 解析（观测 [0] 与原子身份哈希共用，与 BranchEngines 运行时判定同源）：
+        /// engineParam&gt;0 用声明值；否则倒计时=<see cref="CostDerivationService.CountdownTurnsOf"/>
+        ///（Then/效果引用费 1:1 换算回合）、拼抢/元素充盈=<see cref="CostDerivationService.EngineRewardThreshold"/>
+        ///（Then 锚价推导）；其余引擎（运势/团结等 x 恒手填）无推导=0。死亡计数不经本口
+        ///（增幅标记，门槛落 [2]）。hostTiming 缺省占位——两推导口现行均不消费时机。</summary>
+        internal static int EngineThresholdX(BranchEntryData branch)
+        {
+            if (BranchEntryRules.IsPhantom(branch) || branch.settle != (int)BranchSettleKind.Engine)
+                return 0;
+            if (branch.engineParam > 0) return branch.engineParam;
+            var then = new List<AtomicEffectInstance>();
+            if (branch.then != null)
+                foreach (var e in branch.then)
+                {
+                    var inst = CardEffectConverter.ConvertAtomForUI(e);
+                    if (inst != null) then.Add(inst);
+                }
+            switch ((BranchEngineKind)branch.engine)
+            {
+                case BranchEngineKind.Countdown:
+                    return CostDerivationService.CountdownTurnsOf(0, then, branch.effectId);
+                case BranchEngineKind.Clash:
+                case BranchEngineKind.ManaSurplus:
+                    return CostDerivationService.EngineRewardThreshold(then, TriggerTiming.OnStandbyPhase);
+                default:
+                    return 0;
+            }
         }
 
         private static float Clamp(float v) => v < -99f ? -99f : (v > 999f ? 999f : v);
 
         // ===================================================== 原子哈希（身份共享单元） =====================================================
 
-        /// <summary>原子 = 原子表条目（锚定冻结行 ID）+ 实例参数与目标覆盖——
-        /// 「造成伤害 a4b823fc + target + value」这类单元，同原子跨卡共享 embedding 行。
+        /// <summary>原子 = 原子表条目（锚定冻结行 ID）+ 实例参数与目标覆盖 + 分支身份段（v19）——
+        /// 「造成伤害 a4b823fc + target + value」这类单元，同原子跨卡共享 embedding 行；
+        /// 同原子不同分支变体（settle/gate/outcome/engine/门槛 x）各自一行。
         /// 2026-11-05 ID 冻结收口：拆整表指纹盐——身份 = 冻结 refId + 实例参数，表内容编辑不再换血。</summary>
         internal static ulong AtomHash(AtomicEffectEntry a)
         {
@@ -145,6 +214,7 @@ namespace CardCore
 
             var sb = new StringBuilder();
             AppendAtom(sb, a);
+            sb.Append("B").Append(BranchIdentity(a.branch)).Append('\n'); // v19 分支身份段
             return Fnv1a(sb.ToString());
         }
 
@@ -153,7 +223,9 @@ namespace CardCore
 
         /// <summary>原子的全部可变参数（2026-09-10 目标域模型：EffectType+Value+ID+Mana+TargetKinds；
         /// 编排属性已上移组合层——进 StructureHash 的效果级字段）。表行内容（费用/极性/域）不入哈希——
-        /// 身份锚定冻结 refId，内容漂移检测归指纹列（工具链）。</summary>
+        /// 身份锚定冻结 refId，内容漂移检测归指纹列（工具链）。
+        /// **不含分支段**（v19 2026-11-20 起本方法同时被 ContentId 复用——卡表 hash 列/效果 hash 列
+        /// 全量锚定此串字节，分支身份只经 <see cref="AtomHash"/> 尾追 B 段，ContentId 路径保持字节不变）。</summary>
         private static void AppendAtom(StringBuilder sb, AtomicEffectEntry a)
         {
             // 2026-09-14 彻底引用化：原子=表行引用+增量（与 ContentHasher 同形态口径）
@@ -164,15 +236,33 @@ namespace CardCore
               .Append(a.amp.ToString("R", System.Globalization.CultureInfo.InvariantCulture)).Append('\n');
         }
 
+        /// <summary>分支身份段（v19 2026-11-20 绿套补盲，只进 AtomHash 不进 ContentId）：
+        /// settle / gateId / outcomeId / engine / condParam / engineParam + 引擎解析门槛 x
+        ///（<see cref="EngineThresholdX"/>——派生含值，「充盈→抽1」与「充盈→2伤」门槛不同即不同行）。
+        /// 无分支/幽灵分支=哨兵 "-"。同原子不同分支变体由此各自一行 embedding（池 16384 富余）；
+        /// StructureHash 已含条件与代价，口径不重复。</summary>
+        private static string BranchIdentity(BranchEntryData b)
+        {
+            if (BranchEntryRules.IsPhantom(b)) return "-";
+            int x = b.settle == (int)BranchSettleKind.Engine ? EngineThresholdX(b) : 0;
+            return string.Join("|", b.settle, b.gateId ?? string.Empty, b.outcomeId ?? string.Empty,
+                b.engine, b.condParam, b.engineParam, x);
+        }
+
         /// <summary>按执行序展平一张卡全部效果树的原子（观测槽位按此顺序编码）。
-        /// 三个平行列表同序追加：精确哈希 / EffectType 下标 / 参数块——哈希计算保持逐字节不变
-        /// （历史清单与既有分配不受本次扩展影响）。</summary>
+        /// 三个平行列表同序追加：精确哈希 / EffectType 下标 / 参数块。
+        /// v19（2026-11-20 绿套补盲）：效果级 Costs 合计（costTotal）随效果穿进每个原子的参数块 [8]
+        /// ——同一效果的原子共值（代价进观测，冗余无害）。</summary>
         private static void CollectAtoms(CardEffectData e, List<ulong> atoms, List<int> types, List<float> parms)
         {
             if (e == null) return;
+            float costTotal = 0f;
+            if (e.Costs != null)
+                foreach (var c in e.Costs)
+                    if (c != null) costTotal += c.Value; // 全价合计（CostEntry.Value，口径同 AppendCosts）
             if (e.Steps != null && e.Steps.Count > 0)
             {
-                foreach (var s in e.Steps) CollectStepAtoms(s, atoms, types, parms);
+                foreach (var s in e.Steps) CollectStepAtoms(s, atoms, types, parms, costTotal);
             }
             else if (e.AtomicEffects != null)
             {
@@ -180,12 +270,13 @@ namespace CardCore
                 {
                     atoms.Add(AtomHash(a));
                     types.Add(AtomTypeIndex(AtomicEffectTable.GetByHashId(a?.refId)?.EnumName));
-                    AppendAtomParams(parms, a);
+                    AppendAtomParams(parms, a, costTotal);
                 }
             }
         }
 
-        private static void CollectStepAtoms(EffectStepData s, List<ulong> atoms, List<int> types, List<float> parms)
+        private static void CollectStepAtoms(EffectStepData s, List<ulong> atoms, List<int> types, List<float> parms,
+            float costTotal)
         {
             if (s == null) return;
             switch (s.kind)
@@ -193,7 +284,7 @@ namespace CardCore
                 case 0:
                     atoms.Add(AtomHash(s.atomic));
                     types.Add(AtomTypeIndex(AtomicEffectTable.GetByHashId(s.atomic?.refId)?.EnumName));
-                    AppendAtomParams(parms, s.atomic);
+                    AppendAtomParams(parms, s.atomic, costTotal);
                     break;
                 case 1:
                     if (s.thenSteps != null)
@@ -201,21 +292,21 @@ namespace CardCore
                         {
                             atoms.Add(AtomHash(a));
                             types.Add(AtomTypeIndex(AtomicEffectTable.GetByHashId(a?.refId)?.EnumName));
-                            AppendAtomParams(parms, a);
+                            AppendAtomParams(parms, a, costTotal);
                         }
                     if (s.elseSteps != null)
                         foreach (var a in s.elseSteps)
                         {
                             atoms.Add(AtomHash(a));
                             types.Add(AtomTypeIndex(AtomicEffectTable.GetByHashId(a?.refId)?.EnumName));
-                            AppendAtomParams(parms, a);
+                            AppendAtomParams(parms, a, costTotal);
                         }
                     break;
                 case 2:
                     if (s.choices != null)
                         foreach (var mode in s.choices)
                             if (mode?.steps != null)
-                                foreach (var ms in mode.steps) CollectStepAtoms(ms, atoms, types, parms);
+                                foreach (var ms in mode.steps) CollectStepAtoms(ms, atoms, types, parms, costTotal);
                     break;
             }
         }

@@ -307,6 +307,9 @@ namespace SynergyUI
             // 表达式=不同内容哈希（防「同 ID 异值」撞指纹）。计价不读它们（定价恒按 value 名义值）。
             if (a.valueMax != 0) sb.Append(",vmax=").Append(a.valueMax);
             if (!string.IsNullOrEmpty(a.valueExpr)) sb.Append(",vexpr=").Append(a.valueExpr);
+            // 死亡计数增幅开关（2026-11-20 原子属性化）：非默认才入哈希（按值省略——存量零漂移）；
+            // 同 refId 开/关增幅=不同内容指纹（漂移检测可见）。
+            if (a.deathToll) sb.Append(",dt=1");
             AppendBranch(sb, a.branch);
         }
 

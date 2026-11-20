@@ -645,7 +645,8 @@ namespace SynergyUI
 
             /// <summary>主干槽可落（2026-10-07 位 0 删除后派生，单一来源=ComposerCatalog.CanBeTrunkRow）：
             /// 非规则光环即可（守护/坚韧已先后退出可挂面——配对制/指示物化）；引擎行经位 5 走主干槽，
-            /// 系统/攻守行有资格但被库过滤（IsLockedKeywordRow）隐藏。</summary>
+            /// 系统/攻守行与直接引用专属行（动态费用·模拟/变形，2026-11-20）有资格但被库过滤
+            /// （IsLockedKeywordRow）隐藏。</summary>
             public bool CanBeTrunk => ComposerCatalog.CanBeTrunkRow(Cfg);
 
             /// <summary>槽内 Then 奖励资格（2026-10-07 位 3 删除后派生=CanBeRewardRow）：

@@ -34,7 +34,7 @@
     "EffectType": "Morph",
     "TargetFilter": null,
     "Polarity": 0,
-    "MountKinds": "系统,动态费用",
+    "MountKinds": "动态费用",
     "Tags": "换区清除型",
     "Tier": "Dm1_5"
   },
@@ -47,7 +47,7 @@
     "EffectType": "GrantMorph",
     "TargetFilter": null,
     "Polarity": 0,
-    "MountKinds": "系统,动态费用",
+    "MountKinds": "动态费用",
     "Tags": "换区清除型",
     "参数": "CardRef",
     "Tier": "Dm1_5"
