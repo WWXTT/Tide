@@ -463,8 +463,10 @@ namespace SynergyUI
         /// 选中写效果 id 进 str；
         /// CardName/Dimension（检索/强夺/窃取/筛选展示/预言两行——押注行 2026-11-02 同收紧类别档）
         /// ＝战斗期弹窗接管（本行隐藏；旧预置 str 保留兼容＝战斗弹窗默认值，不再在此输入）。
-        /// 召唤衍生物：数量走 atom.value 输入（任意正整数），目标数量档不参与；引用卡在卡组合界面设置。槽卡与奖励卡共用。</summary>
-        private void BindAtomDerivativeRow(RectTransform host, AtomicEffectEntry atom)
+        /// 召唤衍生物：数量走 atom.value 输入——并列位任意正整数（2026-11-18 定案）；
+        /// **奖励位（inRewardSlot，2026-11-20 定案）数量恒 1**——只读展示、不可改（要多个请放并列位），
+        /// 模板仍只在卡组合界面设置。槽卡与奖励卡共用本行（MakeAtomCard 传 false / MakeRewardSlot 传 true）。</summary>
+        private void BindAtomDerivativeRow(RectTransform host, AtomicEffectEntry atom, bool inRewardSlot = false)
         {
             var row = UiKit.FindDeep(host, "derivative");
             if (row == null)
@@ -488,10 +490,10 @@ namespace SynergyUI
             }
             else if (isSummon)
             {
-                // 召唤数量=value（任意正整数，2026-11-18 用户定案）；1/2/3 档是 target count，不混用。
-                // 引用模板由卡组合界面「设置衍生物」选定，本屏不显示选卡控件。
+                // 召唤数量=value——并列位任意正整数（2026-11-18 用户定案）；奖励位恒 1（2026-11-20 定案）；
+                // 1/2/3 档是 target count，不混用。引用模板由卡组合界面「设置衍生物」选定，本屏不显示选卡控件。
                 row.gameObject.SetActive(true);
-                BindSummonQuantityField(row, atom);
+                BindSummonQuantityField(row, atom, inRewardSlot);
             }
             else if (isEffectRef)
             {
@@ -532,8 +534,11 @@ namespace SynergyUI
         /// <summary>CardRef 行选择控件（2026-10-31 阶段C）：InputField 退化为只读显示位
         ///（已选=卡名缩略+ID，未选=占位提示），点按本体开卡牌选择弹层。</summary>
         /// <summary>召唤数量输入（2026-11-18）：走 atom.value（任意正整数），与 target count 的
-        /// 1/2/3 档完全分开——效果组合期不选召唤对象，只改数量/时机。</summary>
-        private void BindSummonQuantityField(RectTransform row, AtomicEffectEntry atom)
+        /// 1/2/3 档完全分开——效果组合期不选召唤对象，只改数量/时机。
+        /// 奖励位（2026-11-20 定案）：数量恒 1——只读展示（显示口径 Max(1,·) 与运行时
+        /// SummonTokenHandler 同源钳 1），**不回写 atom.value**（旧档 value=0 原样保留，拍板容忍 0/1）；
+        /// 数量违规（value>1）由槽区 zone 红框拦，不在此静默改数。</summary>
+        private void BindSummonQuantityField(RectTransform row, AtomicEffectEntry atom, bool inRewardSlot)
         {
             var field = UiKit.FindDeep(row, "InputField")?.GetComponentInChildren<TMP_InputField>(true);
             if (field == null)
@@ -542,10 +547,21 @@ namespace SynergyUI
                 return;
             }
             field.gameObject.SetActive(true);
-            field.readOnly = false;
-            field.interactable = true;
             field.contentType = TMP_InputField.ContentType.IntegerNumber;
             int value = Mathf.Max(1, atom.value);
+            if (inRewardSlot)
+            {
+                field.readOnly = true;
+                field.interactable = false;
+                field.SetTextWithoutNotify("1");
+                field.onValueChanged.RemoveAllListeners();
+                UiKit.Described(field, "召唤数量（奖励位）：恒 1——一次只召唤 1 个衍生物（2026-11-20 定案）；"
+                                       + "要一次召唤多个请把召唤放并列位（数量任意正整数）。"
+                                       + "模板在卡牌合成界面「设置衍生物」选择（受该分支奖励上限约束）。");
+                return;
+            }
+            field.readOnly = false;
+            field.interactable = true;
             field.SetTextWithoutNotify(value.ToString());
             field.onValueChanged.RemoveAllListeners();
             field.onValueChanged.AddListener(text =>

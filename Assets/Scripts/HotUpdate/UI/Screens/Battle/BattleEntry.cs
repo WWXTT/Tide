@@ -120,11 +120,13 @@ namespace SynergyUI
         public static bool StagedOpening;
 
         // ===== 木桩测试（2026-10-22；2026-10-23 面板预制体化+选卡组弹窗）：进入战场先不开始——
-        // 选项面板（dummy-options.prefab：先后手/洗牌/元素池）确认后才走五段式开场；对手难度三档
+        // 两步弹窗（2026-11-20 改序：先定卡组与对手，再定先后手）——①选卡组弹窗（dummy-deck.prefab：
+        // 双方卡组+对手难度）→②选项面板（dummy-options.prefab：先后手/洗牌/元素池/种子），两步确认
+        // 后才走五段式开场（导演段四跳过——卡组已定，掷币落定直接开战）；对手难度三档
         //（2026-10-24：0=木桩 ScriptedAi 全让过+被动响应 / 1=脚本 预组主题策略打法，行为归驱动
-        // 自身 / 2=AI 正式对手），双方卡组由玩家在段四选定（木桩/脚本侧限三套主题预组）。持久旗标
-        // 同 StagedOpening 口径：每个对局入口显式置位防串模式；三选项由 BattleScreen 选项面板
-        //（DummyOptionsPanel）写入、EngageLocalBattle 木桩分支消费。=====
+        // 自身 / 2=AI 正式对手），双方卡组在开局前第一步选定（木桩/脚本侧限三套主题预组）。持久旗标
+        // 同 StagedOpening 口径：每个对局入口显式置位防串模式；难度与三选项由 BattleScreen
+        //（StartDummyOpeningAsync 两步弹窗）写入、EngageLocalBattle 木桩分支消费。=====
 
         /// <summary>木桩测试局总开关：true=本地木桩测试（LocalAI+StagedOpening 由入口一并置位）。
         /// BattleScreen.StartLocalFan staged 分支据此先弹选项面板再开场；EngageLocalBattle 据此
@@ -147,8 +149,9 @@ namespace SynergyUI
         /// <summary>木桩局对手难度（2026-11-15 用户定案）：0=木桩（PassiveDummyAi 纯空过——
         /// 不动作/不产色/自动拒绝连锁/引擎自动弃牌）、1=脚本（预组主题策略：MakePacedAi+AutoMatch
         /// 按对方预组 Theme 映红快攻/蓝控制/绿慢速）、2=AI（训练后 NeuralAiDriver——tide_policy.onnx，
-        /// 模型缺失响亮回落 SimpleAI）。仅木桩分支消费（DummyOptionsPanel 弹窗写入、
-        /// DummyDeckPanel 段四消费），其他模式不读无需入口清。</summary>
+        /// 模型缺失响亮回落 SimpleAI）。仅木桩分支消费（2026-11-20 改序：StartDummyOpeningAsync
+        /// 选卡组弹窗确认时写入、EngageLocalBattle 木桩分支消费——旧「段四弹窗写入」口径退役），
+        /// 其他模式不读无需入口清。</summary>
         public static int DummyDifficulty;
 
         /// <summary>木桩局随机种子钉子（2026-11-11 日志复现链）：DummyOptionsPanel「input-seed」

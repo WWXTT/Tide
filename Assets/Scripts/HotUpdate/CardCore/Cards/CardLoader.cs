@@ -1171,6 +1171,30 @@ namespace CardCore
                                 if (!ComposerCatalog.CanBeRewardRow(row))
                                     TideLog.Warn($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id} 原子 {atom.refId}({where})："
                                                    + $"Then 奖励原子 {r.refId} 无派生奖励资格（场地光环/仅连接光环/引擎行不可作奖励）");
+                                // 奖励位召唤（2026-11-20 定案，与卡合成保存闸 RewardSummonCapMessage 同口径）：
+                                // ①数量恒 1——Max(1,·) 容忍旧档 value=0/1（运行时 SummonTokenHandler 同钳 1），
+                                //   >1 仅 Warn（按 1 结算——直改数据兜底，作者侧已被 UI 禁存）；
+                                // ②模板单只计价（SummonUnitPrice=推导费+2）≤ 分支奖励上限
+                                //   （BranchRewardCapOf 单源；-1=无上限——附加诅咒/祝福载荷位不查 cap）。
+                                if (row != null && row.EnumName == nameof(AtomicEffectType.SummonToken))
+                                {
+                                    if (Math.Max(1, r.value) != 1)
+                                        TideLog.Warn($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id} 原子 {atom.refId}({where})："
+                                                       + $"奖励位召唤数量 {r.value}（恒 1——2026-11-20 定案）——装载按 1 结算；要多个请放并列位");
+                                    int summonCap = ComposerCatalog.BranchRewardCapOf(b);
+                                    if (summonCap >= 0 && !string.IsNullOrEmpty(r.str))
+                                    {
+                                        var tpl = Attribute.Handlers.SummonTokenHandler.ResolveTemplate?.Invoke(r.str);
+                                        if (tpl != null)
+                                        {
+                                            float unitPrice = CardCostService.SummonUnitPrice(tpl);
+                                            if (unitPrice > summonCap)
+                                                TideLog.Error($"[CardLoader] 卡 {card.ID}({card.CardName}) 效果 {eff.Id} 原子 {atom.refId}({where})："
+                                                              + $"奖励位召唤模板 {r.str} 单只计价 {unitPrice:0.#}（推导费+2）"
+                                                              + $"超出分支奖励上限 {summonCap}——装载期报错（不拦截）");
+                                        }
+                                    }
+                                }
                             }
                         }
                         if ((BranchSettleKind)b.settle == BranchSettleKind.Engine)

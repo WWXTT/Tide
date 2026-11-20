@@ -209,6 +209,7 @@ namespace SynergyUI
             var reward = b.then?.FirstOrDefault();
             // 非自由主干：参数随预算自动生成（落槽/换门/载入统一归一）——代价门例外（减免量=代价
             // 全价口径 PayloadUnitGrant，不做预算上探；超限由 editor 回退闸与槽区校验拦）
+            // 奖励位召唤（2026-11-20 定案）在 AutoFit 内部显式归一（数量恒 1——含引擎位）。
             if (reward != null && !costGate) AutoFitRewardParams(reward, b);
 
             var area = UiKit.CloneTemplateFrom(_slotArea.Content, "tpl-reward-slot", slot);
@@ -328,7 +329,8 @@ namespace SynergyUI
                 // costGate=代价门数量档剔 0（禁整体——A2 定案创作期补闸，2026-11-06）
                 BindAtomTargetRow(area, reward, RefreshText, pinCountOne: IsAddCostDownRow(rewardCfg),
                     costGate: costGate);
-                BindAtomDerivativeRow(area, reward);
+                // 奖励位传参（2026-11-20）：召唤衍生物数量恒 1——derivative 行只读展示
+                BindAtomDerivativeRow(area, reward, inRewardSlot: true);
 
                 // 奖励发动方式（2026-10-20 定案：奖励=一般效果按自身发动方式发射，主干只管触发判定）：
                 // 仅自由主干（引擎）——代价门不经此档（代价=使用时强制发动）。
@@ -370,7 +372,10 @@ namespace SynergyUI
             if (editor != null && expanded && reward != null)
             {
                 var cfg = AtomicEffectTable.GetByHashId(reward.refId);
-                bool hasValue = (cfg?.Description ?? "").Contains("{value}");
+                // 奖励位召唤（2026-11-20 定案）：数量恒 1——{value} 模板不开放输入
+                //（数量锁在 derivative 行只读展示），藏 field-value 防「能改却违规」。
+                bool summonReward = IsSummonTokenEntry(reward);
+                bool hasValue = !summonReward && (cfg?.Description ?? "").Contains("{value}");
                 var valueNode = UiKit.FindDeep(editor, "field-value");
                 if (valueNode != null)
                 {
@@ -413,7 +418,9 @@ namespace SynergyUI
                         }
                     }
                 }
-                if (!hasValue) MakeHint(editor, "该原子无可调参数（无数值模板）——行为由描述与目标域决定");
+                if (!hasValue) MakeHint(editor, summonReward
+                    ? "召唤数量恒 1（2026-11-20 定案——要多个请放并列位）；模板在卡牌合成界面「设置衍生物」选择"
+                    : "该原子无可调参数（无数值模板）——行为由描述与目标域决定");
             }
 
             // 选中态高亮（2026-10-09：选中色改焦点蓝与原子槽一致（MarkSelected 同色）——只跟奖励槽选中走，选别处即褪色；编辑器展开不携带色）
@@ -442,6 +449,11 @@ namespace SynergyUI
             //（与装载期 ValidateAtomParams 同口径）；引用费超上限照旧拦。超限=GuideFrame 红框+禁存。
             _slotZones.Add(MakeZone(area, () =>
             {
+                // 奖励位召唤数量闸（2026-11-20 定案）：恒 1——Max(1,·) 容忍旧档 value=0/1
+                //（运行时 SummonTokenHandler/显示同口径钳 1；AutoFit 渲染归一已收 >1，此处防御
+                // 不经 AutoFit 的旁路数据——直改 JSON 后载入即红框）。
+                if (reward != null && IsSummonTokenEntry(reward) && Mathf.Max(1, reward.value) != 1)
+                    return "奖励位召唤数量恒 1（一次只召唤 1 个）——删奖励重点选即复位（要多个请放并列位）";
                 if (costGate)
                 {
                     if (b.then == null || b.then.Count == 0)
@@ -519,10 +531,22 @@ namespace SynergyUI
         /// <summary>非自由主干（局面门/产出条件，2026-10-06 定案）奖励参数自动生成——玩家不可控：
         /// 该类奖励预算恒 1/2/3，数值=推导费不超预算的最大整数（锚价随值线性单调，自 1 上探；零锚价行回落 1）、
         /// 随机幅度清零。渲染期统一归一（落槽/换门缩预算/载入旧数据三路同口）。
-        /// 自由主干（引擎）预算可达 9/无上限——维持手控，不经此函数。</summary>
+        /// 自由主干（引擎）预算可达 9/无上限——维持手控，不经此函数。
+        /// **奖励位召唤（2026-11-20 定案，全形态含引擎）：数量恒 1**——不上探预算、随机清零；
+        /// >1 收 1（渲染归一——此前自由位可手输多只的旧数据载入即复位），value=0/1 旧档原样保留
+        ///（运行时 Max(1,·) 同口径，拍板容忍 0/1、不重写）。</summary>
         private static void AutoFitRewardParams(AtomicEffectEntry reward, BranchEntryData b)
         {
             if (reward == null || b == null) return;
+            // 召唤分支须在引擎早退**之前**——引擎位召唤同样锁 1（此前数学上恒落 1 属巧合，
+            // 显式化防未来模板单价/预算表变化破坏；模板费+2≤上限的复检在卡合成绑定与装载期）。
+            var summonRow = AtomicEffectTable.GetByHashId(reward.refId);
+            if (summonRow != null && summonRow.EnumName == nameof(AtomicEffectType.SummonToken))
+            {
+                reward.amp = 0f;
+                if (reward.value > 1) reward.value = 1;
+                return;
+            }
             if ((BranchSettleKind)b.settle == BranchSettleKind.Engine) return;
             int budget = BranchBudget(b);
             if (budget < 0) return;
@@ -589,16 +613,19 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>奖励可实现费用上限（2026-10-09 定案·四口共用；2026-11-02 减费三选一改版）：
+        /// <summary>奖励可实现费用上限（2026-10-09 定案·四口共用；2026-11-02 减费三选一改版；
+        /// 2026-11-20 口径迁 CardCore 单源 ComposerCatalog.BranchRewardCapOf——装载期/卡合成保存/
+        /// 衍生物选卡器与 UI 共用一处）：
         /// 有限分支=门预算（表 Budget 列 1/2；DrawnInStandbyThisTurn=3）钳全局上界 1~3；
         /// 产出条件=条件预算（恒 2）同钳；自由分支=引擎分支恒 6（原 5 同批放宽一档——引擎预算全 -1，
         /// 玩家在 1-6 费区间自由调奖励、门槛随计费推导）
-        /// ——库展示、落槽校验、槽区保存校验（超限禁存）与费用预览分支段共用一口。</summary>
+        /// ——库展示、落槽校验、槽区保存校验（超限禁存）与费用预览分支段共用一口。
+        /// 单源对诅咒载荷位返回 -1（无上限），本口为旧口径兼容回落 6——诅咒位本就不经本口
+        ///（RewardCanDrop/CurrentSlotPredicate 早退无帽），此处回落仅防御。</summary>
         private static int RewardFilterCap(BranchEntryData b)
         {
-            int budget = BranchBudget(b);
-            if (budget >= 0) return Mathf.Min(budget, LimitedBranchFeeCap);
-            return FreeBranchFeeCap;
+            int cap = ComposerCatalog.BranchRewardCapOf(b);
+            return cap >= 0 ? cap : FreeBranchFeeCap;
         }
 
         /// <summary>预言族奖励预算覆盖（2026-11-02 押注行收紧定案）：预言分支（ProphecyHit/Miss·Outcome）

@@ -24,6 +24,11 @@ namespace SynergyUI
             // 键位）、无生命单位（结界）=中槽耐久（旧 Activate 键位）——三槽钉 tile 平贴格面，
             // 随对账数据格迁移（箭头同口径），死亡隐藏/复活恢复
             public TextMeshPro StatAtk, StatLife, StatMid;
+            // AC/FX/DC 能力图标（2026-11-20 战场表现，用户定案三色描边）：平贴数据格——AC=此刻可
+            // 宣言攻击（红描边）、FX=主动效果可用（蓝描边）、DC=守卫资格（绿描边）；仅生物建
+            //（结界/装备无此概念）；sprite 缺失=null 降级不显示。rim=同图放大垫底 tint 高亮色
+            public SpriteRenderer IconAc, IconFx, IconDc;
+            private bool _iconAcOn, _iconFxOn, _iconDcOn; // 最近点亮态（SetStatsVisible 复原用）
             public float StatsHeightY = 1.35f; // 头顶锚高（包围盒顶+余量·旧读数位）：浮字基线/动作按钮锚用
             public int X, Z;
             public bool Dead;
@@ -120,6 +125,32 @@ namespace SynergyUI
                 if (StatAtk != null && StatAtk.gameObject.activeSelf != on) StatAtk.gameObject.SetActive(on);
                 if (StatLife != null && StatLife.gameObject.activeSelf != on) StatLife.gameObject.SetActive(on);
                 if (StatMid != null && StatMid.gameObject.activeSelf != on) StatMid.gameObject.SetActive(on);
+                if (!on)
+                {
+                    // 能力图标随读数灭（2026-11-20）；复活显由随后对账 SetAbilityIcons 按点亮态复原
+                    if (IconAc != null && IconAc.gameObject.activeSelf) IconAc.gameObject.SetActive(false);
+                    if (IconFx != null && IconFx.gameObject.activeSelf) IconFx.gameObject.SetActive(false);
+                    if (IconDc != null && IconDc.gameObject.activeSelf) IconDc.gameObject.SetActive(false);
+                }
+                else ApplyAbilityIcons();
+            }
+
+            /// <summary>能力图标点亮（对账驱动·2026-11-20）：AC=此刻可宣言攻击（CanAttackNow）、
+            /// FX=主动效果可用（HasUsableActiveEffect）、DC=守卫资格（IsGuarding）——显隐=
+            /// SetActive(点亮)；死亡隐经 SetStatsVisible(false)。</summary>
+            public void SetAbilityIcons(bool canAttack, bool canFx, bool guarding)
+            {
+                _iconAcOn = canAttack;
+                _iconFxOn = canFx;
+                _iconDcOn = guarding;
+                ApplyAbilityIcons();
+            }
+
+            private void ApplyAbilityIcons()
+            {
+                if (IconAc != null && IconAc.gameObject.activeSelf != _iconAcOn) IconAc.gameObject.SetActive(_iconAcOn);
+                if (IconFx != null && IconFx.gameObject.activeSelf != _iconFxOn) IconFx.gameObject.SetActive(_iconFxOn);
+                if (IconDc != null && IconDc.gameObject.activeSelf != _iconDcOn) IconDc.gameObject.SetActive(_iconDcOn);
             }
 
             /// <summary>数据格迁移：三槽重钉新 tile（演出 hold 只锁 wrapper 位姿——读数与箭头同口径
@@ -130,6 +161,9 @@ namespace SynergyUI
                 if (StatAtk != null && StatAtk.transform.parent != tile) StatAtk.transform.SetParent(tile, false);
                 if (StatLife != null && StatLife.transform.parent != tile) StatLife.transform.SetParent(tile, false);
                 if (StatMid != null && StatMid.transform.parent != tile) StatMid.transform.SetParent(tile, false);
+                if (IconAc != null && IconAc.transform.parent != tile) IconAc.transform.SetParent(tile, false);
+                if (IconFx != null && IconFx.transform.parent != tile) IconFx.transform.SetParent(tile, false);
+                if (IconDc != null && IconDc.transform.parent != tile) IconDc.transform.SetParent(tile, false);
             }
 
             /// <summary>销毁格面读数件（RemoveStale/RetireUnit/Dispose：三槽钉 tile 不随 wrapper 销毁，须自清）。</summary>
@@ -138,6 +172,9 @@ namespace SynergyUI
                 if (StatAtk != null) { Object.Destroy(StatAtk.gameObject); StatAtk = null; }
                 if (StatLife != null) { Object.Destroy(StatLife.gameObject); StatLife = null; }
                 if (StatMid != null) { Object.Destroy(StatMid.gameObject); StatMid = null; }
+                if (IconAc != null) { Object.Destroy(IconAc.gameObject); IconAc = null; }
+                if (IconFx != null) { Object.Destroy(IconFx.gameObject); IconFx = null; }
+                if (IconDc != null) { Object.Destroy(IconDc.gameObject); IconDc = null; }
             }
         }
 
@@ -227,6 +264,12 @@ namespace SynergyUI
                     : card.Runtime.Life;
                 v.SetStatsValues(card.Runtime.Power, statLife, card.Armor, card.BasePower, card.BaseLife);
             }
+
+            // AC/FX/DC 能力图标（2026-11-20）：AC=可宣言攻击、FX=主动效果可用、DC=守卫资格
+            //——死亡即灭（复活随对账复原）
+            v.SetAbilityIcons(!card.IsDead && card.CanAttackNow,
+                !card.IsDead && card.HasUsableActiveEffect,
+                !card.IsDead && card.IsGuarding);
                 // 数值节拍（2026-10-15）：不再直写——冻结期缓冲、命中节拍释放、变化滚动过渡
                 //（2026-10-26 迁格：节拍数学不变，落笔对象=格面三槽）
         }
@@ -384,8 +427,23 @@ namespace SynergyUI
         private static readonly Vector3 AtkSlotLocal = new Vector3(-0.72f, 0.02f, -0.54f);
         private static readonly Vector3 LifeSlotLocal = new Vector3(0.72f, 0.02f, -0.54f);
         private static readonly Vector3 MidSlotLocal = new Vector3(0.0036f, 0.02f, -0.7884f);
+        // AC/FX/DC 能力图标槽位（2026-11-20）：AC/FX 在攻/血读数（±0.72）外侧（±0.98 tile 局部，
+        // 世界 ±0.80，六角平边带 |z|<0.55 内不越格界）；FX（主动效果）占 2026-10-26 预留的生物
+        // 第三读数位（中槽位）；姿态/反缩与读数同款。摆位/尺寸走查后可调
+        private static readonly Vector3 AcIconLocal = new Vector3(-0.98f, 0.02f, -0.54f);
+        private static readonly Vector3 FxIconLocal = new Vector3(0.0036f, 0.02f, -0.7884f);
+        private static readonly Vector3 DcIconLocal = new Vector3(0.98f, 0.02f, -0.54f);
+        private const float AbilityIconWorldSize = 0.34f;
 
-        /// <summary>按单位类型建槽（结界=中槽耐久；生物=左攻右血；tile 缺失/字体缺失=空挂，对账照写 null 安全）。</summary>
+        // 三图标高亮描边色（2026-11-20 用户定案）：红=攻（AC）·蓝=主动（FX）·绿=守卫（DC）
+        //——rim=同图放大 1.22 垫底 tint 该色（CreateFlatTileIcon 内建）
+        private static readonly Color AcRimColor = new Color(0.95f, 0.28f, 0.30f);
+        private static readonly Color FxRimColor = new Color(0.30f, 0.58f, 0.95f);
+        private static readonly Color DcRimColor = new Color(0.32f, 0.85f, 0.42f);
+        private const float AbilityIconRimScale = 1.22f;
+
+        /// <summary>按单位类型建槽（结界=中槽耐久；生物=左攻右血+AC/FX/DC 能力图标；tile 缺失/字体
+        /// 缺失=空挂，对账照写 null 安全；图标 sprite 缺失=同样 null 降级）。</summary>
         private void CreateStatSlotLabels(BattleCardView card, UnitVisual v)
         {
             var tile = BattleTileFx.TileOf(card.X, card.Z);
@@ -396,7 +454,65 @@ namespace SynergyUI
             {
                 v.StatAtk = CreateFlatStatLabel(tile, "stat-atk", AtkSlotLocal);
                 v.StatLife = CreateFlatStatLabel(tile, "stat-life", LifeSlotLocal);
+                // AC/FX/DC 能力图标（2026-11-20）：AC 挂攻击读数外侧（红）、DC 挂血读数外侧（绿）
+                //——与 ACard 卡面 Ac 挂 Atc/Dc 挂 Hea 同构；FX=主动效果占预留第三读数位（蓝）；
+                // 显隐对账驱动（ReconcileUnit→SetAbilityIcons）
+                EnsureAbilityIconSprites();
+                v.IconAc = CreateFlatTileIcon(tile, "icon-ac", AcIconLocal, _acIconSprite, AbilityIconWorldSize, AcRimColor);
+                v.IconFx = CreateFlatTileIcon(tile, "icon-fx", FxIconLocal, _fxIconSprite, AbilityIconWorldSize, FxRimColor);
+                v.IconDc = CreateFlatTileIcon(tile, "icon-dc", DcIconLocal, _dcIconSprite, AbilityIconWorldSize, DcRimColor);
             }
+        }
+
+        // AC/FX/DC 图标 sprite（2026-11-20）：与 ACard 卡面 Ac/Dc 同图（用户 2026-11-08 铺点资产；
+        // FX=主动效果 2026-11-20 SD-UI-Kit 生成 Assets/Art/Icons/主动.png）；缺图=不建该图标
+        //（对账 null 安全降级，同 UnitCardPlate 口径）
+        private static Sprite _acIconSprite, _fxIconSprite, _dcIconSprite;
+        private static bool _abilityIconsTried;
+
+        private static void EnsureAbilityIconSprites()
+        {
+            if (_abilityIconsTried) return;
+            _abilityIconsTried = true;
+            _acIconSprite = Tide.HotUpdate.HotUpdateAssets.Load<Sprite>("攻击", "Assets/Art/Icons/攻击.png");
+            _fxIconSprite = Tide.HotUpdate.HotUpdateAssets.Load<Sprite>("主动", "Assets/Art/Icons/主动.png");
+            _dcIconSprite = Tide.HotUpdate.HotUpdateAssets.Load<Sprite>("守卫", "Assets/Art/Icons/守卫.png");
+            if (_acIconSprite == null || _fxIconSprite == null || _dcIconSprite == null)
+                Debug.LogWarning("[BattleField] AC/FX/DC 能力图标缺失（Assets/Art/Icons/攻击.png·主动.png·守卫.png）"
+                    + "——战场能力图标缺件降级不显示");
+        }
+
+        /// <summary>格面平贴能力图标（2026-11-20）：与读数同姿态（LookRotation(down,forward)·反缩
+        /// TileScale）；不投/不收影（UnitCardPlate 同口径）；sprite 缺失=返 null 不建。
+        /// rimColor=高亮描边（同图放大 AbilityIconRimScale 垫底 tint 色、低 sortingOrder 压后
+        /// ——图标点亮即带色框，可用状态一目了然）。</summary>
+        private static SpriteRenderer CreateFlatTileIcon(Transform tile, string name, Vector3 local, Sprite sprite,
+            float worldSize, Color rimColor)
+        {
+            if (sprite == null) return null;
+            var go = new GameObject(name);
+            go.transform.SetParent(tile, false);
+            go.transform.localPosition = local;
+            go.transform.localRotation = Quaternion.LookRotation(Vector3.down, Vector3.forward);
+            var sr = go.AddComponent<SpriteRenderer>();
+            sr.sprite = sprite;
+            sr.sortingOrder = 10;
+            sr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            sr.receiveShadows = false;
+            float span = Mathf.Max(sprite.bounds.size.x, 0.01f);
+            go.transform.localScale = Vector3.one * (worldSize / (span * BattleBoardGrid.TileScale));
+
+            // 描边 rim：同 sprite 放大垫底（父显隐/迁移/销毁随图标本体，无需独立记账）
+            var rimGo = new GameObject(name + "-rim");
+            rimGo.transform.SetParent(go.transform, false);
+            rimGo.transform.localScale = Vector3.one * AbilityIconRimScale;
+            var rim = rimGo.AddComponent<SpriteRenderer>();
+            rim.sprite = sprite;
+            rim.color = rimColor;
+            rim.sortingOrder = 9;
+            rim.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            rim.receiveShadows = false;
+            return sr;
         }
 
         /// <summary>格面平贴读数槽（EnsureFlatCellLabel 同口径：面朝上·读向 +x·可读面朝相机——

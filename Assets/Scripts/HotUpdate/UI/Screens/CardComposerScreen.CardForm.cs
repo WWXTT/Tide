@@ -135,18 +135,28 @@ namespace SynergyUI
                 OpenDerivePicker(target);
             });
             Describe(btn, (target.IsMorph ? "变形" : "召唤衍生物") + "槽：点按从卡表选模板卡——候选须"
-                + "生物/非场地结界·不带代价、自身不含衍生物/变形（不可嵌套）；选中即写进效果引用");
+                    + "生物/非场地结界·不带代价、自身不含衍生物/变形（不可嵌套）；选中即写进效果引用"
+                    + (target.IsReward && !target.IsMorph
+                        ? "。本槽在奖励位（2026-11-20 定案）：数量恒 1，模板单只计价=推导费+2"
+                          + (target.RewardCap >= 0 ? $" 须 ≤ 分支上限 {target.RewardCap}" : "（本分支无费用上限）")
+                        : ""));
         }
 
         /// <summary>衍生物模板选卡器（卡表全量+无代价/不嵌套过滤+搜索）：选中写原子 str=定义期直绑
-        ///（运行时解析=实例绑定→原子 str，同 SummonTokenHandler.ResolveBoundTemplateId）。</summary>
+        ///（运行时解析=实例绑定→原子 str，同 SummonTokenHandler.ResolveBoundTemplateId）。
+        /// 奖励位召唤（2026-11-20 定案）：候选另按「单只计价=推导费+2 ≤ 分支奖励上限」过滤
+        ///（TokenTemplateCandidateOk cap 参——上限单源 BranchRewardCapOf；无上限位如祝福载荷不滤）。</summary>
         private void OpenDerivePicker(DeckTokenSupport.TokenSlot slot)
         {
             if (_deriveModal != null) { _deriveModal.Close(); _deriveModal = null; } // 重复点开=换卡窗
             bool creatureOnly = false; // 2026-11-18：召唤/变形模板均可生物或结界
+            // 奖励位召唤 cap（-1=无上限：并列位/变形/祝福载荷位——不滤费；命名避开下方分页 const cap=150）
+            bool rewardSummon = slot.IsReward && !slot.IsMorph;
+            int rewardCap = rewardSummon ? slot.RewardCap : -1;
+            string capZh = rewardCap >= 0 ? $"·推导费+2 ≤ {rewardCap}" : "";
             var kindZh = slot.IsMorph ? "变形" : "召唤衍生物";
             var modal = UiKit.ModalBox(Root,
-                $"选择模板卡——{kindZh}（生物/非场地结界·无代价·不可嵌套）",
+                $"选择模板卡——{kindZh}（生物/非场地结界·无代价·不可嵌套{capZh}）",
                 width: 660f, height: 600f);
             _deriveModal = modal;
 
@@ -168,7 +178,7 @@ namespace SynergyUI
                     UnityEngine.Object.Destroy(scroll.Content.GetChild(i).gameObject);
                 string key = (searchField.text ?? "").Trim();
                 var candidates = CardSorter.Sort(CardCatalog.LoadAll()
-                        .Where(c => DeckTokenSupport.TokenTemplateCandidateOk(c, creatureOnly))
+                        .Where(c => DeckTokenSupport.TokenTemplateCandidateOk(c, creatureOnly, rewardCap))
                         .Where(c => string.IsNullOrEmpty(key)
                                     || (c.CardName ?? "").Contains(key, StringComparison.OrdinalIgnoreCase)
                                     || (c.ID ?? "").Contains(key, StringComparison.OrdinalIgnoreCase)))
@@ -196,8 +206,12 @@ namespace SynergyUI
                 }
                 UiKit.Label("count", scroll.Content,
                     candidates.Count == 0
-                        ? "（无匹配卡——候选须为生物/非场地结界、无代价、不含衍生物/变形）"
-                        : shown < candidates.Count ? $"共 {candidates.Count} 张，仅列前 {cap} 张——用搜索缩小范围"
+                        ? rewardCap >= 2
+                            ? $"（无匹配卡——候选须为生物/非场地结界、无代价、不含衍生物/变形，且推导费+2 ≤ {rewardCap}）"
+                            : rewardCap >= 0
+                                ? $"（预算 {rewardCap} 放不下召唤——单只最低 2 费（0 费模板+2），请换更高预算的分支或放并列位）"
+                                : "（无匹配卡——候选须为生物/非场地结界、无代价、不含衍生物/变形）"
+                        : shown < candidates.Count ? $"共 {candidates.Count} 张，仅列前 150 张——用搜索缩小范围"
                         : $"共 {candidates.Count} 张", 12, UiStyle.TextHint);
             }
 

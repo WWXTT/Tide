@@ -15,7 +15,8 @@ namespace SynergyUI
     /// ③ btn 悬浮层（放置/使用+费用方格；2026-11-01 SpUse 退役——事件全走 Use 钮）：
     ///    2026-11-12 点选制改版——主人扇（OwnerSide）
     ///    费用栏（CostSquares）常驻，Use/Place 只在「本卡被点击选中」且条件达成时亮
-    ///    （悬停不再显钮；条件评估走 FanInteractions 钩子）；指针从卡面移到按钮上
+    ///    （悬停不再显钮；条件评估走 FanInteractions 钩子；点选入口曾随 2026-11-15 全拖拽
+    ///    改版退役、2026-11-20 回退恢复——按钮与拖拽双出牌入口并存）；指针从卡面移到按钮上
     ///    （子孙物体）不收悬停态——Exit 事件按射线落点是否本卡子孙判留；
     /// ④ 可发动边缘雾光（AHandCard/Flowing 节点，2026-10-15 雾气改版）：Flowing 是用户在
     ///    手牌预制体上摆位的常开占位层（垫在嵌套 ACard 卡面之下）；运行时归一为「卡面四边
@@ -369,11 +370,13 @@ namespace SynergyUI
             if (outline != null) outline.enabled = outlined;
         }
 
-        /// <summary>切换选中效果行（模式行点击入口）：边框/费用/文案联动（费用=该模式现付费）。
+        /// <summary>切换选中效果行（模式行点击入口）：边框/费用/使用钮文案联动（费用=该模式现付费）。
         /// 纯 UI 态，不设回合/阶段闸（出牌闸在拖拽/使用链上）。
-        /// 点选制已随 2026-11-15 全拖拽改版退役——行点击只切模式（拖拽出牌按当前选中行直入）。</summary>
+        /// 行点击=点选本卡（2026-11-12 点选制；2026-11-20 回退恢复——11-15 全拖拽改版当日曾退役）：
+        /// 按钮随选中亮（条件达成时）；拖拽出牌按当前选中行直入。</summary>
         public void SelectEffectMode(int index)
         {
+            Fan?.SetSelected(this);
             var rows = Face != null ? Face.ActiveEffectRows : null;
             int n = rows != null && rows.Count > 0 ? rows.Count
                 : (_chromeItem?.ActiveEffectCosts?.Count ?? 0);

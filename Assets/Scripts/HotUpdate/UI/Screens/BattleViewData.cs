@@ -37,6 +37,14 @@ namespace SynergyUI
         public Cardtype Type;  // 卡类型（战场 3D 区分生物模型/结界模型，2026-10-14；查表 miss 时=default 保持生物路径）
         public bool AttackAbility; // 卡面攻击资格（opt-in，2026-11-06）：无攻击能力的生物不显示【攻击】
         public bool GuardAbility;  // 卡面守卫资格（同上；保留给单位动作位图后续消费）
+        public bool CanAttackNow;  // 战场 AC 图标（2026-11-20）：此刻可宣言攻击——主阶段激活+回合方+
+                                    // 攻击者资格（CombatSystem.CanDeclareAttack 单源：攻资格/过载/禁攻令/
+                                    // 横置/攻击力）+效果预算（§11）；目标侧/速度门/教学闸不在图标口径
+        public bool IsGuarding;    // 战场 DC 图标（2026-11-20）：守卫资格在身（HasGuardAbility 含禁守令
+                                    // 关闭；网络快照无光环信息=静态 GuardAbility 近似）
+        public bool HasUsableActiveEffect; // 战场 FX 图标（2026-11-20）：有主动效果且此刻可用（任一主动
+                                           // 效果过 EffectExecutor.CanActivate 单源预检——时点/横置代价/
+                                           // 沉默/沉睡/过载/发动条件/费用/目标域；网络快照=近似口径）
         public bool HasAura;   // 有链接光环效果（聚合缓存 LinkAuras 非空——结界光环环显隐，2026-10-14）
         public int? BasePower, BaseLife; // 印刷基础攻/血（卡表原值；2026-10-15 战场头顶属性配色：
                                          // 持平=白/低于=红/高于=绿；查表 miss=null 恒白）
@@ -252,9 +260,9 @@ namespace SynergyUI
             FillPlayerLocal(d.Opp, core, opp);
 
             foreach (var card in new List<Card>(core.ZoneManager.GetCards(self, Zone.Battlefield)))
-                d.SelfUnits.Add(UnitViewLocal(core, board, card, ownerIsOpponent: false));
+                d.SelfUnits.Add(UnitViewLocal(core, board, card, self, ownerIsOpponent: false));
             foreach (var card in new List<Card>(core.ZoneManager.GetCards(opp, Zone.Battlefield)))
-                d.OppUnits.Add(UnitViewLocal(core, board, card, ownerIsOpponent: true));
+                d.OppUnits.Add(UnitViewLocal(core, board, card, opp, ownerIsOpponent: true));
 
             FillLandsLocal(d.SelfLands, core, board, self, ownerIsOpponent: false);
             FillLandsLocal(d.OppLands, core, board, opp, ownerIsOpponent: true);
@@ -355,11 +363,48 @@ namespace SynergyUI
             }
         }
 
-        private static BattleCardView UnitViewLocal(GameCore core, BoardState board, Card card, bool ownerIsOpponent)
+        private static BattleCardView UnitViewLocal(GameCore core, BoardState board, Card card, Player owner,
+            bool ownerIsOpponent)
         {
             var view = FromRuntime(SerializableRuntimeCardState.FromCard(card), card, ownerIsOpponent);
             int x, z;
             if (board != null && board.TryGetCell(card, out x, out z)) { view.X = x; view.Z = z; }
+
+            // 战场 AC/DC 能力图标（2026-11-20）：与 GameActions.DeclareAttack 同闸单源——主阶段激活
+            //（CanCombatAction）+回合方+攻击者资格（CanDeclareAttack）+效果预算（§11 CanCommit）；
+            // DC=守卫资格（HasGuardAbility 含禁守令）。目标侧资格/速度门/教学闸不入口径（瞬态/无目标）。
+            view.CanAttackNow = core.TurnEngine.CanCombatAction()
+                && core.TurnEngine.TurnPlayer == owner
+                && core.CombatSystem.CanDeclareAttack(card, owner)
+                && CardEffectBudget.Instance.CanCommit(card, out _);
+            view.IsGuarding = card.HasGuardAbility();
+
+            // FX 图标（2026-11-20 主动效果）：任一主动效果过引擎单源预检 CanActivate 即点亮
+            //（SimpleAI.ActivateBattlefieldAbilities 同口径——activator=归属方、activePlayer=
+            // 当前回合方，对手回合对手单位的主动效果同样可判）
+            var executor = core.StackEngine?.GetExecutor();
+            if (executor != null)
+            {
+                var phase = core.TurnEngine.CurrentPhase?.Phase ?? PhaseType.Main;
+                var turnPlayer = core.TurnEngine.TurnPlayer;
+                if (card is CardWrapper fxWrapper)
+                {
+                    var fxData = fxWrapper.GetData();
+                    if (fxData != null && fxData.Effects != null && fxData.Effects.Count > 0)
+                    {
+                        foreach (var def in CardEffectConverter.ConvertAll(fxData.Effects, fxData.ID))
+                        {
+                            if (def == null || !def.IsActivatedEffect) continue;
+                            if (executor.CanActivate(def, card, owner, turnPlayer, phase,
+                                core.TurnEngine.TurnNumber))
+                            {
+                                view.HasUsableActiveEffect = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
             return view;
         }
 
@@ -526,6 +571,7 @@ namespace SynergyUI
                         view.X = x;
                         view.Z = z;
                     }
+                    FillAbilityFlagsNet(view, s, seat, snap); // AC/DC 近似（见方法注）
                     list.Add(view); // 个别未落格卡（容量外）X/Z 保持 -1（悬浮语义）
                 }
                 return;
@@ -565,6 +611,7 @@ namespace SynergyUI
                     var fc = BoardLayout.FieldCell(ownerIsOpponent ? 1 : 0);
                     view.X = fc.x;
                     view.Z = fc.z;
+                    FillAbilityFlagsNet(view, units[i], seat, snap); // AC/DC 近似（见方法注）
                     list.Add(view);
                     continue;
                 }
@@ -585,8 +632,31 @@ namespace SynergyUI
                         next++;
                     }
                 }
+                FillAbilityFlagsNet(view, units[i], seat, snap); // AC/DC 近似（见方法注）
                 list.Add(view);
             }
+        }
+
+        /// <summary>网络局 AC/DC/FX 近似填充（2026-11-20）：快照无引擎对象/光环/预算——AC=静态攻资格+
+        /// 未横置+攻击力>0、FX=卡表带主动效果+未横置，均限「轮到该方主阶段」；DC=静态守卫资格
+        ///（过载/禁攻令/禁守令/沉默/沉睡不感知=近似口径，本地局走 UnitViewLocal 引擎单源真值）。</summary>
+        private static void FillAbilityFlagsNet(BattleCardView view, SerializableRuntimeCardState s,
+            int ownerSeat, MsgGameStateSync snap)
+        {
+            bool ownerMain = snap.ActiveSeat == ownerSeat && (PhaseType)snap.CurrentPhase == PhaseType.Main;
+            view.CanAttackNow = view.AttackAbility && !s.IsTapped && s.Power > 0 && ownerMain;
+            view.IsGuarding = view.GuardAbility;
+            view.HasUsableActiveEffect = HasActiveEffectData(s.ID) && !s.IsTapped && ownerMain;
+        }
+
+        /// <summary>卡表是否带主动效果（网络 FX 图标近似用；本地走引擎单源预检）。</summary>
+        private static bool HasActiveEffectData(string cardId)
+        {
+            var data = CardCatalog.GetByInstanceId(cardId);
+            if (data == null || data.Effects == null || data.Effects.Count == 0) return false;
+            foreach (var def in CardEffectConverter.ConvertAll(data.Effects, data.ID))
+                if (def != null && def.IsActivatedEffect) return true;
+            return false;
         }
 
         private static void FillLandsNet(List<BattleCardView> list, MsgGameStateSync snap, int seat,

@@ -728,10 +728,10 @@ namespace CardCore
                 // 2026-11-16 用户口径（最终）：召唤效果本体 0 费；单只计价 = **卡面推导费 + 2**，
                 // 再乘数量。1/1 去守卫/去攻击后卡面推导费=0，所以 5 只=10、3 只=6。
                 // 无底盘内容全价只作计价参考，不再用于召唤总价。
-                float unit = CardCostService.Derive(template)?.DerivedTotal ?? 0f;
-                if (unit < 0f) unit = 0f;
+                // 单只价提取单源 CardCostService.SummonUnitPrice（2026-11-20）——卡合成选卡器过滤/
+                // 保存闸/装载复检三处与计价共用同一口径，防漂移。
                 int count = Math.Max(1, atom.Value);
-                return (unit + 2f) * count;
+                return CardCostService.SummonUnitPrice(template) * count;
             }
 
             // 属性价梯（2026-09-13 定案：攻/血同锚 0.5/+1，按持续档定价——取代通用公式与持续折扣）：

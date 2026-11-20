@@ -361,6 +361,16 @@ namespace SynergyUI
                 return;
             }
 
+            // 奖励位召唤复检闸（2026-11-20 用户定案·无存量豁免一律拦）：奖励位（branch.then）
+            // 召唤数量恒 1、模板单只计价（推导费+2）须 ≤ 分支奖励上限——效果组合器保存时模板
+            // 常未绑（费 0 恒过闸），此处对绑定结果复检；与装载期 CardLoader.CheckBranchPayload 同口径。
+            string summonGate = RewardSummonCapMessage();
+            if (summonGate != null)
+            {
+                ShowToast(summonGate);
+                return;
+            }
+
             // 名称缺省（2026-10-16 槽位化）：留空=用卡 ID 当卡名。
             // 2026-11-05 ID 冻结：编辑既有卡沿用其 id（名字不再参与身份）；新建/另存才按内容指纹分配。
             bool nameFromId = string.IsNullOrWhiteSpace(_card.CardName);
@@ -419,6 +429,35 @@ namespace SynergyUI
         {
             _card.CardName = string.IsNullOrWhiteSpace(_nameInput?.text) ? null : _nameInput.text.Trim(); // null=保存时缺省成 ID
             // 标签输入已退役（2026-10-16 prefab 重做）：_card.Tags 载入/保存透传，不再从输入框覆写
+        }
+
+        /// <summary>奖励位召唤复检（2026-11-20 定案保存闸·与装载期 CardLoader.CheckBranchPayload
+        /// 同口径·无存量豁免一律拦）：EnumerateSlots 已下钻 branch.then——奖励位召唤槽
+        /// ①数量恒 1（Max(1,·) 容忍旧档 value=0/1——与运行时钳 1 同口径，>1 拦）；
+        /// ②模板单只计价 CardCostService.SummonUnitPrice（=推导费+2）须 ≤ 分支奖励上限
+        /// （TokenSlot.RewardCap=ComposerCatalog.BranchRewardCapOf 单源；-1=无上限——附加祝福
+        /// 载荷位与并列位不查 cap）。变形槽不入本闸（奖励位恒变形不可达——动态费用位排除）。</summary>
+        private string RewardSummonCapMessage()
+        {
+            foreach (var slot in DeckTokenSupport.EnumerateSlots(_card))
+            {
+                if (!slot.IsReward || slot.IsMorph) continue;
+                var atom = slot.Atom;
+                if (Mathf.Max(1, atom == null ? 1 : atom.value) != 1)
+                    return $"效果「{slot.EffectDisplayName ?? "?"}」的奖励位召唤数量恒 1——"
+                           + "到效果组合器改回 1（一次召唤多个请放并列位）";
+                if (slot.RewardCap < 0 || string.IsNullOrEmpty(slot.FixedTemplateId)) continue;
+                var tpl = CardCatalog.GetById(slot.FixedTemplateId);
+                if (tpl == null) continue; // 断链另由 CardRefMissingMessage/装载期点名
+                float price = CardCostService.SummonUnitPrice(tpl);
+                if (price > slot.RewardCap)
+                {
+                    string name = string.IsNullOrEmpty(tpl.CardName) ? tpl.ID : tpl.CardName;
+                    return $"效果「{slot.EffectDisplayName ?? "?"}」奖励位召唤的模板「{name}」"
+                           + $"单只计价 {price:0.#}（推导费+2）超出该分支奖励上限 {slot.RewardCap}——换更便宜的模板";
+                }
+            }
+            return null;
         }
 
         /// <summary>CardRef 未选检查（2026-10-31 阶段C 保存闸）：枚举全效果原子（与装载期

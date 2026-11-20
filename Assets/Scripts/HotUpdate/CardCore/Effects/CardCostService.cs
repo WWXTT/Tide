@@ -96,6 +96,20 @@ namespace CardCore
     /// </summary>
     public static class CardCostService
     {
+        /// <summary>召唤衍生物单只计价（2026-11-20 自 CostDerivation 召唤段提取单源）：
+        /// = 模板卡推导费 DerivedTotal（负值钳 0）**+ 2**（召唤本体固定加成）。
+        /// 2026-11-16 用户口径（最终）：召唤效果本体 0 费；1/1 去守卫/去攻击后推导费=0，故 0 费模板单只=2。
+        /// 消费方（四处同源，防口径漂移）：①计价 ComputeAtomBaseAmount 召唤段（×数量成总价）；
+        /// ②卡合成衍生物选卡器 cap 过滤（TokenTemplateCandidateOk）；③卡合成保存闸与装载期
+        /// CheckBranchPayload 的「奖励位模板费+2 ≤ 分支奖励上限」复检；④奖励上限常量口径见
+        /// ComposerCatalog.BranchRewardCapOf。模板 null（断链）返回 2——调用方另有断链报错，此处不重复拦。</summary>
+        public static float SummonUnitPrice(CardData template)
+        {
+            float unit = Derive(template)?.DerivedTotal ?? 0f;
+            if (unit < 0f) unit = 0f;
+            return unit + 2f;
+        }
+
         /// <summary>主入口：由卡内容推导完整结果（档位 Ĉ=推导总额所在档——不读存档 costList）。</summary>
         public static CardCostResult Derive(CardData card)
         {

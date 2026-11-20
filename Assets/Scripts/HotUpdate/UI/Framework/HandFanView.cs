@@ -13,8 +13,10 @@ namespace SynergyUI
     /// 2026-11-12 点选制改版：OwnerSide=true 的扇区（本地玩家出牌扇）改为点击选中制——
     /// 卡体点击=选中/再点取消，Use/Place 只在选中且条件达成时亮（悬停不再显钮），
     /// btn 费用栏（CostSquares）常驻，扇外点击收扇到最小档。
-    /// 2026-11-15 全拖拽改版：主人扇出牌主入口=拖拽（OnDragEnd 落点三分——战场=发动/地牌长条
-    /// =放地/边缘=取消；分类与合法性在宿主屏，扇区只管跟手与回手）。</summary>
+    /// 2026-11-15 全拖拽改版：主人扇出牌增拖拽入口（OnDragEnd 落点三分——战场=发动/地牌长条
+    /// =放地/边缘=取消；分类与合法性在宿主屏，扇区只管跟手与回手）。
+    /// 2026-11-20 回退（用户定案）：恢复点选亮钮，按钮与拖拽双出牌入口并存——点选入口=
+    /// NotifyCardClicked/SelectEffectMode；拖拽起手 BeginDrag→Collapse 清点选不冲突。</summary>
     public sealed class FanInteractions
     {
         /// <summary>主人扇标记：true=本地玩家出牌扇（点选制+费用栏常驻+扇外点击收扇）；
@@ -137,11 +139,14 @@ namespace SynergyUI
                 _hovered?.RefreshActionButtons();
         }
 
-        /// <summary>卡体点击转发（HandFanCard.OnPointerClick）：转发 OnCardClick 钩子（对方手牌扇开
-        /// 「对方手牌」Information，2026-11-03；未挂=无操作）。点选制已随 2026-11-15 全拖拽改版退役
-        ///（出牌主入口=拖拽；卡面效果行点击仍切施放模式）。</summary>
+        /// <summary>卡体点击转发（HandFanCard.OnPointerClick）：主人扇（OwnerSide）先做点选
+        ///（2026-11-12 点选制；2026-11-20 回退恢复——11-15 全拖拽改版当日曾随主入口迁移退役，
+        /// 致 Use/Place 永不亮）：选中/再点同卡取消——按钮随之亮灭；再转发 OnCardClick 钩子
+        ///（对方手牌扇开「对方手牌」Information，2026-11-03；未挂=无操作）。</summary>
         internal void NotifyCardClicked(HandFanCard card)
         {
+            if (_hooks?.OwnerSide == true)
+                SetSelected(_selected == card ? null : card); // 再点同卡=取消选牌
             var cb = _hooks?.OnCardClick;
             if (cb != null) cb(card);
         }

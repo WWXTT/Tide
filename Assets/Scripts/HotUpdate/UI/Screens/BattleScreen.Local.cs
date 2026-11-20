@@ -65,7 +65,8 @@ namespace SynergyUI
                 WireLocalUi();
                 if (BattleEntry.DummyTest)
                 {
-                    // 木桩测试（2026-10-22）：进入先不开始——选项面板确认后才走五段式开场
+                    // 木桩测试（2026-10-22；2026-11-20 改序）：进入先不开始——先选卡组弹窗（双方卡组+
+                    // 对手难度）再选项面板（先后手/洗牌/元素池/种子），两步确认后才走五段式开场
                     StartDummyOpeningAsync().Forget();
                     return;
                 }
@@ -124,16 +125,37 @@ namespace SynergyUI
                 playerFirst, forceMatch: true, myTokenBindings, aiTokenBindings);
         }
 
-        /// <summary>木桩测试开局（2026-10-22）：进入战场先不开始——模态弹选项面板（先后手/洗牌/
-        /// 元素池），确认后按选项走五段式开场（固定先后手=开场跳过掷币段；掷硬币=照常）；
-        /// 返回主菜单=直接退屏（无引擎已建，OnExit 常规收口即可）。三选项经 BattleEntry
-        /// 静态口带给 EngageLocalBattle 木桩分支（段五交班时消费）。</summary>
+        /// <summary>木桩测试开局（2026-10-22；2026-11-20 改序：先定卡组与对手→再定先后手→掷币后
+        /// 直接开战）：进入战场先不开始——①模态弹选卡组弹窗（双方卡组下拉+对手难度——DummyDeckPanel），
+        /// 确认后②弹选项面板（先后手/洗牌/元素池/种子——DummyOptionsPanel）；两步确认后才走五段式
+        /// 开场（导演段四跳过——卡组已定，固定先后手=开场跳过掷币段、掷硬币=照常，落定即段五交班）。
+        /// 任一步取消=直接退屏（无引擎已建，OnExit 常规收口即可）。卡组名经导演构造参、难度与三选项
+        /// 经 BattleEntry 静态口带给 EngageLocalBattle 木桩分支（段五交班时消费）。</summary>
         private async UniTaskVoid StartDummyOpeningAsync()
         {
+            // ① 先定卡组与对手（2026-11-20 用户改案：提前到先后手确定之前）
+            Debug.Log("[木桩] 选卡组弹窗已显示（等待确认）");
+            // dead 语义=「已死该退出」，须传 !_running（2026-10-22 根因注记，两弹窗同口径）：
+            // 传反=面板当帧判死退出→恒走取消分支→当帧 Back 回主菜单（"点了没反应"）。
+            var deckPick = await DummyDeckPanel.ShowAsync(() => !_running, Root);
+            if (!_running)
+            {
+                Debug.Log("[木桩] 选卡弹窗拆屏退出（_running=false）");
+                return; // 拆屏（面板随 Root 销毁自清）
+            }
+            if (deckPick == null || deckPick.Cancelled)
+            {
+                Debug.Log("[木桩] 选卡弹窗取消——返回主菜单");
+                Manager.Back();
+                return;
+            }
+            BattleEntry.DummyDifficulty = deckPick.Difficulty;
+            Debug.Log("[BattleScreen] 木桩选卡：我方=" + (deckPick.MyDeckName ?? "随机")
+                + " 对方=" + (deckPick.AiDeckName ?? "随机")
+                + " 难度=" + DummyDeckPanel.DifficultyLabels[deckPick.Difficulty]);
+
+            // ② 再定先后手/洗牌/元素池/种子
             Debug.Log("[木桩] 选项面板已显示（等待确认）");
-            // 2026-10-22 根因修复：dead 语义=「已死该退出」，须传 !_running。旧代码照抄
-            // BattleOpeningDirector 的 () => _running 惯例（那边内部取反），导致面板刚建好
-            // 循环即判死退出→恒走取消分支→当帧 Back 回主菜单（用户所见"点了没反应"）。
             var picked = await DummyOptionsPanel.ShowAsync(() => !_running, Root);
             if (!_running)
             {
@@ -153,8 +175,10 @@ namespace SynergyUI
             Debug.Log("[BattleScreen] 木桩选项：先后手=" + (picked.PlayerFirst == null ? "掷硬币"
                     : picked.PlayerFirst == true ? "我方先手" : "对方先手")
                 + " 洗牌=" + picked.Shuffle + " 元素池充满=" + picked.FullPool);
+            // ③ 五段式开场：段四跳过（卡组第①步已定），掷币/固定先后手落定即段五交班开战
             _opening = new BattleOpeningDirector(() => _running, _field, false, EngageStagedBattle,
-                picked.PlayerFirst, dummy: true, overlayParent: Root, onCancelled: () => Manager.Back());
+                picked.PlayerFirst, dummy: true,
+                dummyMyDeck: deckPick.MyDeckName, dummyAiDeck: deckPick.AiDeckName);
             _opening.RunAsync().Forget();
         }
 
@@ -332,7 +356,8 @@ namespace SynergyUI
         {
             // 手牌扇交互接线（2026-10-14；SpUse 钩子随 2026-11-01 上卡退役）：
             // 2026-11-12 点选制（OwnerSide）：点击选中才亮「放置/使用」钮、费用栏常驻、
-            // 扇外点击收扇到最小；可发动流光照旧对账刷新（对手扇不注入=无按钮）
+            // 扇外点击收扇到最小（点选入口 2026-11-20 回退恢复——曾随 11-15 全拖拽改版退役）；
+            // 可发动流光照旧对账刷新（对手扇不注入=无按钮）；按钮与拖拽双出牌入口并存
             _selfFan?.SetInteractions(new FanInteractions
             {
                 OwnerSide = true,

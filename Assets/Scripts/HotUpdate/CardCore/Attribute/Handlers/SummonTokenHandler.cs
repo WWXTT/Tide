@@ -8,6 +8,12 @@ namespace CardCore.Attribute.Handlers
     /// 召唤衍生物（SummonToken）——时点接线配套原子（原 PutToBattlefield 枚举位收编）。
     ///
     /// 设计定案：
+    /// - 位置口径（2026-11-20）：**并列位**数量任意正整数；**奖励位**（branch.then 奖励/附加祝福
+    ///   载荷）数量恒 1（UI 锁定+保存/装载双闸；本 handler 按 Max(1,Value) 同口径兜底），
+    ///   模板单只计价=推导费+2（CardCostService.SummonUnitPrice 单源）须 ≤ 分支奖励上限
+    ///   （ComposerCatalog.BranchRewardCapOf；附加诅咒/祝福载荷位无上限）。附加诅咒位收不了
+    ///   召唤——极性闸（CursePayloadError/装载校验）拦 +1 行，且载荷控制者=施加方（CurseSystem），
+    ///   放行会落施加方场而非「塞给对手」。
     /// - token 有全套卡参数（模板 = CardData），与卡的核心区别是**不唯一**；
     /// - 实例 ID = 模板ID#序号（TimestampSystem.NextSequence，对局中临时赋值作索引，
     ///   先例 CopyEffectsEngine.GenerateCopyID；实例 ID 唯一化避免 TextChangeLayer._cardIdMap 同 ID 互覆）；

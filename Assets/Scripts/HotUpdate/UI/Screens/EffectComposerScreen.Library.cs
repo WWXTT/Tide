@@ -395,11 +395,19 @@ namespace SynergyUI
                         // 2026-11-10 用户定案：
                         // · 附加诅咒/祝福：原子 Then（单个）+ 主动·并列效果引用双通道——原子照常点库落槽，
                         //   组合效果走「载荷效果」行（不入本库）。
+                        // · 2026-11-20 补极性过滤（与 CursePayloadError 保存闸同式：祝福 +1 / 诅咒 −1）——
+                        //   此前库不滤极性，召唤衍生物(+1)等不匹配行能拖进诅咒槽却存不了（断头交互），
+                        //   现在库层直接不列（含召唤——运行时方向与极性模型的矛盾见 CurseSystem：载荷
+                        //   控制者=施加方，+1 召唤会落施加方场，非「塞给对手」）。
                         // · 自由分支前 6 引擎：奖励=单个原子，按原子费×宿主时机系数 ≤6 过滤；无效果引用。
                         if (b != null && IsCurseEngine((BranchEngineKind)b.engine))
                         {
-                            contextZh = "载荷（单个原子——点库落槽；主动·并列组合效果走「载荷效果」行，双通道可并存）";
-                            return lp => lp.CanBeBranchReward && !lp.IsWrongSideOnly;
+                            bool wantPositive = (BranchEngineKind)b.engine == BranchEngineKind.BlessingOnDraw;
+                            contextZh = wantPositive
+                                ? "载荷（单个原子·极性 +1——点库落槽；主动·并列组合效果走「载荷效果」行）"
+                                : "载荷（单个原子·极性 −1——点库落槽；主动·并列组合效果走「载荷效果」行）";
+                            return lp => lp.CanBeBranchReward && !lp.IsWrongSideOnly
+                                         && (wantPositive ? lp.Cfg.Polarity >= 0.5f : lp.Cfg.Polarity <= -0.5f);
                         }
                         contextZh = "Then 奖励（单个原子——原子费×宿主时机系数 ≤6）";
                         return lp => b != null && lp.CanBeBranchReward && !lp.IsWrongSideOnly

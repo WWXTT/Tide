@@ -14,7 +14,8 @@ namespace SynergyUI
     /// 战场五段式开局编排器（2026-10-19 掷币演出挪战场定案）：
     /// 1 地块就位（等 BattleBoardAssemble 浮起落位）→ 2 角色就位（立柱自板下升起）→
     /// 3 硬币先后手（镜头推近板心+BattleCoinToss）→
-    /// 4 战场选卡组（BattleDeckPickStage·双选两轮/教学四连战单轮·后续场沿用已选）→ 5 交班段五：
+    /// 4 战场选卡组（BattleDeckPickStage·双选两轮/教学四连战单轮·后续场沿用已选；木桩局跳过——
+    /// 卡组与对手开局前已定，2026-11-20 改序：先选卡组→再定先后手→掷币后直接开战）→ 5 交班段五：
     /// 组装卡组喂 BattleScreen.EngageLocalBattle（StartNewGame/教学装配/AI 先手 kickoff 全在段五）。
     ///
     /// 演出期任意点击=当前段快进（skip 旗标，段四选卡组除外——须真实输入）；相机推拉自持
@@ -28,12 +29,13 @@ namespace SynergyUI
         private readonly Func<bool> _running;
         private readonly BattleFieldView _field;
         private readonly bool _lunzhuan;      // 教学四毕业连战（2026-11-02 改版·2026-11-11 重编号）：段四单轮选我方（后续场沿用）、段五对手=预组序列
-        private readonly bool _dummy;          // 木桩测试局（2026-10-23）：段四改掷币后弹 UI 选卡窗
+        private readonly bool _dummy;          // 木桩测试局（2026-10-23；2026-11-20 改序）：卡组与对手开局前已定（见 _dummyMyDeck/_dummyAiDeck），段四跳过
         private readonly Action<List<CardData>, string, List<CardData>, string, bool?,
             List<DeckTokenBinding>, List<DeckTokenBinding>> _engage;
         private readonly bool? _fixedPlayerFirst; // 木桩测试固定先后手（null=照常掷币）
-        private readonly RectTransform _overlayParent;  // 木桩段四弹窗挂载父（BattleScreen.Root）
-        private readonly Action _onCancelled;      // 木桩段四弹窗取消（返回主菜单）
+        private readonly string _dummyMyDeck;     // 木桩局卡组（2026-11-20 改序：开局前 StartDummyOpeningAsync 弹窗选定；null=随机）
+        private readonly string _dummyAiDeck;     // 木桩局对方卡组（同上；null=随机）
+        private readonly RectTransform _overlayParent;  // 网络段四面板挂载父（BattleScreen.Root；木桩段四弹窗已随 2026-11-20 改序退役）
 
         // 联机五段式（2026-10-28 开局流程改版）：段三掷币结果=服务器权威注入（掷币模式照常演出/
         // 固定先后手模式快进直出浮字），段四=NetworkDeckPanel（30s 服务器权威倒计时+各自选卡组），
@@ -62,7 +64,8 @@ namespace SynergyUI
             Action<List<CardData>, string, List<CardData>, string, bool?,
                 List<DeckTokenBinding>, List<DeckTokenBinding>> engage,
             bool? fixedPlayerFirst = null, bool dummy = false,
-            RectTransform overlayParent = null, Action onCancelled = null,
+            string dummyMyDeck = null, string dummyAiDeck = null,
+            RectTransform overlayParent = null,
             bool network = false, bool netPlayerFirst = false, bool netCoinAnimation = true,
             Action<string, string[], string, string[], List<DeckTokenBinding>> netEngage = null,
             bool netDeckSubmitted = false)
@@ -73,8 +76,9 @@ namespace SynergyUI
             _engage = engage;
             _fixedPlayerFirst = fixedPlayerFirst;
             _dummy = dummy;
+            _dummyMyDeck = dummyMyDeck;
+            _dummyAiDeck = dummyAiDeck;
             _overlayParent = overlayParent;
-            _onCancelled = onCancelled;
             _network = network;
             _netPlayerFirst = netPlayerFirst;
             _netCoinAnimation = netCoinAnimation;
@@ -280,8 +284,9 @@ namespace SynergyUI
         /// <summary>段四：候选卡组建堆 → 双选两轮/教学四连战单轮；返回卡组名（null=随机）。
         /// 连战后续场次（2026-11-02 改版）：LunzhuanGauntlet.Picked=沿用已选卡组跳过重选
         ///（MyDeckName=null=首轮选了随机，同样沿用）。
-        /// 木桩局（2026-10-23 用户改案）不走 3D 卡堆——掷币后弹 DummyDeckPanel（双方卡组下拉选
-        /// +对手难度木桩/脚本/AI），难度经 BattleEntry.DummyDifficulty 带给段五 Engage。</summary>
+        /// 木桩局（2026-10-23 弹窗选卡；2026-11-20 改序提前）不走 3D 卡堆也不在本段弹窗——卡组与
+        /// 对手难度已在开局前由 BattleScreen.StartDummyOpeningAsync 第一步弹窗选定（DummyDeckPanel），
+        /// 本段直接返回已选名（null=随机），掷币落定即段五交班。</summary>
         private async UniTask<(string myName, string aiName)> DeckPickStageAsync()
         {
             if (_lunzhuan && LunzhuanGauntlet.Picked)
@@ -292,17 +297,11 @@ namespace SynergyUI
             }
             if (_dummy)
             {
-                _deckPicking = true; // 点击不作快进（同 3D 选卡期口径）
-                var pick = await DummyDeckPanel.ShowAsync(() => Dead, _overlayParent);
-                _deckPicking = false;
-                if (pick.Cancelled)
-                {
-                    _onCancelled?.Invoke(); // 返回主菜单（Back→OnExit→Dispose→Dead，段五不再推进）
-                    return (null, null);
-                }
-                BattleEntry.DummyDifficulty = pick.Difficulty;
-                Debug.Log($"[BattleOpening] 段四（木桩弹窗）我方={pick.MyDeckName} 对方={pick.AiDeckName} 难度={DummyDeckPanel.DifficultyLabels[pick.Difficulty]}");
-                return (pick.MyDeckName, pick.AiDeckName);
+                // 木桩局（2026-11-20 改序）：卡组与对手难度开局前已定（StartDummyOpeningAsync 第一步
+                // 弹窗，难度同步写 BattleEntry.DummyDifficulty）——段四跳过，掷币落定即段五交班开战。
+                Debug.Log($"[BattleOpening] 段四（木桩·卡组已提前选定）我方={_dummyMyDeck ?? "随机"} "
+                    + $"对方={_dummyAiDeck ?? "随机"}——跳过选卡段，先后手落定直接开战");
+                return (_dummyMyDeck, _dummyAiDeck);
             }
 
             // 普通局：3D 卡堆双选（2026-10-22 三套主题卡组迁教学：候选=玩家存档+只读预组合并口。
@@ -448,7 +447,7 @@ namespace SynergyUI
         private static readonly string[] OrderLabels = { "掷硬币决定", "我方先手（固定）", "对方先手（固定）" };
         private static readonly string[] ShuffleLabels = { "洗牌", "不洗牌（卡组文件序）" };
         private static readonly string[] PoolLabels = { "常规开局", "充满40个四色地" };
-        private const string HintText = "掷硬币后弹窗选定双方卡组与对手难度（木桩/脚本/AI）；对手卡组限三套主题卡组。";
+        private const string HintText = "双方卡组与对手难度已在上一步选定；本页确定先后手与开局选项——掷硬币后直接开战。";
 
         private RectTransform _root;
         private Options _result;
@@ -594,7 +593,9 @@ namespace SynergyUI
     /// row-my/row-ai 各一 TMP_Dropdown（卡组会很多，循环钮退役、下拉可滚，全量列出不封顶）、
     /// row-diff 循环钮（难度三档）、btn-start/btn-back。对方卡组选项随难度分化（2026-10-24 定案）：
     /// 木桩/脚本=仅三套主题预组；AI=玩家牌库+预组皆可选（换列表同名保值）。
-    /// 开战=确认；返回主菜单=Cancelled（导演回调退屏）。
+    /// 2026-11-20 改序：弹窗迁到开局首位（先定卡组与对手→再定先后手→掷币后直接开战）——调用方=
+    /// BattleScreen.StartDummyOpeningAsync（原掷币后段四弹出退役）；确认=进入先后手选项面板而非
+    /// 直接开战；返回主菜单=Cancelled（调用方退屏）。
     /// </summary>
     public sealed class DummyDeckPanel
     {
@@ -621,7 +622,6 @@ namespace SynergyUI
         private RectTransform _root;
         private Pick _result;
         private bool _cancelled;
-        private TMPro.TMP_Text _countLabel; // 30s 倒计时角标（2026-10-28，ShowAsync 驱动）
         private readonly List<string> _openNames = new List<string>();  // 玩家牌库+预组（我方与 AI 档对方共用）
         private readonly List<string> _openLabels = new List<string>();
         private readonly List<string> _presetNames = new List<string>(); // 仅三套预组（木桩/脚本档对方）
@@ -631,54 +631,21 @@ namespace SynergyUI
         private int _diff;                 // 难度档（0=木桩 1=脚本 2=AI）
 
         /// <summary>弹窗并等结果（dead=已死该退出；Cancelled=true=返回主菜单）。
-        /// 2026-10-28 统一开局节奏：30s 倒计时（面板右上角），到点自动以当前对方卡组+随机我方卡组开战
-        ///（用户定案：不选=随机卡组；本地无服务器，超时兜底在客户端）。</summary>
+        /// 30s 倒计时已随 2026-11-20 改序退役：原语义=超时以当前对方卡组+随机我方卡组直接开战，
+        /// 弹窗迁到开局首位后其后还有先后手选项面板，「超时开战」不再成立，故不做超时强制选择。</summary>
         public static async UniTask<Pick> ShowAsync(Func<bool> dead, RectTransform parent)
         {
             var panel = new DummyDeckPanel(parent);
             try
             {
-                float deadline = Time.realtimeSinceStartup + 30f;
-                panel.ShowCountdown(30);
-                float lastSecondShown = 30f;
                 while (!dead() && panel._result == null && !panel._cancelled)
-                {
-                    float left = deadline - Time.realtimeSinceStartup;
-                    if (left <= 0f)
-                    {
-                        var aiName = panel.AiSelectionName();
-                        Debug.Log($"[木桩] 选卡组 30s 超时——我方随机卡组开战（对方={aiName ?? "默认"}）");
-                        panel._result = new Pick(null, aiName, panel._diff, false); // 我方 null=随机（段五 RandomDeck 兜底）
-                        break;
-                    }
-                    int sec = Mathf.CeilToInt(left);
-                    if (sec != lastSecondShown) { lastSecondShown = sec; panel.ShowCountdown(sec); }
                     await UniTask.Yield();
-                }
                 return panel._result ?? new Pick(null, null, 0, true); // dead/取消=取消口径
             }
             finally
             {
                 panel.Dispose();
             }
-        }
-
-        /// <summary>倒计时角标刷新（右上角，ShowAsync 驱动；文本节点由 EnsureCountdownLabel 惰性建）。</summary>
-        private void ShowCountdown(int secondsLeft)
-        {
-            if (_countLabel == null && _root != null)
-            {
-                _countLabel = UiKit.Label("lbl-countdown", _root, "", 24,
-                    new Color(0.95f, 0.76f, 0.30f), TextAnchor.UpperRight, FontStyle.Bold);
-                // 注：UiKit.Label 返回 TMP_Text（文件未 using TMPro——此行类型随赋值目标协变）
-                var rt = _countLabel.rectTransform;
-                rt.anchorMin = rt.anchorMax = new Vector2(1f, 1f);
-                rt.pivot = new Vector2(1f, 1f);
-                rt.anchoredPosition = new Vector2(-36f, -28f);
-                rt.sizeDelta = new Vector2(200f, 40f);
-            }
-            if (_countLabel != null)
-                _countLabel.text = secondsLeft > 10 ? $"{secondsLeft}s" : $"倒计时 {secondsLeft}s";
         }
 
         private DummyDeckPanel(RectTransform parent)
@@ -726,7 +693,7 @@ namespace SynergyUI
             SetText("lbl-row-my", "我方卡组");
             SetText("lbl-row-ai", "对方卡组");
             SetText("lbl-row-diff", "对手难度");
-            SetText("btn-start", "开战");
+            SetText("btn-start", "确认"); // 2026-11-20 改序：确认后进先后手选项面板（非直接开战，「开战」文案退役）
             SetText("btn-back", "返回主菜单");
             SetText("btn-row-diff", DifficultyLabels[_diff]);
 

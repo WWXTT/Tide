@@ -129,10 +129,12 @@ namespace SynergyUI
         /// 寒锥/退潮/缓兵/蚀忆四张 4 点行随收回报超限，降回 ≤3 由表侧跟进）。
         /// 口径=代价行全价（逐原子 PayloadUnitGrant 求和）——抵扣色容量另有运行时钳，本闸管构筑期。</summary>
         public const int CostDiscountCap = 3;
-        /// <summary>有限分支减费区间上限：Then 奖励费值 0~3（门槛行 Budget 1/2/3 均在此内——本值为全局上界）。</summary>
-        public const int LimitedBranchFeeCap = 3;
-        /// <summary>自由分支减费区间上限：Then 奖励费值 0~6（下界 0 允许零费召唤/零费奖励）。</summary>
-        public const int FreeBranchFeeCap = 6;
+        /// <summary>有限分支减费区间上限（2026-11-20 迁 ComposerCatalog 单源——本处 const 别名，
+        /// 装载期 CheckBranchPayload/卡合成保存闸/衍生物选卡器与 UI 共用一处口径）。</summary>
+        public const int LimitedBranchFeeCap = ComposerCatalog.LimitedBranchFeeCap;
+        /// <summary>自由分支减费区间上限（同上迁移——下界 0 允许零费召唤/零费奖励；
+        /// 附加诅咒/祝福载荷位无上限，见 ComposerCatalog.BranchRewardCapOf）。</summary>
+        public const int FreeBranchFeeCap = ComposerCatalog.FreeBranchFeeCap;
 
         /// <summary>branch 是否代价门载荷（settle=Gate + ComposerCatalog.CostGateId 哨兵——
         /// 2026-11-06 代价挪入有限分支：展示期合成/保存回写专用，永不落盘）。</summary>

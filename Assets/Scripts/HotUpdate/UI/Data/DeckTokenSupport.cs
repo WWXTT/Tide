@@ -62,11 +62,21 @@ namespace SynergyUI
             public bool NeedsBinding => string.IsNullOrEmpty(FixedTemplateId);
             /// <summary>槽所在的原子实例（合成期直选通道：卡面衍生物槽直写 str 用）。</summary>
             public AtomicEffectEntry Atom;
+            /// <summary>槽在分支奖励/载荷位（branch.then 下钻——2026-11-20 召唤入奖励位定案）：
+            /// 该位召唤数量恒 1、模板受分支奖励上限约束。legacy kind=1 门步 thenSteps/elseSteps
+            /// 的载荷也算奖励位（无 BranchEntryData → RewardCap 恒 -1，仅数量锁生效）。</summary>
+            public bool IsReward;
+            /// <summary>奖励位分支费用上限（ComposerCatalog.BranchRewardCapOf 单源）：
+            /// -1=该分支无上限（附加诅咒/祝福载荷位·2026-11-20 用户定案）或非奖励位。
+            /// 消费：卡合成衍生物选卡器过滤 + CardComposerScreen 保存闸。</summary>
+            public int RewardCap = -1;
         }
 
         /// <summary>枚举卡的全部引用卡槽原子（效果序内；分支奖励 then / 抉择子序列一并下钻——
         /// 与 NetMatchHandshake 闭环、DeckBuilderScreen 外部引用枚举同走法）。
-        /// 代价载荷原子（PayloadCost）不属效果槽，不收。</summary>
+        /// 代价载荷原子（PayloadCost）不属效果槽，不收。
+        /// 2026-11-20：下钻 branch.then 时标记 IsReward 并算 RewardCap（BranchRewardCapOf 单源）——
+        /// 卡合成选卡器过滤与保存闸消费（奖励位召唤数量恒 1、模板费+2 ≤ 上限）。</summary>
         public static List<TokenSlot> EnumerateSlots(CardData card)
         {
             var result = new List<TokenSlot>();
@@ -88,33 +98,37 @@ namespace SynergyUI
         {
             if (step == null) return;
             TrySlot(card, index, fx, step.atomic, result);
-            WalkAtoms(card, index, fx, step.thenSteps, result);
-            WalkAtoms(card, index, fx, step.elseSteps, result);
+            // legacy kind=1 门步的 then/else 载荷=奖励位（无 BranchEntryData——RewardCap 恒 -1 仅数量锁）
+            WalkAtoms(card, index, fx, step.thenSteps, result, inReward: true);
+            WalkAtoms(card, index, fx, step.elseSteps, result, inReward: true);
             if (step.choices == null) return;
             foreach (var choice in step.choices)
                 foreach (var sub in choice?.steps ?? new List<EffectStepData>())
                 {
                     TrySlot(card, index, fx, sub?.atomic, result);
-                    WalkAtoms(card, index, fx, sub?.thenSteps, result);
-                    WalkAtoms(card, index, fx, sub?.elseSteps, result);
+                    WalkAtoms(card, index, fx, sub?.thenSteps, result, inReward: true);
+                    WalkAtoms(card, index, fx, sub?.elseSteps, result, inReward: true);
                 }
         }
 
         private static void WalkAtoms(CardData card, int index, CardEffectData fx,
-            List<AtomicEffectEntry> atoms, List<TokenSlot> result)
+            List<AtomicEffectEntry> atoms, List<TokenSlot> result,
+            bool inReward = false, BranchEntryData rewardBranch = null)
         {
             if (atoms == null) return;
-            foreach (var atom in atoms) TrySlot(card, index, fx, atom, result);
+            foreach (var atom in atoms)
+                TrySlot(card, index, fx, atom, result, inReward, rewardBranch);
         }
 
         /// <summary>单原子槽判定：查原子表行（refId→EnumName），SummonToken / GrantMorph
-        /// 才是引用卡槽；branch.then 奖励原子里的同类槽一并下钻（倒计时召唤模板在此）。</summary>
+        /// 才是引用卡槽；branch.then 奖励原子里的同类槽一并下钻（倒计时召唤模板在此），
+        /// 下钻槽标 IsReward 并按所属分支算 RewardCap。</summary>
         private static void TrySlot(CardData card, int index, CardEffectData fx, AtomicEffectEntry atom,
-            List<TokenSlot> result)
+            List<TokenSlot> result, bool inReward = false, BranchEntryData rewardBranch = null)
         {
             if (atom == null) return;
             if (atom.branch?.then != null)
-                WalkAtoms(card, index, fx, atom.branch.then, result);
+                WalkAtoms(card, index, fx, atom.branch.then, result, inReward: true, rewardBranch: atom.branch);
             var cfg = CardCore.Attribute.AtomicEffectTable.GetByHashId(atom.refId);
             if (cfg == null || string.IsNullOrEmpty(cfg.EnumName)) return;
             if (!Enum.TryParse<AtomicEffectType>(cfg.EnumName, out var type)) return;
@@ -130,6 +144,9 @@ namespace SynergyUI
                 IsMorph = type == AtomicEffectType.GrantMorph,
                 FixedTemplateId = atom.str,
                 Atom = atom,
+                IsReward = inReward,
+                RewardCap = inReward && rewardBranch != null
+                    ? CardCore.ComposerCatalog.BranchRewardCapOf(rewardBranch) : -1,
             });
         }
 
@@ -195,16 +212,20 @@ namespace SynergyUI
         public static bool TemplateRestrictionsOk(CardData tpl)
             => tpl != null && !tpl.IsField && !CardCostService.HasPayloadCost(tpl);
 
-        /// <summary>合成期衍生物模板候选过滤（2026-11-18 放宽后）：
+        /// <summary>合成期衍生物模板候选过滤（2026-11-18 放宽后；2026-11-20 加奖励位 cap）：
         /// ①不带代价（TemplateRestrictionsOk 同源）；②不嵌套——候选自身不得再含引用卡槽原子
         ///（SummonToken/GrantMorph，衍生物套衍生物禁）；③卡型——召唤/变形均可生物或结界；
-        /// 模板卡、教学/训练卡不再排除（用户定案 7/8 去掉）。</summary>
-        public static bool TokenTemplateCandidateOk(CardData tpl, bool creatureOnly)
+        /// 模板卡、教学/训练卡不再排除（用户定案 7/8 去掉）；
+        /// ④奖励位召唤（summonRewardCap ≥ 0 时）——单只计价 SummonUnitPrice（=推导费+2）须 ≤
+        /// 分支奖励上限（门槛 Budget=1 恒放不下——最低 2 费，选卡器空候选+提示，不放宽）。
+        /// 默认 -1=不设上限（并列位/变形槽与既有两处调用方零改动）。</summary>
+        public static bool TokenTemplateCandidateOk(CardData tpl, bool creatureOnly, int summonRewardCap = -1)
             => tpl != null
                && !string.IsNullOrEmpty(tpl.ID)
                && (tpl.Supertype == Cardtype.Creature || tpl.Supertype == Cardtype.Enchantment)
                && TemplateRestrictionsOk(tpl)
-               && EnumerateSlots(tpl).Count == 0;
+               && EnumerateSlots(tpl).Count == 0
+               && (summonRewardCap < 0 || CardCostService.SummonUnitPrice(tpl) <= summonRewardCap);
 
         /// <summary>整套卡组衍生物区/绑定校验（2026-11-13 自动引用改版）：返回人读错误串（空=通过）。
         /// · 区（=自动引用派生）无重复、每项可解析——类型/无代价改到引用粒度报（能点名引用卡）；

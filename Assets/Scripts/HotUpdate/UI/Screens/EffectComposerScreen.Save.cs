@@ -365,8 +365,10 @@ namespace SynergyUI
         /// ②遗留 kind=1 门步骤折入前一个 kind=0 原子的 branch 载荷——产出条件族（IsOutcomeCondition）
         /// → settle=2/outcomeId；非产出条件剔除；thenSteps→then；
         /// elseSteps 丢弃（条件不达成不发奖励）；落单门步剔除。③主干>2 截断保留前 2。
-        /// ④幽灵分支剥离（2026-10-09）——JsonUtility 深拷贝/落盘物化的 settle=0 空分支对象统一清 null
-        /// ⑤并列/分支互斥归一（2026-10-09）——并列图两槽齐时槽级 branch 载荷拆除。
+        /// ④幽灵分支剥离（2026-10-09）——JsonUtility 深拷贝/落盘物化的 settle=0 空分支对象统一清 null。
+        /// （旧「⑤并列/分支互斥归一——并列两槽齐时拆槽级载荷」已随 2026-11-10「有限分支第一槽
+        ///  可 1~2 原子」定案删除，见函数尾注；真分支（Gate/Outcome/Engine）载荷含 branch.then
+        ///  奖励原子（如召唤衍生物）原样往返，不拆不改。）
         /// header.AtomicEffects 恒清（扁平/奖励通道退役——防夹带）。返回提示文本（null=无变动）。</summary>
         private static string NormalizeLoadedGraph(EffectGraphData g)
         {

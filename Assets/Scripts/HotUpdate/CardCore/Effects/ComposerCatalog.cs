@@ -105,9 +105,52 @@ namespace CardCore
         /// <summary>引擎奖励预算（Then 原子锚价合计上限）。2026-10-09 自平衡统一：全引擎 -1 无上限——
         /// 拼抢/倒计时/运势本就无上限；死亡计数/元素充盈/手牌序位原「预算=x（EngineParam）」旧制退役
         /// （门槛与预算同源于 Then 锚价推导，见 CostDerivationService.RewardThreshold）；
-        /// 可实现费用上限由 UI 侧 RewardFilterCap 统一封顶 5。</summary>
+        /// 可实现费用上限由 <see cref="BranchRewardCapOf"/> 单源封顶（atom-only 引擎 6）。</summary>
         public static int EngineRewardBudget(BranchEngineKind kind, int engineParam)
             => -1;
+
+        // ---- 分支奖励上限单源（2026-11-20 召唤衍生物入奖励位定案） ----
+        // 常量自 EffectComposerScreen 迁入（UI 侧改为 const 别名引用——全仓口径一处改）。
+
+        /// <summary>有限分支奖励费值区间上限：Then 奖励费 0~3（门槛行 Budget 1/2/3 均在此内——本值为全局上界）。</summary>
+        public const int LimitedBranchFeeCap = 3;
+        /// <summary>自由分支（atom-only 引擎）奖励费值区间上限：0~6（下界 0 允许零费奖励；
+        /// 附加诅咒/祝福载荷位不设上限——见 BranchRewardCapOf）。</summary>
+        public const int FreeBranchFeeCap = 6;
+
+        /// <summary>分支奖励可实现费用上限（2026-11-20 自 UI RewardFilterCap 提取 CardCore 单源——
+        /// UI 库过滤/落槽校验、卡合成保存闸、装载期 CheckBranchPayload、衍生物选卡器 cap 过滤共用）：
+        /// · Gate（有限分支）＝门槛行 Budget（AtomicEffectTable.GateBudgetOf——与观测 [3] branchBudget
+        ///   同查表口）钳全局上界 LimitedBranchFeeCap；
+        /// · Outcome（产出条件·已停新建只读保留）＝条件预算同钳；
+        /// · Engine＝附加诅咒/祝福载荷位 **-1 无上限**（2026-11-20 用户定案——延迟与不确定性即代价）；
+        ///   其余引擎（atom-only 前四 + 团结）恒 FreeBranchFeeCap。
+        /// 注意：UI 侧预言押注行的 Budget 覆盖（RewardCapOf）是展示期特例，不入本口——预言分支
+        /// 已停新建，装载/保存复检按本表基础口径。
+        /// 另：门槛 Budget=1 时召唤恒放不下（单只最低 2 费=0费模板+2）——选卡器空候选+提示，不放宽。</summary>
+        public static int BranchRewardCapOf(BranchEntryData b)
+        {
+            if (b == null) return -1;
+            switch ((BranchSettleKind)b.settle)
+            {
+                case BranchSettleKind.Gate:
+                    return Math.Min(AtomicEffectTable.GateBudgetOf(b.gateId), LimitedBranchFeeCap);
+                case BranchSettleKind.Outcome:
+                    return Math.Min(OutcomeBudgetOf(b.outcomeId), LimitedBranchFeeCap);
+                case BranchSettleKind.Engine:
+                    return IsCursePayloadEngine((BranchEngineKind)b.engine) ? -1 : FreeBranchFeeCap;
+                default:
+                    return -1;
+            }
+        }
+
+        /// <summary>产出条件预算（Outcome——条件行在 OutcomeConditions 目录，预算 GateBudget 同源查表；
+        /// 查不到=0（按无预算编码，奖励会被钳到 0——产出条件已停新建，仅存量只读）。</summary>
+        private static int OutcomeBudgetOf(string outcomeId)
+        {
+            var oc = OutcomeConditions.FirstOrDefault(g => g.Id == outcomeId);
+            return oc != null ? GateBudget(oc) : 0;
+        }
 
         /// <summary>派生门槛引擎（2026-10-09 自平衡统一单源）：拼抢/死亡计数/元素充盈——
         /// 门槛 x=Then 奖励锚价实时推导（RewardThreshold），无手填参数、无独立预算。
@@ -476,7 +519,9 @@ namespace CardCore
         /// 2026-10-23 有限分支入表：门槛行随主干排除一并出局（位 8）。
         /// 2026-10-24 动态费用位：临摹/变形赋予挂位 9 排除出奖励——补差随局内动态情况，
         /// 奖励入价锚定在构筑期无法覆盖；主干照旧。
-        /// 2026-10-31 召唤衍生物曾入列；2026-11-18 退出（引用卡填入后费用即定，可作奖励）。
+        /// 2026-10-31 召唤衍生物曾挂位 9 排除出奖励（模板费随引用卡绑定浮动）；
+        /// 2026-11-18 摘位恢复奖励资格（引用卡填入后费用即定=可锚价；2026-11-20 起奖励位
+        /// 数量恒 1、模板费+2 受 BranchRewardCapOf 上限约束——详见该函数头注）。
         ///（2026-10-31 P12「充能行排除出奖励」已随 2026-11-05 充能系统动作化改版失效——充能行已删。）
         /// （2026-10-13 晚「主动发动」位已删：动态计价原子触发式预付与主动现付同额同源
         ///（ResolveTemplate→ContentPriceOf）——主动/自动自由选择。）</summary>
