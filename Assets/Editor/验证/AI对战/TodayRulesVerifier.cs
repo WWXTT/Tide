@@ -184,8 +184,9 @@ namespace CardCore.Editor.Tests
                         $"A3 夹具就位：目标生物/印刷生物/赋帷幕法术（{target != null}/{printedUnit != null}/{spell != null}）");
                     if (target == null || printedUnit == null || spell == null) return;
 
+                    // 夹具播种直写（2026-11-21 持有钳：AddMana 官方口余额封顶地牌上限——播种绕钳）
                     foreach (var color in new[] { ManaType.Gray, ManaType.Red, ManaType.Green, ManaType.Blue })
-                        core.ElementPool.AddMana(p1, color, null, 10);
+                        core.ElementPool.GetPool(p1).TempElements[color] += 10;
 
                     // 印刷轨：进场统一出口补 Printed 份（CardData.Keywords → 不经 Grant handler）
                     Check(printedUnit.HasKeyword(KeywordRules.Taunt),

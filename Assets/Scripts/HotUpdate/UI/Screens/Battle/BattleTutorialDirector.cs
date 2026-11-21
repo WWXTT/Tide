@@ -528,6 +528,9 @@ namespace SynergyUI
                     go.transform.SetParent(Root, false);
                     _voiceSource = go.AddComponent<AudioSource>();
                     _voiceSource.playOnAwake = false;
+                    // 暂停豁免（2026-11-21 通用暂停系统）：BattlePauseBus 暂停期 AudioListener.pause
+                    // 停全音频——解说配音是暂停期正在消费的内容（解说摆出来→暂停→点确定），须继续播。
+                    _voiceSource.ignoreListenerPause = true;
                 }
                 _voiceSource.clip = clip;
                 _voiceSource.Play();

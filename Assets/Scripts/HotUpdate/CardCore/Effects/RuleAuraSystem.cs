@@ -570,20 +570,20 @@ namespace CardCore
             }
         }
 
-        /// <summary>红/蓝/绿各 +1 入**临时钱包**（2026-10-11 现取现用：直写 TempElements + 发 AddManaEvent；
-        /// 三色不受黑白钳约束，回合末随钱包清空）。</summary>
+        /// <summary>红/蓝/绿各 +1 入**临时钱包**（2026-10-11 现取现用：CreditTempWallet 入账 +
+        /// 发 AddManaEvent；三色不受黑白钳约束，回合末随钱包清空；2026-11-21 持有钳：每类型余额
+        /// 封顶地牌上限——顶格色实发 0 不发事件）。</summary>
         private static void GrantTrinity(GameCore core, Player player)
         {
-            var wallet = core.ElementPool.GetPool(player).TempElements;
             foreach (var color in new[] { ManaType.Red, ManaType.Blue, ManaType.Green })
             {
-                wallet.TryGetValue(color, out var cur);
-                wallet[color] = cur + 1;
+                int granted = core.ElementPool.CreditTempWallet(player, color, 1);
+                if (granted <= 0) continue;
                 EventManager.Instance.Publish(new AddManaEvent
                 {
                     Player = player,
                     ManaType = color,
-                    Amount = 1,
+                    Amount = granted,
                     Source = RuleAuraSystem.CarrierOf(ElementConversion),
                 });
             }

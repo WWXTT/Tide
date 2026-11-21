@@ -150,7 +150,7 @@ namespace CardCore.Editor.Tests
                     foreach (var c in landFodder) { if (lands >= 2) break; pool.PooledCards.Add(new PooledCard(c, ManaType.Blue)); lands++; }
                     foreach (var c in zm.GetCards(p1, Zone.Hand).Where(c => IsName(c, LureName) && c != handLure).ToList())
                         zm.MoveCard(c, p1, Zone.Hand, Zone.Graveyard);
-                    core.ElementPool.AddMana(p1, ManaType.Red, null, 10); // 诱敌 4.5 红 → 实付 5
+                    core.ElementPool.GetPool(p1).TempElements[ManaType.Red] += 10; // 诱敌 4.5 红 → 实付 5（播种直写绕持有钳）
 
                     var lae = new LegalActionEnumerator();
                     for (int scen = 3; scen >= 0; scen--)
@@ -230,7 +230,7 @@ namespace CardCore.Editor.Tests
                     foreach (var c in zm.GetCards(p1, Zone.Hand).Where(c => IsName(c, tmp.CardName) && c != tCard).ToList())
                         zm.MoveCard(c, p1, Zone.Hand, Zone.Graveyard);
                     foreach (var color in new[] { ManaType.Red, ManaType.Green, ManaType.Blue, ManaType.Gray })
-                        core.ElementPool.AddMana(p1, color, null, 10);
+                        core.ElementPool.GetPool(p1).TempElements[color] += 10; // 夹具播种直写（2026-11-21 持有钳：AddMana 官方口余额封顶地牌上限——播种绕钳）
 
                     // 巨像 9→6、角色 -5：Heal 行 Damaged 滤下己方候选=2（巨像+角色）
                     typeof(Card).GetField("_life", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(ow, 6);
@@ -372,7 +372,7 @@ namespace CardCore.Editor.Tests
                     foreach (var c in zm.GetCards(p1, Zone.Hand).Where(c => IsName(c, tmp.CardName) && c != tCard).ToList())
                         zm.MoveCard(c, p1, Zone.Hand, Zone.Deck);
                     foreach (var color in new[] { ManaType.Red, ManaType.Green, ManaType.Blue, ManaType.Gray })
-                        core.ElementPool.AddMana(p1, color, null, 12);
+                        core.ElementPool.GetPool(p1).TempElements[color] += 12; // 夹具播种直写绕持有钳（12>曲线顶 10——夹具口径允许）
 
                     var setupOk = e1 != null && e2 != null && e3 != null && grave.Count == 4 && tCard != null;
                     checks.Add(new Check(setupOk,
@@ -547,9 +547,9 @@ namespace CardCore.Editor.Tests
         /// CollectAtomTargetSpecs 跳过无域原子，HeroSkill 只剩一条 Targets=null 行（点牺牲=空放）。
         /// 改造后白名单（NoDomainTargetScopes）按域串产候选、HeroSkillTargetPolicy 共享序排序，
         /// LAE 产 prefix-k 前缀行（k=1..N——模型可选「祭几张」，k=Targets 长度）。
-        /// 三盘面：T5=纯池 11 地（11 行，应用 k=11 全献）；T7=场上阿格洛斯+池 11 地（行不含场上
-        /// 阿格洛斯，应用 k=6 恰献 6 张池地）；蓝蛰伏=池 3 未横置地（3 行，应用 k=2 恰 2 张横置
-        /// 计层、第 3 张不动）。另附无目标行回归（EndTurn [10]=0、[12]/[13]=-1）。</summary>
+        /// 三盘面：T5=纯池 11 地（11 行，应用 k=11 全献——临时彩 min(11,cap) 入持有钳断言，2026-11-21）；
+        /// T7=场上阿格洛斯+池 11 地（行不含场上阿格洛斯，应用 k=6 恰献 6 张池地）；蓝蛰伏=池 3 未横置地
+        ///（3 行，应用 k=2 恰 2 张横置计层、第 3 张不动）。另附无目标行回归（EndTurn [10]=0、[12]/[13]=-1）。</summary>
         private static void RunNoDomainPrefixScenarios(StringBuilder log, List<Check> checks)
         {
             var catalog = CardCatalog.LoadAll().ToList();
@@ -588,8 +588,12 @@ namespace CardCore.Editor.Tests
                 {
                     AdvanceToMainPhase(core, p1);
                     var zm = core.ZoneManager;
+                    // 夹具播种直写（技能锚价可付·脱敏）+ 曲线索引推到 12（标准曲线 cap=10）：
+                    // 2026-11-21 持有钳后 AddMana 官方口每类型余额封顶地牌上限——播种绕钳走直写；
+                    // 索引推进令 T5 应用 k=11 落在钳口（临时彩=min(11,10)=10，钳行为本身入断言）。
+                    core.ElementPool.GetPool(p1).GlobalTurnIndex = 12;
                     foreach (var color in new[] { ManaType.Red, ManaType.Green, ManaType.Blue, ManaType.Gray })
-                        core.ElementPool.AddMana(p1, color, null, 10); // 技能锚价可付（夹具脱敏）
+                        core.ElementPool.GetPool(p1).TempElements[color] += 10;
 
                     // 池直入 11 张地（MoveCard 同步区域真源——镜像 GameActions.AddToElementPool 两步）
                     var lands = new List<Card>();
@@ -648,12 +652,16 @@ namespace CardCore.Editor.Tests
                     int graveLands = zm.GetCards(p1, Zone.Graveyard).Count(c => IsName(c, LandName));
                     int poolLeft = core.ElementPool.GetPooledCards(p1).Count;
                     int tempAny = core.ElementPool.GetPool(p1).TempElements.TryGetValue(ManaType.Any, out var ta) ? ta : 0;
+                    // 2026-11-21 持有钳：临时彩实得 = min(k, 地牌上限)（夹具 GlobalTurnIndex=12 → cap=10；
+                    // 牺牲照常全数入墓，只有 Any 入账被封顶——T5 k=11 验钳口、T7 k=6 验足额）
+                    int landCap = core.ElementPool.GetLandCap(p1);
+                    int expectAny = Math.Min(applyK, landCap);
                     bool agrosSafe = !fieldAgros || (zm.IsCardInZone(agros, p1, Zone.Battlefield) && agros.IsAlive);
                     log.AppendLine($"[{tag}] 应用 k={applyK}：ok={ok} 池余={poolLeft} 墓地地={graveLands} "
-                        + $"临时彩={tempAny} 阿格洛斯留场={agrosSafe} 技能横置={skillCard.IsTapped()}");
+                        + $"临时彩={tempAny}/{expectAny}（cap={landCap}） 阿格洛斯留场={agrosSafe} 技能横置={skillCard.IsTapped()}");
                     checks.Add(new Check(ok && poolLeft == 11 - applyK && graveLands == applyK
-                            && tempAny == applyK && agrosSafe && skillCard.IsTapped(),
-                        $"{tag} 应用 k={applyK}：{applyK} 张池地入墓、临时彩=={applyK}、池余 {11 - applyK}、技能横置"
+                            && tempAny == expectAny && agrosSafe && skillCard.IsTapped(),
+                        $"{tag} 应用 k={applyK}：{applyK} 张池地入墓、临时彩=={expectAny}{(applyK > landCap ? $"（持有钳 min(k,{landCap})）" : "")}、池余 {11 - applyK}、技能横置"
                         + (fieldAgros ? "、阿格洛斯仍在场" : "")));
                 }
                 finally { }
@@ -683,7 +691,7 @@ namespace CardCore.Editor.Tests
                     AdvanceToMainPhase(core, p1);
                     var zm = core.ZoneManager;
                     foreach (var color in new[] { ManaType.Red, ManaType.Green, ManaType.Blue, ManaType.Gray })
-                        core.ElementPool.AddMana(p1, color, null, 10);
+                        core.ElementPool.GetPool(p1).TempElements[color] += 10; // 夹具播种直写（2026-11-21 持有钳：AddMana 官方口余额封顶地牌上限——播种绕钳）
 
                     var lands = new List<Card>();
                     foreach (var c in zm.GetCards(p1, Zone.Deck).Concat(zm.GetCards(p1, Zone.Hand))
@@ -776,7 +784,7 @@ namespace CardCore.Editor.Tests
                     AdvanceToMainPhase(core, p1);
                     var zm = core.ZoneManager;
                     foreach (var color in new[] { ManaType.Red, ManaType.Green, ManaType.Blue, ManaType.Gray })
-                        core.ElementPool.AddMana(p1, color, null, 10);
+                        core.ElementPool.GetPool(p1).TempElements[color] += 10; // 夹具播种直写（2026-11-21 持有钳：AddMana 官方口余额封顶地牌上限——播种绕钳）
 
                     // 场上：疾行者钉在首格（含 CanActivate 主动口）
                     var r0 = FindAndMoveByName(zm, p1, "训练·疾行者", Zone.Battlefield);
@@ -886,7 +894,7 @@ namespace CardCore.Editor.Tests
                     AdvanceToMainPhase(core, p1);
                     var zm = core.ZoneManager;
                     foreach (var color in new[] { ManaType.Red, ManaType.Green, ManaType.Blue, ManaType.Gray })
-                        core.ElementPool.AddMana(p1, color, null, 10);
+                        core.ElementPool.GetPool(p1).TempElements[color] += 10; // 夹具播种直写（2026-11-21 持有钳：AddMana 官方口余额封顶地牌上限——播种绕钳）
 
                     var handSeize = FindAndMoveByName(zm, p1, seize.CardName, Zone.Hand);
                     var handSteal = FindAndMoveByName(zm, p1, steal.CardName, Zone.Hand); // 窃取留手（PlayCard 只扫手牌）
@@ -983,7 +991,7 @@ namespace CardCore.Editor.Tests
                     AdvanceToMainPhase(core, p1);
                     var zm = core.ZoneManager;
                     foreach (var color in new[] { ManaType.Red, ManaType.Green, ManaType.Blue, ManaType.Gray })
-                        core.ElementPool.AddMana(p1, color, null, 10);
+                        core.ElementPool.GetPool(p1).TempElements[color] += 10; // 夹具播种直写（2026-11-21 持有钳：AddMana 官方口余额封顶地牌上限——播种绕钳）
                     var handCard = FindAndMoveByName(zm, p1, search.CardName, Zone.Hand);
 
                     // 期望候选=己方牌库去重名（DeclarationCandidates 单源镜像）
@@ -1053,7 +1061,7 @@ namespace CardCore.Editor.Tests
                     AdvanceToMainPhase(core, p1);
                     var zm = core.ZoneManager;
                     foreach (var color in new[] { ManaType.Red, ManaType.Green, ManaType.Blue, ManaType.Gray })
-                        core.ElementPool.AddMana(p1, color, null, 10);
+                        core.ElementPool.GetPool(p1).TempElements[color] += 10; // 夹具播种直写（2026-11-21 持有钳：AddMana 官方口余额封顶地牌上限——播种绕钳）
                     // 先取检索（拿走 deck 至多 1 张→候选仍非空）；unit **只从手牌取**（开抽 8 张必有，
                     // 不再动 deck）——否则两次 Find 会把 deck（10-8=2 张）抽干→检索候选空集 0 行（夹具坑×2）
                     var spell = FindAndMoveByName(zm, p1, spellData.CardName, Zone.Hand);
@@ -1262,7 +1270,7 @@ namespace CardCore.Editor.Tests
                     AdvanceToMainPhase(core, p1);
                     var zm = core.ZoneManager;
                     foreach (var color in new[] { ManaType.Red, ManaType.Green, ManaType.Blue, ManaType.Gray })
-                        core.ElementPool.AddMana(p1, color, null, 10);
+                        core.ElementPool.GetPool(p1).TempElements[color] += 10; // 夹具播种直写（2026-11-21 持有钳：AddMana 官方口余额封顶地牌上限——播种绕钳）
                     var handCard = FindAndMoveByName(zm, p1, tmp.CardName, Zone.Hand);
 
                     var lae = new LegalActionEnumerator();

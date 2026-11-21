@@ -71,6 +71,62 @@ namespace SynergyUI
                               // 会吞掉 pending 的回合翻转，倒计时归零直发的报酬必须先在回合开始落地再换场。
         public bool completeOnConfirm; // intro 步标记（2026-11-09 教学一·进阶收尾）：确认本步即整课
                               // 完成——引导链收尾时 BattleTutorialDirector 落档+弹结算窗（无需打到终局）。
+        public TutorialFocusMaskSpec mask;       // 战场遮罩（2026-11-21 遮罩/高亮/暂停计划 v0.3）：非 null
+                              // 且 target 非空=本步开单窗遮罩（相机 RT→全屏遮罩图挖洞，窗外连 UI 一起
+                              // 盖掉）；旧档缺字段=null 不启用，行为与今一致。
+        public List<TutorialHighlightSpec> highlight; // 3D 高亮（同计划 v0.3）：后处理选择描边（模型+
+                              // 3D TMP+格面 mesh）；空/null=不高亮。
+        public TutorialPauseSpec pause;          // 步暂停（同计划 v0.3 §2.2）：on=true=解说摆出后逻辑+
+                              // 表现一起暂停（通用暂停系统），玩家点【确定】/点窗内恢复进下一步；
+                              // **默认 false**——哪些步挂暂停由用户点名（计划 §9-3），先做通功能。
+                              // 自由步（fieldclear/luckuse/deathtoll）与 aiTurnOnConfirm 交回合链
+                              // 强制无效（锁住=死锁，计划 §5.3-1/2——审计报红）。
+    }
+
+    /// <summary>
+    /// 战场遮罩规格（2026-11-21 遮罩/高亮/暂停计划 v0.3 §2）：相机渲进 RT→mask-bg 全屏显示→
+    /// 游戏 UI 原样→mask-img 全屏模糊图在窗位挖洞——窗外=模糊（连 UI 一起盖掉）、窗内=洞
+    ///（露真实 3D+UI，可点）。每步**单窗**（v0.3 定案：不做多窗）。
+    /// 像素值以 1920×1080 为参考，运行时按屏幕比例换算。
+    /// </summary>
+    [Serializable]
+    public class TutorialFocusMaskSpec
+    {
+        public string target;        // 窗目标 token（§2.1 词表：hero/oppHero/unit:{id}/tmp:{token}/
+                                     // cell:{x}:{z}/zone:role|activation|p1-land|mid|board|units；单目标）
+        public float pad = 16f;      // 包围盒外扩 px
+        public float radius = 12f;   // 圆角 px（0=直角矩形）
+        public float feather = 24f;  // 窗缘羽化 px
+        public float strength = 1f;  // 模糊强度 0..1（高斯半径分档）
+    }
+
+    /// <summary>
+    /// 3D 高亮规格（同计划 v0.3 §4）：后处理选择描边——目标 renderer 渲到 mask RT→膨胀→取边→
+    /// HDR 色合成（早于后处理注入，bloom 把边缘晕开成边缘光）。模型拼装刚体/3D TMP 文字/
+    /// 格面 mesh 都吃同一套；格级可用 BattleTileFx.SetCellRing 简单叠加。
+    /// </summary>
+    [Serializable]
+    public class TutorialHighlightSpec
+    {
+        public string target;          // 目标 token（§2.1 词表；tmp:{token} 指该目标身上的 3D TMP 文字）
+        public string style = "outline"; // 描边样式（现役仅 outline）
+        public string color = "#FFD75A"; // 描边色（#RRGGBB）
+        public float width = 4f;       // 描边宽 px（2~3 膨胀档的上限 8）
+        public float hdr = 2.5f;       // HDR 亮度倍率（须 > bloom 阈值 0.8 才能晕开）
+        public string pulse = "slow";  // 脉动档：none/slow/fast（shader _Time 驱动，不做 C# 逐帧）
+    }
+
+    /// <summary>
+    /// 步暂停规格（同计划 v0.3 §2.2）：on=true 时解说摆出→Pause(reason=Tutorial)→玩家点【确定】
+    /// （resumeBy 含 confirm）或点遮罩窗内（含 window）→Resume+推进下一步。不设 voice 模式
+    ///（配音播完不是暂停条件）。旧档缺字段=不暂停。
+    /// </summary>
+    [Serializable]
+    public class TutorialPauseSpec
+    {
+        public bool on;                          // 本步是否暂停（默认 false——按需由用户点名挂）
+        public string resumeBy = "windowOrConfirm"; // confirm/window/windowOrConfirm（推荐后者）
+        public bool showHint = true;             // 暂停期把步 hint 常驻横幅（否则玩家看不到解说）
     }
 
     /// <summary>

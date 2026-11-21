@@ -501,10 +501,12 @@ namespace SynergyUI
                 // CellRole.Extra 已随额外区格整删（2026-10-29 P11）——旧两段文案中的额外区行随之退役
                 case CellRole.Any:
                 {
-                    // 万能元素展示格（Any·只做展示）：余额读数随悬停补齐
+                    // 万能元素展示格（Any·只做展示）：余额读数随悬停补齐（2026-11-21 持有钳：
+                    // 「余额/地牌上限」同格面计数口径——CreditTempWallet 单源钳，余量恒 ≤ 上限）
                     int anyN = pv != null && (int)ManaType.Any < pv.WalletByColor.Length
                         ? pv.WalletByColor[(int)ManaType.Any] : 0;
-                    return $"{who}格 · 彩元素 · 钱包余额 {anyN}（可代替任何元素支付，回合结束消失；不由地牌产出）";
+                    int landCap = pv != null ? pv.LandCap : 0;
+                    return $"{who}格 · 彩元素 · 钱包余额 {anyN}/{landCap}（持有不可超过地牌上限；可代替任何元素支付，回合结束消失；不由地牌产出）";
                 }
                 case CellRole.Field:
                 {

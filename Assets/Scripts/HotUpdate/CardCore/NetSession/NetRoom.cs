@@ -414,7 +414,8 @@ namespace CardCore.Network
         // ============================================================ 断线 / 重置 ============================================================
 
         /// <summary>成员断开（逻辑线程；由宿主泵发现）。房主断开=解散整房（P2P 无服务器可转移，
-        /// 2026-11-11 用户定案）；客人断开按阶段收口（Waiting/DeckSubmit 退位，Playing 作废对局）。</summary>
+        /// 2026-11-11 用户定案）；客人断开按阶段收口（Waiting/DeckSubmit 退位；Playing=暂停等重连
+        /// ——2026-11-21 v0.3 定案·PauseOnDisconnect 开关，关=回落作废）。</summary>
         public void OnDisconnect(INetChannel conn)
         {
             if (conn.ChairSeat == -2) return; // 未进房的连接：无房间侧状态
@@ -457,9 +458,14 @@ namespace CardCore.Network
                     break;
 
                 case NetRoomPhase.Playing:
-                    // 对局作废（M2 最小策略；重连留 M4）：作废全部未决反问防泵悬死，
-                    // 广播 Error + RoomState(Finished)——不判胜负。
-                    _battle.VoidMatch($"对局作废：座位 {seat}（{conn.Nickname}）断线");
+                    // 断线=暂停等重连（2026-11-21 战场遮罩/高亮/暂停计划 v0.3 定案，代打同批屏蔽）：
+                    // 引擎 Paused+广播等待提示，未决反问保留（恢复后续走）；退出出口=暂停横幅提示
+                    // 认输/房主退房。重连再入座链路（M4）落地前恢复口无调用方——暂停期对局悬置。
+                    // 开关关闭（PauseOnDisconnect=false）回落旧行为：作废对局不判胜负。
+                    if (NetBattleChannel.PauseOnDisconnect)
+                        _battle.PauseForDisconnect(seat, conn.Nickname);
+                    else
+                        _battle.VoidMatch($"对局作废：座位 {seat}（{conn.Nickname}）断线");
                     break;
 
                 case NetRoomPhase.Finished:

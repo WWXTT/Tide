@@ -33,6 +33,17 @@ namespace CardCore.Network
         /// <summary>超时代打后的宽限（秒）：让行/结束回合后若栈上仍有待响应，下一拍不会立刻再罚。</summary>
         public const int TurnTimeoutGraceSeconds = 10;
 
+        /// <summary>回合计时到点**代打**开关（2026-11-21 战场遮罩/高亮/暂停计划 v0.3 定案：代打先屏蔽）：
+        /// false=到点只停钟不代打（挂机方让对局等着——断线走暂停等重连，不靠代打续）；
+        /// true=恢复旧 30s/90s 到点代打（后续按玩家需求再开）。计时读数（TurnSecondsLeft）不受此开关影响。</summary>
+        public static bool TurnClockAutoPlayEnabled = false;
+
+        /// <summary>对局中断线策略开关（同上 v0.3 定案：断线=暂停等重连）：true=客人 Playing 断线走
+        /// PauseForDisconnect（引擎 Paused+广播等待提示，房主端表现层随 BattlePauseBus 冻结）；
+        /// false=旧行为 VoidMatch 作废。重连占位（Playing 期座位已释放、再进房=观战——
+        /// 重连超时策略与再入座链路另行定义，暂停期退出出口=认输/房主退房）。</summary>
+        public static bool PauseOnDisconnect = true;
+
         private readonly NetRoom _room;
         private readonly Random _rng;
         private readonly int? _seed;
@@ -670,6 +681,34 @@ namespace CardCore.Network
             _room.BroadcastError(reason, "Room", NetworkChannel.Battle);
         }
 
+        /// <summary>断线暂停（2026-11-21 通用暂停系统·v0.3 定案「断线=暂停等重连」）：客人 Playing
+        /// 断线时由 NetRoom.OnDisconnect 调用（PauseOnDisconnect 开关放行）。引擎置 Paused
+        ///（GameActions 意图闸/PumpEngine 泵闸随之全拦）+ 广播等待提示（房主端表现层经
+        /// GameStateManager.StateChangedRelay→BattlePauseBus 冻结+横幅）。未决反问保留
+        ///（不 Abort——恢复后原窗续走）；退出出口=暂停横幅提示认输/房主退房解散。
+        /// 重连恢复口=ResumeFromDisconnect（重连再入座链路落地后接，当前无调用方）。</summary>
+        internal void PauseForDisconnect(int seat, string nickname)
+        {
+            var core = GameCore.Instance;
+            var hint = $"对手掉线（座位 {seat}·{nickname}），对局已暂停——等待重连…（认输可退出）";
+            bool paused = core != null && core.StateManager.Pause(GamePauseReason.OpponentLost, hint);
+            TideLog.Info($"[NetRoom] {hint}{(paused ? "" : "（引擎非 Running，跳过暂停）")}");
+            _room.BroadcastError(hint, "Pause", NetworkChannel.Battle);
+            _room.MarkSnapshotDirty(); // 暂停态随快照可见（TurnSecondsLeft 泵停后读数冻结）
+        }
+
+        /// <summary>断线暂停恢复口（重连链路 M4 落地后接）：引擎 Resume + 广播恢复。
+        /// 当前 Playing 期断线座位已释放、再进房只可观战——无调用方，保留单源接口。</summary>
+        internal void ResumeFromDisconnect()
+        {
+            var core = GameCore.Instance;
+            if (core == null || core.StateManager.CurrentState != GameState.Paused) return;
+            core.StateManager.Resume();
+            TideLog.Info("[NetRoom] 对手重连——对局恢复");
+            _room.BroadcastError("对手已重连——对局恢复", "Resume", NetworkChannel.Battle);
+            _room.MarkSnapshotDirty();
+        }
+
         private static List<CardData> BuildDeck(string[] cardIds, string[] tokenCardIds, List<string> missing)
         {
             var deck = new List<CardData>(cardIds.Length);
@@ -702,6 +741,9 @@ namespace CardCore.Network
         public void PumpEngine(GameCore core)
         {
             if (_room.Phase != NetRoomPhase.Playing || _gameOver || core == null) return;
+            // 暂停泵闸（2026-11-21 通用暂停系统）：引擎 Paused（断线暂停等）——本泵不推进
+            //（栈排干/相位折返/计时全停；GameCore.Update 同口径被 CanPerformGameActions 拦）
+            if (core.StateManager.CurrentState == GameState.Paused) return;
             var engine = core.StackEngine;
             if (engine == null || engine.IsResolving) return;
 
@@ -729,7 +771,9 @@ namespace CardCore.Network
         /// <summary>回合计时泵（每 tick，PumpEngine 头部）：回合号/回合方变化 → 重置满时长；
         /// 到点 → 代打（栈上有待响应者=替其让行；否则替回合方结束回合），随后给宽限秒数防连罚。
         /// 真人/AI 一视同仁：AI 客人同样受此钟约束（brain 在 20ms 内响应，正常局不会触发）。
-        /// 代打走 NetworkIntentApplier（与客户端 intent 同一校验路径，拒绝只记日志不抛）。</summary>
+        /// 代打走 NetworkIntentApplier（与客户端 intent 同一校验路径，拒绝只记日志不抛）。
+        /// 代打屏蔽（2026-11-21 v0.3 定案）：TurnClockAutoPlayEnabled=false 时到点只停钟
+        /// 不代打（宽限也不再滚——挂机/断线方让对局等；断线走暂停等重连）。</summary>
         private void PumpTurnClock(GameCore core)
         {
             var te = core.TurnEngine;
@@ -750,6 +794,7 @@ namespace CardCore.Network
                 return;
             }
             if (DateTime.UtcNow < _turnDeadlineUtc.Value) return;
+            if (!TurnClockAutoPlayEnabled) return; // 代打屏蔽：到点停钟（读数归零维持），不代打不宽限
 
             // 到点：优先权在别处（响应窗口）= 替响应方让行；否则替回合方结束回合
             var engine = core.StackEngine;

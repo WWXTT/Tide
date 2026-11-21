@@ -264,6 +264,8 @@ namespace CardCore
         /// 费用拒绝的可读原因（2026-09-26 联机排查）：总额超地牌槽上限（地牌侧浓度封顶——超出
         /// 部分须临时元素垫付）与元素不足分列，供网络 Error 帧直读。
         /// 2026-10-16 口径更新：临时元素可超上限支付——超帽不再是独立拒因，只在钱包也垫不起时提示。
+        /// 2026-11-21 持有钳：临时元素余额封顶地牌上限（CreditTempWallet 单源）——支付口径不变
+        ///（钱包+地牌合计仍可超帽），攒钱包至多到上限。
         /// </summary>
         private static string CostRejectText(GameCore core, Player player, ElementCost cost)
         {
@@ -272,7 +274,7 @@ namespace CardCore
             int total = ElementPaymentValidator.NormalizeBill(cost).Values.Sum();
             int cap = core.ElementPool.GetLandCap(player);
             if (total > cap)
-                return $"费用 {CostText(cost)} 共 {total} 点，超过当前地牌槽上限 {cap}——地牌单货币贡献封顶上限，超出部分须临时元素垫付且当前不足（临时元素可超上限：攒钱包即可出）";
+                return $"费用 {CostText(cost)} 共 {total} 点，超过当前地牌槽上限 {cap}——地牌单货币贡献封顶上限，超出部分须临时元素垫付且当前不足（临时元素持有不可超过地牌上限：攒钱包至多到 {cap}）";
 
             var wallet = core.ElementPool.GetPool(player).TempElements;
             string bankText = string.Join("、", wallet.Where(kv => kv.Value > 0)

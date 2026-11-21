@@ -11,6 +11,25 @@ namespace CardCore
     /// </summary>
     public static partial class GameActions
     {
+        // ======================================== 暂停闸（2026-11-21 通用暂停系统） ========================================
+
+        /// <summary>暂停前置（2026-11-21 通用暂停系统·战场遮罩/高亮/暂停计划 §5.3-3）：
+        /// 所有玩家意图入口（放地/产色/技能/出牌/攻击/结束回合/发动/响应）统一前置——
+        /// Paused 态一律拒绝（引擎主循环与服务器泵已被 CanPerformGameActions 拦住，
+        /// 这里堵的是 UI/AI 直调 GameActions 的路径）。只拦 Paused：Ended/NotStarted
+        /// 的既有语义（终局/开局前的调用行为）不因本闸改变。内部效果结算链不走玩家
+        /// 意图入口，不受影响。</summary>
+        private static bool RejectIfPaused(GameCore core, out string reason)
+        {
+            if (core != null && core.StateManager.CurrentState == GameState.Paused)
+            {
+                reason = "对局已暂停——等待恢复";
+                return true;
+            }
+            reason = null;
+            return false;
+        }
+
         // ======================================== 地牌操作 ========================================
 
         /// <summary>
@@ -27,6 +46,7 @@ namespace CardCore
         public static bool AddToElementPool(GameCore core, Player player, Card card, ManaType? colorChoice, out string reason)
         {
             reason = null;
+            if (RejectIfPaused(core, out reason)) return false; // 暂停闸（2026-11-21 通用暂停系统）
             if (core == null || player == null || card == null) { reason = "内部错误：空参数"; return false; }
             if (core.TurnEngine.TurnPlayer != player) { reason = "现在不是你的回合"; return false; }
             if (core.TurnEngine.CurrentPhase?.Phase != PhaseType.Main)
@@ -72,21 +92,24 @@ namespace CardCore
             => await HeroSkillSystem.ActivateAsync(core, player, effectIndex);
 
         /// <summary>带原因版（2026-11-03 失败提示细化）：技能发动全链同步（见 ActivateAsync 尾注），
-        /// UI/网络泵线程直调同步核读拒绝文案。</summary>
+        /// UI/网络泵线程直调同步核读拒绝文案。暂停闸（2026-11-21 通用暂停系统）前置。</summary>
         public static bool ActivateHeroSkill(GameCore core, Player player, int effectIndex, out string reason)
-            => HeroSkillSystem.TryActivateSkill(core, player, effectIndex, out reason);
+            => RejectIfPaused(core, out reason) ? false
+            : HeroSkillSystem.TryActivateSkill(core, player, effectIndex, out reason);
 
         /// <summary>动态数量/预选版（2026-11-14）：技能主动效果发动前已选目标与动态数量——
-        /// 预检与结算扣费按 base×N（与法术施放同口径）。</summary>
+        /// 预检与结算扣费按 base×N（与法术施放同口径）。暂停闸前置（2026-11-21）。</summary>
         public static bool ActivateHeroSkill(GameCore core, Player player, int effectIndex,
             List<Entity> targets, IReadOnlyList<int> dynamicCounts, out string reason)
-            => HeroSkillSystem.TryActivateSkill(core, player, effectIndex, targets, dynamicCounts, out reason);
+            => RejectIfPaused(core, out reason) ? false
+            : HeroSkillSystem.TryActivateSkill(core, player, effectIndex, targets, dynamicCounts, out reason);
 
         /// <summary>交互参数版（2026-11-19 P1 v0.3）：interaction=声明期移动落格/宣言卡名——
-        /// 随技能发动入栈（LAE 移动/宣言行/驱动透传）；null=旧行为。</summary>
+        /// 随技能发动入栈（LAE 移动/宣言行/驱动透传）；null=旧行为。暂停闸前置（2026-11-21）。</summary>
         public static bool ActivateHeroSkill(GameCore core, Player player, int effectIndex,
             List<Entity> targets, IReadOnlyList<int> dynamicCounts, InteractionParams interaction, out string reason)
-            => HeroSkillSystem.TryActivateSkill(core, player, effectIndex, targets, dynamicCounts, interaction, out reason);
+            => RejectIfPaused(core, out reason) ? false
+            : HeroSkillSystem.TryActivateSkill(core, player, effectIndex, targets, dynamicCounts, interaction, out reason);
 
         /// <summary>
         /// 主阶段：横置带地牌特性的生物产 1 元素（2026-09-13 英雄技能·培育赋予的特性）。
@@ -94,6 +117,7 @@ namespace CardCore
         /// </summary>
         public static bool TapCreatureForElement(GameCore core, Player player, Card creature)
         {
+            if (RejectIfPaused(core, out _)) return false; // 暂停闸（2026-11-21 通用暂停系统）
             if (core == null || player == null || creature == null) return false;
             if (core.TurnEngine.TurnPlayer != player) return false;
             if (core.TurnEngine.CurrentPhase?.Phase != PhaseType.Main) return false;
@@ -121,18 +145,20 @@ namespace CardCore
                 }
             }
 
-            // 产色落**临时钱包**（任一回合结束清空）；2026-10-28 P3b：全类型累计钳删除，直接入账。
+            // 产色落**临时钱包**（任一回合结束清空）；2026-11-21 持有钳：入账走 CreditTempWallet
+            // 单源（每类型余额封顶地牌上限）——顶格时实发 0 不发事件，横置本身仍照常完成。
             // 事件走 core.PublishEvent 路由路径（Trigger/Layer 引擎可见——AddMana 直发 EventManager
             // 会绕开，故不换路）。
             creature.Tap();
-            core.ElementPool.GetPool(player).TempElements[type] += 1;
-            core.PublishEvent(new ElementPoolGainEvent
-            {
-                Player = player,
-                GainedType = type,
-                FromCard = creature,
-                Amount = 1,
-            });
+            int granted = core.ElementPool.CreditTempWallet(player, type, 1);
+            if (granted > 0)
+                core.PublishEvent(new ElementPoolGainEvent
+                {
+                    Player = player,
+                    GainedType = type,
+                    FromCard = creature,
+                    Amount = granted,
+                });
             RuleHooks.OnTutorialCreatureTapped?.Invoke(player, creature);
             return true;
         }

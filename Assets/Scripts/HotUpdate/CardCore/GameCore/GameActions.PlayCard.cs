@@ -45,6 +45,7 @@ namespace CardCore
         public static bool PlayCard(GameCore core, Player player, Card card, List<Entity> targets, Zone fromZone, int modeIndex, List<Entity> references, IReadOnlyList<int> dynamicCounts, InteractionParams interaction, out string rejectReason)
         {
             rejectReason = null;
+            if (RejectIfPaused(core, out rejectReason)) return false; // 暂停闸（2026-11-21 通用暂停系统）
             if (core == null || player == null || card == null) { rejectReason = "内部错误：空参数"; return false; }
             if (core.TurnEngine.TurnPlayer != player) { rejectReason = "现在不是你的回合"; return false; }
             if (core.TurnEngine.CurrentPhase?.Phase != PhaseType.Main)
@@ -176,6 +177,7 @@ namespace CardCore
         public static bool PlayCardInResponse(GameCore core, Player player, Card card, List<Entity> targets, int modeIndex, List<Entity> references, IReadOnlyList<int> dynamicCounts, InteractionParams interaction, out string rejectReason)
         {
             rejectReason = null;
+            if (RejectIfPaused(core, out rejectReason)) return false; // 暂停闸（2026-11-21 通用暂停系统）
             if (core == null || player == null || card == null) { rejectReason = "内部错误：空参数"; return false; }
             if (core.StackEngine.IsEmpty || core.StackEngine.IsResolving)
             { rejectReason = "响应窗口已关闭（无可响应对象或结算中）"; return false; }

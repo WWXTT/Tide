@@ -714,7 +714,8 @@ namespace CardCore.AI.NeuralEnv
         /// [b..b+3] 四色剩余（=该色钱包余额 + 该色未横置地牌张数，/10）、[b+4] Any 彩元素（/10，
         /// 地牌不锁 Any——只在钱包）、[b+5] 剩余总量（/20，GetRemainingElementTotal 同源）。
         /// 与脚本侧判据（BlueControlStrategy/RedAggroStrategy 的 GetRemainingElementTotal 族）
-        /// 同资源口径；计数不设钳（钱包无上限，线性外推与手牌计数 g[5]/g[6] 同族）。</summary>
+        /// 同资源口径；观测不另除钳（钱包持有 2026-11-21 起引擎侧封顶地牌上限——CreditTempWallet
+        /// 单源；特征保持线性计数，与手牌计数 g[5]/g[6] 同族）。</summary>
         private void WriteRemainingElements(ElementPoolSystem ep, Player p, int b)
         {
             var g = Globals;

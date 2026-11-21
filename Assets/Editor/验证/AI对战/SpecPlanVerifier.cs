@@ -173,7 +173,7 @@ namespace CardCore.Editor.Tests
                     var big = FindAndMove(zm, p1, OwnBigName, Zone.Battlefield);
                     var guard = FindAndMove(zm, p1, OwnGuardName, Zone.Battlefield);
                     var tCard = FindAndMove(zm, p1, tmp.CardName, Zone.Hand);
-                    core.ElementPool.AddMana(p1, ManaType.Red, null, 10);
+                    core.ElementPool.GetPool(p1).TempElements[ManaType.Red] += 10; // 夹具播种直写（2026-11-21 持有钳：AddMana 官方口余额封顶地牌上限——播种绕钳）
 
                     var def = CardEffectConverter.ConvertAll(tmp.Effects, tmp.ID).First();
                     var ctx = new EffectExecutionContext
@@ -339,7 +339,7 @@ namespace CardCore.Editor.Tests
                     FindAndMove(zm, p1, OwnBigName, Zone.Battlefield);
                     FindAndMove(zm, p1, OwnGuardName, Zone.Battlefield);
                     var tCard = FindAndMove(zm, p1, tmp.CardName, Zone.Hand);
-                    core.ElementPool.AddMana(p1, ManaType.Red, null, 10);
+                    core.ElementPool.GetPool(p1).TempElements[ManaType.Red] += 10; // 夹具播种直写（2026-11-21 持有钳：AddMana 官方口余额封顶地牌上限——播种绕钳）
 
                     var lae = new LegalActionEnumerator();
                     lae.Enumerate(core, p1);

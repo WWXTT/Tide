@@ -94,11 +94,12 @@ namespace CardCore
         ///    **彩元素（Any）=万能货币**（效果授予落临时钱包——牺牲送墓等资源族产出），恒处各链末位垫付
         ///    ——可代替红蓝绿灰缺口（本色优先消耗）。浓度上限
     ///    （2026-10-16 临时元素超上限改版）：只钳**地牌横置贡献**（每货币单次 ≤ 地牌上限——地牌张数
-    ///    本就有界，钳为双保险），临时钱包贡献不受钳（获取=对应地块可用+1、可用可超上限——
-    ///    纯色需求超帽部分由钱包覆盖即付）。
-        /// 5. 临时钱包：效果授予元素的唯一归宿，任一回合结束清空；生成无上限（2026-10-28 P3b 定案：
-        ///    全类型累计钳删除——代价已不产元素；2026-10-30 起效果无每回合次数上限，
-        ///    发电机节奏由卡自身时机期望系数与付费约束承担）。
+    ///    本就有界，钳为双保险），临时钱包贡献不受浓度钳（2026-11-21 持有钳定案后钱包余量自身
+    ///    ≤ 地牌上限，但钱包+地牌合计仍可超上限——纯色需求超帽部分由钱包覆盖即付）。
+    /// 5. 临时钱包：效果授予元素的唯一归宿，任一回合结束清空；持有钳=地牌上限（2026-11-21 定案：
+    ///    每类型余额不可超过地牌上限——CreditTempWallet 入账单源，超发即弃；接替 2026-10-28 P3b
+    ///    删除的每回合全类型累计钳——流量不限只钳存量；2026-10-30 起效果无每回合次数上限，
+    ///    发电机节奏由卡自身时机期望系数与付费约束承担）。
     /// 6. 黑白不由地牌产出（锁定色不含黑白）；获取通道=代价补偿/错边转化等卡结算路径。
     /// 7. 发动无效与地牌零交互（净零靠付费在响应窗之后，本就无退款路径）；地牌的交互面只有摧毁/抹除。
     /// </summary>
@@ -422,23 +423,37 @@ namespace CardCore
 
         // ======================================== 临时钱包（效果授予元素） ========================================
 
-        /// <summary>效果发放（代价补偿/错边/光合作用/带地牌特性生物产色等 AddMana 路径）——
-        /// 落**临时钱包**（任一回合结束清空）。2026-10-28 P3b 定案：全类型累计钳删除——
-        /// 生成不再受每回合总量上限，实发量=请求量。</summary>
-        public int AddMana(Player player, ManaType type, Card fromCard, int amount = 1)
+        /// <summary>临时钱包入账单源（2026-11-21 持有钳定案）：每类型余额封顶地牌上限——
+        /// 实发 = min(请求量, 上限−当前余额)，余量顶格时实发 0（超发即弃，不报错不拆分）。
+        /// 只管入账与钳；事件发布由调用方按各自路由口径发布（AddMana=ElementPoolGainEvent
+        /// 本口 / 生物产色=core.PublishEvent / 三连三=EventManager 直发 AddManaEvent），
+        /// Amount 均写实发量。快照恢复/测试播种的直写不走此口（存量来源恒已钳）。</summary>
+        public int CreditTempWallet(Player player, ManaType type, int amount)
         {
             if (player == null || amount <= 0) return 0;
             var pool = GetPool(player);
+            pool.TempElements.TryGetValue(type, out int cur);
+            int actual = Math.Min(amount, Math.Max(0, GetLandCap(player) - cur));
+            if (actual > 0) pool.TempElements[type] = cur + actual;
+            return actual;
+        }
 
-            pool.TempElements[type] += amount;
+        /// <summary>效果发放（代价补偿/错边/光合作用/牺牲逐卡+1 彩、蛰伏发款等 AddMana 路径）——
+        /// 落**临时钱包**（任一回合结束清空）。2026-11-21 持有钳定案：余额封顶地牌上限
+        ///（CreditTempWallet 单源），顶格时实发 0 且不发事件（无可观测变化）；2026-10-28 P3b
+        /// 删除的是每回合总量钳——流量不限，与持有钳并存。</summary>
+        public int AddMana(Player player, ManaType type, Card fromCard, int amount = 1)
+        {
+            int actual = CreditTempWallet(player, type, amount);
+            if (actual <= 0) return 0;
             PublishEvent(new ElementPoolGainEvent
             {
                 Player = player,
                 GainedType = type,
                 FromCard = fromCard,
-                Amount = amount
+                Amount = actual
             });
-            return amount;
+            return actual;
         }
 
         // ======================================== 支付（现取现用统一规划器） ========================================
@@ -519,7 +534,8 @@ namespace CardCore
         /// ② 按 FourColorOrder×ChainFor 贪心扣减（支付链 2026-10-28 四色重构：三色仅本色；
         ///    灰=灰→红→蓝→绿——黑白不再垫灰、无需先行预留）；
         /// ③ 黑白等非四色需求（P2 删枚举成员前过渡态）垫后沿本色链扣（只来自钱包——地牌锁色不含黑白）；
-        /// ④ 同货币先扣钱包（临时元素回合末即逝，优先消耗，**不受浓度钳**——可用可超上限）再横置地牌
+        /// ④ 同货币先扣钱包（临时元素回合末即逝，优先消耗，**不受浓度钳**——钱包持有 2026-11-21 起
+        ///    封顶地牌上限，但与地牌横置合计仍可超上限）再横置地牌
         ///    （地牌每货币单次贡献 ≤ cap，双保险钳）。
         /// </summary>
         private static PaymentPlan PlanBill(

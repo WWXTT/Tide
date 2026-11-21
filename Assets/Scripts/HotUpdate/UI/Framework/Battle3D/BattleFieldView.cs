@@ -135,10 +135,16 @@ namespace SynergyUI
         public BattleFieldView()
         {
             _root = new GameObject("BattleFieldView").transform;
+            Current = this; // 教学表现层查询口（2026-11-21 遮罩/高亮计划 §3）：TutorialTargetResolver 经此取单位/英雄/TMP
         }
+
+        /// <summary>在役实例（教学表现层目标解析用，2026-11-21 遮罩/高亮计划 §3）：
+        /// ctor 占位/Dispose 清位——静态访问跨屏安全（无视图在役=null，解析器静默降级）。</summary>
+        public static BattleFieldView Current { get; private set; }
 
         public void Dispose()
         {
+            if (Current == this) Current = null; // 教学表现层查询口随实例退位（2026-11-21）
             if (_heldUnits.Count > 0)
                 Debug.LogWarning($"[BattleField] Dispose 时仍有 {_heldUnits.Count} 个演出 hold 未释放（正常应在编舞 finally 清空）——随 Dispose 一并丢弃");
             _heldUnits.Clear();

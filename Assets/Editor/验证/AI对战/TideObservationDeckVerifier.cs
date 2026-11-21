@@ -432,8 +432,9 @@ namespace CardCore.Editor.Tests
             core.InitGame(CardLoader.BuildDeck(deck1Data, 1), CardLoader.BuildDeck(deck2Data, 1), rngSeed: 11);
             p1 = core.Player1;
             zm = core.ZoneManager;
+            // 夹具播种直写（2026-11-21 持有钳：AddMana 官方口余额封顶地牌上限——播种绕钳）
             foreach (var color in new[] { ManaType.Red, ManaType.Green, ManaType.Blue, ManaType.Gray })
-                core.ElementPool.AddMana(p1, color, null, 10);
+                core.ElementPool.GetPool(p1).TempElements[color] += 10;
             // 代价行地牌门槛（红色代价 1 需红地 ≥1——代价不走临时钱包）：四色地各铺一张
             var pool = core.ElementPool.GetPool(p1);
             foreach (var color in new[] { ManaType.Red, ManaType.Green, ManaType.Blue, ManaType.Gray })

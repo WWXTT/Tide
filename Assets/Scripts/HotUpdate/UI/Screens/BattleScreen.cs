@@ -442,6 +442,8 @@ namespace SynergyUI
             _gameEnded = false;
             _running = true;
             RuleHooks.OnAutoTargetTaken = OnAutoTargetTaken; // 免弹自动取反馈（2026-10-22 B5）——静态探针，OnExit 先行退订
+            BattlePauseBus.PausedChanged -= OnBattlePauseChanged; // 先减后加幂等（2026-11-21 通用暂停系统）
+            BattlePauseBus.PausedChanged += OnBattlePauseChanged; // 断线暂停提示层（OpponentLost→常驻横幅；教学暂停横幅由导演挂）
 
 
             if (_lblMode != null)
@@ -493,6 +495,8 @@ namespace SynergyUI
             // 清理（守卫窗续跑/Region 收口/箭头回收）之前——OnExit 中途异常截断会让静态事件
             // OnStepAdvanced 摄着本实例跨局复活（残留 _toastOverlay 每步重渲+访问已毁 UI）。
             _tutorial?.UnhookBanner(); // 静态引导订阅退订（BattleTutorialDirector·2026-10-18 拆分）
+            BattlePauseBus.PausedChanged -= OnBattlePauseChanged; // 暂停提示层退订（OnEnter 注册）
+            BattlePauseBus.ForceResume(); // 暂停强制恢复（§5.3-4）：timeScale/音频还原，防跨屏残留
             RuleHooks.OnAutoTargetTaken = null; // B5 静态探针退订（OnEnter 注册——僵尸订阅同口径）
             _toast.ClearLayers(); // toast 双层清空（2026-10-17 僵尸订阅口径——2026-10-18 收进 BattleToastHub）
             _running = false;
@@ -548,6 +552,27 @@ namespace SynergyUI
             _regionSelector = null;
             if (_decision != null && ResponseWindowService.HumanResponder == _decision.ShowResponseAsync)
                 ResponseWindowService.HumanResponder = null;
+        }
+
+        /// <summary>暂停提示层（2026-11-21 通用暂停系统·计划 §5.1 UI 层——复用 toast 宿主不新建结构）：
+        /// OpponentLost=常驻「等待重连」横幅（退出出口=认输键，重连超时策略另行定义）；
+        /// Tutorial+showHint=步 hint 常驻横幅（解说卡外可见的暂停口径）；恢复=回落常规横幅
+        ///（教学局 RefreshBanner 重算引导文案，普通局清空）。</summary>
+        private void OnBattlePauseChanged(bool paused, GamePauseReason reason)
+        {
+            if (!_running) return; // 僵尸订阅自防（Root 同口径）
+            if (paused)
+            {
+                if (reason == GamePauseReason.OpponentLost)
+                    _toast.SetBase(BattlePauseBus.Hint ?? "对手掉线，对局已暂停——等待重连…（认输可退出）");
+                else if (reason == GamePauseReason.Tutorial && BattlePauseBus.ShowHint && !string.IsNullOrEmpty(BattlePauseBus.Hint))
+                    _toast.SetBase(BattlePauseBus.Hint);
+            }
+            else
+            {
+                if (BattleEntry.Mode == BattleMode.Tutorial) _tutorial?.RefreshBanner();
+                else _toast.SetBase(null);
+            }
         }
 
         /// <summary>免弹自动取目标反馈（2026-10-22 玩家反馈 B5「单目标自动选定无感知」）：

@@ -250,7 +250,8 @@ namespace SynergyUI
                     // 钱包灌入（2026-10-20 段六充盈钱包制）：钱包任一回合结束清空——场景播种的 bank
                     // 跨不过回合边界，须在实际消费的回合内重灌。side=player/ai（缺省 ai），
                     // target=颜色名（缺省 Gray，同 element 动作产色槽），mode=数量（缺省 1）。
-                    // 走 AddMana 官方口：生成钳同口径（教学量≤地牌上限不受影响）+ElementPoolGainEvent 可观测。
+                    // 走 AddMana 官方口：持有钳同口径（2026-11-21 每类型余额≤地牌上限——教学灌入量
+                    // 小不受影响，顶格时实发<请求按动作失败记日志）+ElementPoolGainEvent 可观测。
                     var owner = action.side == "player" ? me.Opponent : me;
                     ManaType color = ManaType.Gray;
                     if (!string.IsNullOrEmpty(action.target)

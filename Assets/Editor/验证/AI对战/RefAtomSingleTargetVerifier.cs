@@ -116,7 +116,7 @@ namespace CardCore.Editor.Tests
                     var tCard = FindAndMoveByName(zm, p1, tmp.CardName, Zone.Hand);
                     foreach (var c in zm.GetCards(p1, Zone.Hand).Where(c => IsName(c, tmp.CardName) && c != tCard).ToList())
                         zm.MoveCard(c, p1, Zone.Hand, Zone.Deck);
-                    core.ElementPool.AddMana(p1, ManaType.Red, null, 10);
+                    core.ElementPool.GetPool(p1).TempElements[ManaType.Red] += 10; // 夹具播种直写（2026-11-21 持有钳：AddMana 官方口余额封顶地牌上限——播种绕钳）
 
                     int bigAtk = EntityEffectExtensions.GetPower(big), smallAtk = EntityEffectExtensions.GetPower(small);
                     checks.Add(new Check(enemy != null && big != null && small != null && tCard != null
@@ -215,7 +215,7 @@ namespace CardCore.Editor.Tests
                     foreach (var c in zm.GetCards(p1, Zone.Hand).Where(c => IsName(c, tmp.CardName) && c != tCard).ToList())
                         zm.MoveCard(c, p1, Zone.Hand, Zone.Deck);
                     foreach (var color in new[] { ManaType.Red, ManaType.Green, ManaType.Blue, ManaType.Gray })
-                        core.ElementPool.AddMana(p1, color, null, 10);
+                        core.ElementPool.GetPool(p1).TempElements[color] += 10; // 播种直写绕持有钳
 
                     int bigLife = EntityEffectExtensions.GetLife(big), guardLife = EntityEffectExtensions.GetLife(guard);
                     checks.Add(new Check(guard != null && big != null && tCard != null && bigLife > guardLife,
@@ -321,7 +321,7 @@ namespace CardCore.Editor.Tests
                     foreach (var c in zm.GetCards(p1, Zone.Hand).Where(c => IsName(c, RealArmorName) && c != tCard).ToList())
                         zm.MoveCard(c, p1, Zone.Hand, Zone.Deck);
                     foreach (var color in new[] { ManaType.Red, ManaType.Green, ManaType.Blue, ManaType.Gray })
-                        core.ElementPool.AddMana(p1, color, null, 10);
+                        core.ElementPool.GetPool(p1).TempElements[color] += 10; // 播种直写绕持有钳
 
                     // 引擎：整卡施放（0 费 + 代价行自动执行）参照=守卫 → 落点自动取首=守卫 → 守卫甲=守卫自身命
                     int guardLife = EntityEffectExtensions.GetLife(guard), bigLife = EntityEffectExtensions.GetLife(
@@ -379,7 +379,7 @@ namespace CardCore.Editor.Tests
                     var tCard = FindAndMoveByName(zm, p1, tmp.CardName, Zone.Hand);
                     foreach (var c in zm.GetCards(p1, Zone.Hand).Where(c => IsName(c, tmp.CardName) && c != tCard).ToList())
                         zm.MoveCard(c, p1, Zone.Hand, Zone.Deck);
-                    core.ElementPool.AddMana(p1, ManaType.Red, null, 10);
+                    core.ElementPool.GetPool(p1).TempElements[ManaType.Red] += 10; // 夹具播种直写（2026-11-21 持有钳：AddMana 官方口余额封顶地牌上限——播种绕钳）
 
                     // 己方角色预挂 5 层护甲（拆甲来源=硬编码角色）
                     EntityEffectExtensions.AddCounters(p1, Attribute.KeywordRules.ArmorCounter, 5, null);

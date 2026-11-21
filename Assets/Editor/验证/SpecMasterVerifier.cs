@@ -300,7 +300,8 @@ namespace CardCore.Editor.Tests
                     foreach (var c in landFodder) { if (lands >= 2) break; pool.PooledCards.Add(new PooledCard(c, ManaType.Blue)); lands++; }
                     foreach (var c in zm.GetCards(p1, Zone.Hand).Where(c => IsName(c, LureName) && c != handLure).ToList())
                         zm.MoveCard(c, p1, Zone.Hand, Zone.Graveyard);
-                    core.ElementPool.AddMana(p1, ManaType.Red, null, 10); // 诱敌 4.5 红 → 实付 5
+                    // 夹具播种改直写钱包（2026-11-21 持有钳：AddMana 官方口每类型余额封顶地牌上限——播种绕钳走直写）
+                    core.ElementPool.GetPool(p1).TempElements[ManaType.Red] += 10; // 诱敌 4.5 红 → 实付 5
 
                     var lae = new LegalActionEnumerator();
                     // 敌 3 → 2 → 1 → 0 分档读数（D1 只判 3 敌档；1/0 档供 E4 探针）
@@ -374,7 +375,7 @@ namespace CardCore.Editor.Tests
                     var hand = FindAndMoveByName(zm, p1, FreezeTwoName, Zone.Hand);
                     foreach (var c in zm.GetCards(p1, Zone.Hand).Where(c => IsName(c, FreezeTwoName) && c != hand).ToList())
                         zm.MoveCard(c, p1, Zone.Hand, Zone.Deck); // 多余副本沉回牌库
-                    core.ElementPool.AddMana(p1, ManaType.Blue, null, 10); // 足够蓝（冻结两个=蓝3）
+                    core.ElementPool.GetPool(p1).TempElements[ManaType.Blue] += 10; // 足够蓝（冻结两个=蓝3；播种直写绕持有钳）
 
                     if (enemies.Any(e => e == null) || hand == null)
                     {

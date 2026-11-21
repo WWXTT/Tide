@@ -533,5 +533,49 @@ namespace SynergyUI
             return tmp;
         }
 
+        // ======================================== 教学表现层查询口（2026-11-21 遮罩/高亮/暂停计划 §3） ========================================
+
+        /// <summary>按引擎卡取单位视觉体（TutorialTargetResolver 消费）：RuntimeId 直查 _units；
+        /// 卡不在场/无视图在役=false（解析器记警告跳过）。wrapper=模型根（bounds 取其下全部 renderer）。</summary>
+        public bool TryGetUnitVisual(Card card, out Transform wrapper)
+        {
+            wrapper = null;
+            if (card == null) return false;
+            if (_units.TryGetValue(card.RuntimeId, out var uv) && uv != null && uv.Wrapper != null)
+            {
+                wrapper = uv.Wrapper;
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>按引擎卡取该单位的 3D TMP 读数（攻/血/耐久三槽，§2.1 tmp: 词的目标）：
+        /// 死亡隐藏/结界单槽等情形按在位槽返回（空数组=无 TMP，调用方回落宿主包围盒）。</summary>
+        public bool TryGetUnitTmpLabels(Card card, out List<TMP_Text> labels)
+        {
+            labels = null;
+            if (card == null) return false;
+            if (!_units.TryGetValue(card.RuntimeId, out var uv) || uv == null) return false;
+            var list = new List<TMP_Text>(3);
+            if (uv.StatAtk != null) list.Add(uv.StatAtk);
+            if (uv.StatLife != null) list.Add(uv.StatLife);
+            if (uv.StatMid != null) list.Add(uv.StatMid);
+            if (list.Count == 0) return false;
+            labels = list;
+            return true;
+        }
+
+        /// <summary>按归属取英雄柱（owner 0=己方 / 1=对方；§2.1 hero/oppHero 词的目标）。</summary>
+        public bool TryGetHeroVisual(int owner, out Transform root, out TMP_Text stats)
+        {
+            root = null;
+            stats = null;
+            if (owner != 0 && owner != 1) return false;
+            if (!_heroes.TryGetValue(owner, out var hv) || hv == null || hv.Root == null) return false;
+            root = hv.Root;
+            stats = hv.Stats;
+            return true;
+        }
+
     }
 }

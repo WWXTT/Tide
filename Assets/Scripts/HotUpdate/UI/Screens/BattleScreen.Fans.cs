@@ -167,6 +167,11 @@ namespace SynergyUI
         private bool GateMyMain()
         {
             if (_gameEnded || _view == null) return false;
+            if (BattlePauseBus.Paused) // 暂停短路（2026-11-21 通用暂停系统·计划 §5.1 输入层）
+            {
+                _toast.Show(string.IsNullOrEmpty(BattlePauseBus.Hint) ? "对局已暂停——点击【确定】继续" : BattlePauseBus.Hint);
+                return false;
+            }
             if (IsTargetSelecting()) return false; // Region 抉择/反问在身不开新交互（非模态面板须自防重入，静默）
             if (!_view.MyTurn || _view.Phase != PhaseType.Main)
             {
@@ -420,9 +425,11 @@ namespace SynergyUI
             return top != null && top.RuntimeId == fan.RuntimeId ? top : null;
         }
 
-        /// <summary>GateFanMyMain 静默版（按钮/流光逐帧评估用——不弹 toast）。</summary>
+        /// <summary>GateFanMyMain 静默版（按钮/流光逐帧评估用——不弹 toast）。
+        /// 暂停短路（2026-11-21 通用暂停系统）：暂停期按钮全熄（可读提示走 GateMyMain 口）。</summary>
         private bool FanGateQuiet()
         {
+            if (BattlePauseBus.Paused) return false;
             if (_gameEnded || _ctrl == null || Core == null || P1 == null) return false;
             var phase = Core.TurnEngine?.CurrentPhase;
             return _ctrl.TurnPlayer == P1 && phase != null && phase.Phase == PhaseType.Main;

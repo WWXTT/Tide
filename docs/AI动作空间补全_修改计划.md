@@ -254,6 +254,8 @@ dotnet build TideServer/TideServer.csproj -c Release
   - HeroSkill 行数 = **11**（prefix k=1..11），无 `Targets=null` 行；
   - 第 k 行 `Targets.Count == k`，特征 `[10] == k`，`[12]=2/[13]=0`（首目标=元素池）；
   - 应用 k=11：11 张地入墓、`TempElements[Any]==11`、池 0；技能横置。
+    **（2026-11-21 已废弃：临时元素持有钳定案——Any 入账封顶地牌上限，临时彩==min(k, cap)；
+    LaeMultiTargetVerifier 现版断言 min(11,cap)，本行为 P0 验收时点的历史记录）**
 - **T7 盘面**：场上 1 张 `阿格洛斯` + 元素池 11 张地（**不摆小精灵**，保证候选只有池地）；枚举：
   - 任何行的 `Targets` 不含场上的 `阿格洛斯`（`OrderSacrifice` 排除）；
   - HeroSkill 行数 = **11**（k=1..11）；应用 k=6：6 张池地入墓、阿格洛斯仍在场、`TempElements[Any]==6`。

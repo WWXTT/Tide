@@ -23,6 +23,7 @@ namespace CardCore
         public static bool DeclareAttack(GameCore core, Player player, Entity attacker, Entity target, out string reason)
         {
             reason = null;
+            if (RejectIfPaused(core, out reason)) return false; // 暂停闸（2026-11-21 通用暂停系统）
             if (core == null || player == null) { reason = "内部错误：空参数"; return false; }
             if (!core.TurnEngine.CanCombatAction())
             {
@@ -90,6 +91,7 @@ namespace CardCore
         public static bool EndTurn(GameCore core, Player player, out string reason)
         {
             reason = null;
+            if (RejectIfPaused(core, out reason)) return false; // 暂停闸（2026-11-21 通用暂停系统）
             if (core == null || player == null) { reason = "内部错误：空参数"; return false; }
             if (core.TurnEngine.TurnPlayer != player) { reason = "现在不是你的回合"; return false; }
 
@@ -193,6 +195,7 @@ namespace CardCore
             List<Entity> targets, IReadOnlyList<int> dynamicCounts, int paidBoost, InteractionParams interaction, out string reason)
         {
             reason = null;
+            if (RejectIfPaused(core, out reason)) return false; // 暂停闸（2026-11-21 通用暂停系统）
             if (core == null || player == null || effect == null) { reason = "内部错误：空参数"; return false; }
             // 动态数量：预检/扣费/执行三处同表（ActivateEffect 入口统一落表，幂等）
             CostDerivationService.ApplyDynamicCounts(effect, dynamicCounts);
@@ -311,6 +314,7 @@ namespace CardCore
             InteractionParams interaction, out string reason)
         {
             reason = null;
+            if (RejectIfPaused(core, out reason)) return false; // 暂停闸（2026-11-21 通用暂停系统）
             if (core == null || player == null || effect == null || source == null) { reason = "内部错误：空参数"; return false; }
             if (core.StackEngine.IsEmpty || core.StackEngine.IsResolving)
             {

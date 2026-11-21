@@ -40,8 +40,9 @@ namespace TideSim
             var p1 = core.Player1;
             var p2 = core.Player2;
             // 火苗 0费→1灰（2026-11-06 加价口径），「手里还有付得起的牌」判据需 1 点钱包灰兜底
-            //（策略闸测试与出牌经济解耦——不挂地牌，避免牵动留费/拆波判据）
-            core.ElementPool.AddMana(p1, ManaType.Gray, null, 1);
+            //（策略闸测试与出牌经济解耦——不挂地牌，避免牵动留费/拆波判据）；
+            // 夹具播种直写（2026-11-21 持有钳：AddMana 官方口余额封顶地牌上限——播种绕钳）
+            core.ElementPool.GetPool(p1).TempElements[ManaType.Gray] += 1;
             var strategy = AiStrategy.RedAggro;
 
             // ---- 盘面：P1 一只 2/2 火苗（可攻击）；P2 一只 2 血小怪 ----
@@ -93,7 +94,7 @@ namespace TideSim
                 core.ZoneManager.TryAddToBattlefield(second, p1);
                 Assert(!strategy.WantEarlyCombat(core, p1), "⑦ 对手没留费 → 同攻也不拆");
 
-                core.ElementPool.AddMana(p2, ManaType.Red, null, 4);
+                core.ElementPool.GetPool(p2).TempElements[ManaType.Red] += 4; // 夹具播种直写绕持有钳
                 Assert(core.ElementPool.GetRemainingElementTotal(p2) >= 4, "预置：对手留 4 费");
                 Assert(strategy.WantEarlyCombat(core, p1), "⑦ 同攻 2/2 + 2/2 + 对手留 4 费 → 拆波");
             }

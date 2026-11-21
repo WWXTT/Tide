@@ -82,6 +82,10 @@ namespace TideSim
             if (args.Length > 0 && args[0] == "--hand-overflow-probe")
                 return HandOverflowProbe.Run();
 
+            // 临时元素持有钳（2026-11-21 定案验收）：每类型钱包余额 ≤ 地牌上限，超发即弃
+            if (args.Length > 0 && args[0] == "--wallet-clamp-probe")
+                return WalletClampProbe.Run();
+
             // 蓝套可作地/产色探针（2026-11-18 基础运转验收）
             if (args.Length > 0 && args[0] == "--land-probe")
                 return LandEligibilityProbe.Run();
@@ -131,11 +135,16 @@ namespace TideSim
             }
 
             // 教学二关键词课回归（2026-11-09 建·2026-11-11 升格教学二）：basics_plus 配置结构 + 11 段引擎断言。
-            // 独立参数（不并入 --tutorial-scenario 聚合）——段2 碾压「结界主目标直毁即时移墓→
+            // 独立参数（不并入 --tutorial-scenario 聚合）——段2 碾压「结界主目标直毁→
             // 邻格溅射落空」为已知引擎×文本不符（见 docs/教学一进阶·引擎不符清单.md），两条红
             // 待引擎补齐后转绿再并入聚合口。
             if (args.Length > 0 && args[0] == "--keyword-scenario")
                 return KeywordTutorialCheck.Run();
+
+            // 教学表现层审计（2026-11-21 遮罩/高亮/暂停计划 v0.3 §7 静态验收）：四档 guide 的
+            // mask/highlight/pause 三块——字段白名单/目标词表/单窗写法/暂停死锁规则。缺块=零报红。
+            if (args.Length > 0 && args[0] == "--tutorial-guide-audit")
+                return TutorialGuideAudit.Run();
 
             // 狩猎探针（2026-11-14 删未横置闸+击杀重置；2026-11-15 目标改「生物∪角色比生命」）：
             // 横置强击/角色兜底/重置幂等/最低生命择敌/耐久体排除/角色参与比大小 六场景。
@@ -165,7 +174,9 @@ namespace TideSim
             Console.WriteLine("  TideSim --scenario            场景回归（红快攻策略闸门直调断言）");
             Console.WriteLine("  TideSim --tutorial-scenario   教学式固定盘面回归（红快攻9场景 + 蓝充盈6场景 + 自由分支10场景）");
             Console.WriteLine("  TideSim --keyword-scenario    教学二关键词课回归（basics_plus 结构 + 11 段引擎断言）");
+            Console.WriteLine("  TideSim --tutorial-guide-audit 教学表现层审计（四档 guide mask/highlight/pause 静态校验）");
             Console.WriteLine("  TideSim --hunt-reset          狩猎探针（生物∪角色比生命择敌 + 横置强击 + 击杀重置 + 幂等）");
+            Console.WriteLine("  TideSim --wallet-clamp-probe  临时元素持有钳探针（每类型余额≤地牌上限·超发即弃·上限成长放行）");
             Console.WriteLine("  TideSim --chain-cast          连锁直伤探针（代价失败=效果无效 / 参照发动时快照 / 两张各付一次代价）");
             Console.WriteLine("  TideSim --deck-rule           卡组校验探针（代价×门奖励互斥；活体炸弹改版回归）");
             Console.WriteLine("  TideSim --data-hash <ids…>    数据内容指纹复算（手工改效果数据后回填 JSON hash 列）");
