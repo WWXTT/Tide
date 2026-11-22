@@ -64,6 +64,7 @@ namespace SynergyUI
         // ---- 战场 3D 摆位（2026-10-13 战场重做·原型）：消费 BattleViewData 幂等对账（本地/网络同轨） ----
         private BattleFieldView _field;
         private CombatChoreographer _choreo;         // 战斗编舞（2026-10-13 攻击演出：3D 寻路箭头选目标+走位/反击/死亡漩涡）
+        private Tide.HotUpdate.BattleAudioBridge _audioBridge; // 战场音频桥（2026-11-22 音效系统 B2：抽牌/命中/死亡/胜负——本地/联机/回放同一事件流）
         private BattleCellPicker _cellPicker;        // 通用选格器（2026-10-14 手牌出牌接线：放地色格/永久物空格箭头选择）
 
         /// <summary>永久物出牌时玩家所选落位格（RuntimeId→格）：入场事件补钉
@@ -469,6 +470,8 @@ namespace SynergyUI
             if (netMode || replayMode) NetCellPins.ClearAll(); // 跨局钉格清（RuntimeId 每局重起，防串号）
             _choreo = new CombatChoreographer(_field, () => _view, RefreshField, listenEvents: !netMode && !replayMode, selfPlayer: () => P1);
             _choreo.ReplayDriven = true; // 战斗演出改由步进回放导演驱动（2026-10-19 严格结算序：攻击步到位才开演）
+            _audioBridge?.Dispose();
+            _audioBridge = new Tide.HotUpdate.BattleAudioBridge(() => P1); // 音效事件桥全模式订阅（2026-11-22 B2：网络/回放事件同走 EventManager；快进机关枪由服务内 0.1s 节流闸兜）
             _cellPicker = new BattleCellPicker();
             BattleStageDirector.MountBoardAndDawnAsync().Forget(); // 转场③④：装载棋盘（分区表注入）→ 日出
             // 棋盘就绪后首刷（英雄柱/初始摆位）：staged 开局局挪到段五起步——段一~四无 Core 恒不就绪，
@@ -497,6 +500,8 @@ namespace SynergyUI
             // 清理（守卫窗续跑/Region 收口/箭头回收）之前——OnExit 中途异常截断会让静态事件
             // OnStepAdvanced 摄着本实例跨局复活（残留 _toastOverlay 每步重渲+访问已毁 UI）。
             _tutorial?.UnhookBanner(); // 静态引导订阅退订（BattleTutorialDirector·2026-10-18 拆分）
+            _audioBridge?.Dispose(); // 音效事件桥退订（2026-11-22 B2——先于可能抛错的清理，僵尸订阅同口径）
+            _audioBridge = null;
             BattlePauseBus.PausedChanged -= OnBattlePauseChanged; // 暂停提示层退订（OnEnter 注册）
             BattlePauseBus.ForceResume(); // 暂停强制恢复（§5.3-4）：timeScale/音频还原，防跨屏残留
             RuleHooks.OnAutoTargetTaken = null; // B5 静态探针退订（OnEnter 注册——僵尸订阅同口径）

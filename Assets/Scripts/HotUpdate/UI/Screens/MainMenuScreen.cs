@@ -27,6 +27,22 @@ namespace SynergyUI
         private RectTransform _matchNode;
         private readonly RectTransform[] _comboNodes = new RectTransform[3]; // 卡组/卡面/效果三入口（对局记录 2026-11-10 移联机屏）
 
+        // ---- 设置面板（2026-11-22 音效系统 B4·计划 §4.5）：节点全部烘焙在 MainUI.prefab，代码只按名绑定 ----
+        private RectTransform _settingsPanel;             // panel-settings（默认 inactive）
+        private Slider _musicSlider;                      // slider-music（0..1）
+        private Slider _sfxSlider;                        // slider-sfx（0..1）
+        private TMP_Text _musicValueLabel;                // lbl-music-value（「60%」）
+        private TMP_Text _sfxValueLabel;                  // lbl-sfx-value（「80%」）
+        private TMP_Text _muteLabel;                      // btn-mute 的 label（静音开关文案）
+
+        /// <summary>设置面板·账号区登录槽（slot-login，2026-11-22 登录迁移定案：TapTap 登录/云存档/
+        /// 退出登录从启动页与主菜单右下角迁入设置面板）。public=跨程序集（Tide.TapTap 经 TapBridge
+        /// 注入 TapLoginBadge；单机风味空置）。</summary>
+        public RectTransform SettingsLoginSlot { get; private set; }
+
+        /// <summary>设置面板·云存档入口槽（slot-cloud）：CloudSaveEntry.prefab 注入点（同上口径）。</summary>
+        public RectTransform SettingsCloudSlot { get; private set; }
+
         protected override void Build()
         {
             _teachingButton = BindButton("btn-teaching", EnterTutorialFlow);
@@ -67,6 +83,11 @@ namespace SynergyUI
             // 挂接（入口文案含昵称/退出登录在面板）——登录入口已迁启动页 LaunchScreen。
             //（TapBridge.Module 由 HotUpdateEntry.Start 扫域安装；本地单机风味无 Tide.TapTap
             // 程序集=Module null，云存档入口整体缺席，主菜单只剩本地方案）。
+            // 设置面板（2026-11-22 音效系统 B4）：音乐/音效两条滑条+静音+关闭，主音量不单列（§4.5 定案）。
+            // 必须先于下方 TapBridge 挂件——账号区槽位（slot-login/slot-cloud）在此赋值，
+            // TapLoginBadge/CloudSaveEntry 注入晚于此=槽位就绪。
+            BindSettingsPanel();
+
             TapBridge.Module?.OnMainMenuBuilt(this);
         }
 
@@ -81,6 +102,73 @@ namespace SynergyUI
         {
             TutorialProgressManager.Instance.OnProgressChanged -= RefreshTutorialGates;
             TapBridge.Module?.OnMainMenuExit(this); // 云存档退订 + 关面板（单机风味 no-op）
+        }
+
+        // ======================================== 设置面板（2026-11-22 音效系统 B4·计划 §4.5） ========================================
+
+        /// <summary>按名绑定设置面板（节点烘焙在 MainUI.prefab：btn-settings/panel-settings/
+        /// slider-music/lbl-music-value/slider-sfx/lbl-sfx-value/btn-mute/btn-settings-close）。
+        /// 滑条 onValueChanged → AudioService.SetBusVolume（实时生效+防抖持久化）；静音 → SetMute。</summary>
+        private void BindSettingsPanel()
+        {
+            BindButton("btn-settings", () => ShowSettingsPanel(true));
+
+            _settingsPanel = Find("panel-settings");
+            if (_settingsPanel != null) _settingsPanel.gameObject.SetActive(false); // 默认收起（§4.5）
+
+            BindButton("btn-settings-close", () => ShowSettingsPanel(false));
+
+            var muteNode = Find("btn-mute");
+            _muteLabel = muteNode != null ? muteNode.GetComponentInChildren<TMP_Text>(true) : null;
+            BindButton("btn-mute", ToggleMute);
+
+            _musicSlider = BindVolumeSlider("slider-music", "lbl-music-value", AudioBus.Music);
+            _sfxSlider = BindVolumeSlider("slider-sfx", "lbl-sfx-value", AudioBus.Sfx);
+
+            // 账号区槽位（2026-11-22 登录迁移）：TapLoginBadge/CloudSaveEntry 由 Tide.TapTap 侧注入
+            //（TapModule.OnMainMenuBuilt 实例化——单机风味 Module=null 槽位空置）。
+            SettingsLoginSlot = Find("slot-login");
+            SettingsCloudSlot = Find("slot-cloud");
+            RefreshMuteLabel();
+        }
+
+        private void ShowSettingsPanel(bool open)
+        {
+            if (_settingsPanel != null) _settingsPanel.gameObject.SetActive(open);
+        }
+
+        private void ToggleMute()
+        {
+            AudioService.SetMute(!AudioService.MuteOn); // Master 闸（§4.2 SetMute；防抖持久化）
+            RefreshMuteLabel();
+        }
+
+        private void RefreshMuteLabel()
+        {
+            if (_muteLabel != null) _muteLabel.text = AudioService.MuteOn ? "静音：开" : "静音：关";
+        }
+
+        /// <summary>单条音量滑条绑定：初值不带通知回填（防 Awake 期误触发写盘），拖动实时生效。</summary>
+        private Slider BindVolumeSlider(string sliderName, string valueLabelName, AudioBus bus)
+        {
+            var sliderRt = Find(sliderName);
+            var slider = sliderRt != null ? sliderRt.GetComponentInChildren<Slider>(true) : null;
+            if (slider == null) return null;
+
+            var labelRt = Find(valueLabelName);
+            var label = labelRt != null ? labelRt.GetComponentInChildren<TMP_Text>(true) : null;
+            if (bus == AudioBus.Music) _musicValueLabel = label; else _sfxValueLabel = label;
+
+            float v = AudioService.GetBusVolume(bus);
+            slider.SetValueWithoutNotify(v);
+            if (label != null) label.text = Mathf.RoundToInt(v * 100f) + "%";
+
+            slider.onValueChanged.AddListener(nv =>
+            {
+                AudioService.SetBusVolume(bus, nv);
+                if (label != null) label.text = Mathf.RoundToInt(nv * 100f) + "%";
+            });
+            return slider;
         }
 
         /// <summary>教学门禁（2026-10-19 三课制·2026-10-25 本地对战退役改版）：教学未整体完成=

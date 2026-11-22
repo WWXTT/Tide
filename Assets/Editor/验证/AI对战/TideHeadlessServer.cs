@@ -384,18 +384,22 @@ namespace CardCore.Editor.TideHeadless
 
                 // 模型侧（script 模式=「模型主题侧」）卡组构建：simpleai 与 script 两口径共用
                 //（2026-11-22 opponent="script" 归因取证——卡组口径必须与 vs 模式逐位一致，
-                // 否则归因实验自引入变量）。
-                List<CardData> BuildModelDeck()
+                // 否则归因实验自引入变量）。返回 (卡组, 正牌技能卡 ID)——阶段 D2a（2026-11-22）：
+                // 主题整组命中带其 skillCardId；随机 30/掺卡无构筑配置 → null（driver 回落
+                // AutoPickSkillCard 旧径）。
+                (List<CardData> deck, string skillCardId) BuildModelDeck()
                 {
                     // 模型侧卡组：modelTheme 命中 → 该主题整组（红镜像等固定口径）；缺省 Cards 随机 30。
                     // 找不到主题 LogWarning 回落随机（不静默），info.modelTheme 回显实际命中的 key。
                     var modelDeck = BattleDeckSources.SampleRandomDeck(pool, RandomDeckSize, DeckRng);
+                    string modelSkill = null;
                     if (!string.IsNullOrEmpty(modelThemeKey))
                     {
                         var modelTheme = themes.FirstOrDefault(t => t.key == modelThemeKey);
                         if (modelTheme.deck != null && modelTheme.deck.Count > 0)
                         {
                             modelDeck = modelTheme.deck;
+                            modelSkill = modelTheme.skillCardId;
                             _modelTheme = modelTheme.key;
                         }
                         else
@@ -408,12 +412,14 @@ namespace CardCore.Editor.TideHeadless
                     // 阶段二掺卡口径（2026-11-17，AI训练说明 §0.1）：modelDoped 命中 → 模型侧改
                     // 掺卡卡组（主题整组每种 −1 + 训练池随机补足），优先级高于 modelTheme 整组；
                     // 未传/未命中 = 旧行为零差，info.modelDoped 回显实际命中 key。
+                    //（掺卡卡组无正牌技能配置 → modelSkill 置 null 走 AutoPick）
                     if (!string.IsNullOrEmpty(modelDopedKey))
                     {
                         var dopedTheme = themes.FirstOrDefault(t => t.key == modelDopedKey);
                         if (dopedTheme.deck != null && dopedTheme.deck.Count > 0)
                         {
                             modelDeck = BattleDeckSources.BuildDopedDeck(dopedTheme.deck, pool, DeckRng);
+                            modelSkill = null;
                             _modelTheme = "";
                             _modelDoped = dopedTheme.key;
                         }
@@ -423,16 +429,17 @@ namespace CardCore.Editor.TideHeadless
                                 $"[TideHeadless] modelDoped '{modelDopedKey}' 未命中主题卡组，模型侧保持原口径");
                         }
                     }
-                    return modelDeck;
+                    return (modelDeck, modelSkill);
                 }
 
                 if (opponent == "simpleai" || opponent == "script")
                 {
-                    var modelDeck = BuildModelDeck();
+                    var (modelDeck, modelSkill) = BuildModelDeck();
 
                     // 卡组绑定模型座次（deck1 恒 P1 / deck2 恒 P2）：脚本侧 = 主题整组，
                     // 策略按主题自动匹配（红快攻/绿慢速/蓝控制）；模型座次随机 = 先后手各半，
                     // modelSeat 钉死时按请求（评估协议 v2：24/24 均分不再靠掷币凑）。
+                    // 技能（阶段 D2a）：双方各传卡组正牌技能（模型侧主题命中才有；脚本侧恒主题）。
                     _opponentTheme = theme.key;
                     bool modelIsP1 = seatPin >= 0 ? seatPin == 0 : DeckRng.Next(2) == 0;
                     if (opponent == "script")
@@ -441,19 +448,20 @@ namespace CardCore.Editor.TideHeadless
                         // 卡组) 自动打到终局，reset 响应即终态（done=true，不发 step）；胜负按
                         // info.winner × info.modelSeat（modelTheme 侧）判——与 vs 模式同表可比。
                         return modelIsP1
-                            ? driver.ResetScriptGame(modelDeck, theme.deck, true, rngSeed)
-                            : driver.ResetScriptGame(theme.deck, modelDeck, false, rngSeed);
+                            ? driver.ResetScriptGame(modelDeck, theme.deck, true, rngSeed, modelSkill, theme.skillCardId)
+                            : driver.ResetScriptGame(theme.deck, modelDeck, false, rngSeed, theme.skillCardId, modelSkill);
                     }
                     var strategy = AiStrategy.AutoMatch(theme.deck);
                     return modelIsP1
-                        ? driver.Reset(modelDeck, theme.deck, true, strategy, rngSeed)
-                        : driver.Reset(theme.deck, modelDeck, false, strategy, rngSeed);
+                        ? driver.Reset(modelDeck, theme.deck, true, strategy, rngSeed, modelSkill, theme.skillCardId)
+                        : driver.Reset(theme.deck, modelDeck, false, strategy, rngSeed, theme.skillCardId, modelSkill);
                 }
 
                 // 自对弈：主题整组 vs Cards 随机 30，主题侧随机先后手。
                 // 阶段二掺卡口径（2026-11-17，AI训练说明 §0.1）：modelDoped 命中 → 一侧 =
                 // 掺卡卡组（主题整组每种 −1 + 训练池随机补足），另一侧 = 旧口径
                 // （主题整组 / 随机 30 各半抽），座次随机；不传 = 旧行为零差。
+                // 技能（阶段 D2a 2026-11-22）：主题整组一侧带正牌技能；随机 30/掺卡侧 null（AutoPick）。
                 _opponentTheme = "";
                 if (!string.IsNullOrEmpty(modelDopedKey))
                 {
@@ -462,20 +470,22 @@ namespace CardCore.Editor.TideHeadless
                     {
                         _modelDoped = dopedTheme.key;
                         var dopedDeck = BattleDeckSources.BuildDopedDeck(dopedTheme.deck, pool, DeckRng);
-                        var oppDeck = DeckRng.Next(2) == 0
+                        bool oppIsTheme = DeckRng.Next(2) == 0;
+                        var oppDeck = oppIsTheme
                             ? theme.deck
                             : BattleDeckSources.SampleRandomDeck(pool, RandomDeckSize, DeckRng);
+                        var oppSkill = oppIsTheme ? theme.skillCardId : null;
                         return DeckRng.Next(2) == 0
-                            ? driver.Reset(dopedDeck, oppDeck, rngSeed)
-                            : driver.Reset(oppDeck, dopedDeck, rngSeed);
+                            ? driver.Reset(dopedDeck, oppDeck, rngSeed, null, oppSkill)
+                            : driver.Reset(oppDeck, dopedDeck, rngSeed, oppSkill, null);
                     }
                     UnityEngine.Debug.LogWarning(
                         $"[TideHeadless] modelDoped '{modelDopedKey}' 未命中主题卡组，自对弈保持旧口径");
                 }
                 var randomDeck = BattleDeckSources.SampleRandomDeck(pool, RandomDeckSize, DeckRng);
                 return DeckRng.Next(2) == 0
-                    ? driver.Reset(theme.deck, randomDeck, rngSeed)
-                    : driver.Reset(randomDeck, theme.deck, rngSeed);
+                    ? driver.Reset(theme.deck, randomDeck, rngSeed, theme.skillCardId, null)
+                    : driver.Reset(randomDeck, theme.deck, rngSeed, null, theme.skillCardId);
             }
         }
 
@@ -496,10 +506,13 @@ namespace CardCore.Editor.TideHeadless
         /// Serialize info.modelDoped 用（Python 阶段二口径断言，2026-11-17）。</summary>
         private static string _modelDoped = "";
 
-        /// <summary>主题卡组缓存（编辑器 TCP 重启时置空重载；batchmode 进程内加载一次）。</summary>
-        private static List<(string key, List<CardData> deck)> _themeDecks;
-        private static List<(string key, List<CardData> deck)> ThemeDeckCache
-            => _themeDecks ??= BattleDeckSources.ThemeDecks();
+        /// <summary>主题卡组缓存（编辑器 TCP 重启时置空重载；batchmode 进程内加载一次）。
+        /// 阶段 D2a（2026-11-22 红绿0胜归因计划）：带正牌技能卡 ID（ThemeDecksWithSkills）——
+        /// reset 透传 driver.InitGame，与 TideSim DeckSim/挑战/联机同源；此前 ThemeDecks() 丢
+        /// 技能 → headless AutoPickSkillCard（卡组内最低锚价法术）与基线口径分叉。</summary>
+        private static List<(string key, List<CardData> deck, string skillCardId)> _themeDecks;
+        private static List<(string key, List<CardData> deck, string skillCardId)> ThemeDeckCache
+            => _themeDecks ??= BattleDeckSources.ThemeDecksWithSkills();
 
         // DeckRng 去 readonly（2026-11-22 评估协议 v2）：seed 钉局时按局重播（恒在 DeckRngLock 内
         // 赋值/消费，线程安全口径不变）；缺省构造 = 旧行为时间种子。

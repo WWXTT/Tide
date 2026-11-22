@@ -54,6 +54,27 @@ namespace CardCore.Editor.Tests
             return result;
         }
 
+        /// <summary>主题 key → (卡组, 正牌技能卡 ID)（阶段 D2a，2026-11-22 红绿0胜归因计划）：
+        /// ThemeDecks() 只返回卡组把 DeckData.skillCardId 丢了——headless 此前用
+        /// AutoPickSkillCard（卡组内最低锚价法术）替代正牌技能（绿=牺牲系 C_AC7FC01F /
+        /// 红=激励 C_77A047CD / 蓝=蛰伏 C_23EE2486），与 TideSim DeckSim（显式传
+        /// SkillCardId1/2）/挑战/联机口径分叉，是「脚本绿在 headless 被削」的首要嫌疑。
+        /// 本方法保留技能 ID 供 TideHeadlessServer 透传 driver.InitGame。消费方少，故
+        /// 不改 ThemeDecks() 签名（OnnxBatchBattle/BattleFilmVerifier 等零改动）。</summary>
+        public static List<(string key, List<CardData> deck, string skillCardId)> ThemeDecksWithSkills()
+        {
+            var result = new List<(string, List<CardData>, string)>(ThemeKeys.Length);
+            foreach (var (key, deckName) in ThemeKeys)
+            {
+                var data = DeckCatalog.Load(deckName);
+                var deck = LoadDeckByName(deckName);
+                if (deck == null || deck.Count == 0)
+                    Debug.LogError($"[BattleDeckSources] 主题卡组缺失或为空：{deckName}（先运行 Tools/验证 里的三套构建器）");
+                result.Add((key, deck ?? new List<CardData>(), data?.skillCardId));
+            }
+            return result;
+        }
+
         /// <summary>按名加载卡组（卡 ID 引用 → CardCatalog 还原；缺卡记错误后跳过该卡）。
         /// 2026-10-22 三套主题卡组迁教学：DeckCatalog 合并口——预组名回落到 TutorialData 只读档。</summary>
         public static List<CardData> LoadDeckByName(string deckName)

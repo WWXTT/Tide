@@ -551,6 +551,9 @@ namespace SynergyUI
                     // 暂停豁免（2026-11-21 通用暂停系统）：BattlePauseBus 暂停期 AudioListener.pause
                     // 停全音频——解说配音是暂停期正在消费的内容（解说摆出来→暂停→点确定），须继续播。
                     _voiceSource.ignoreListenerPause = true;
+                    // Voice 总线路由（2026-11-22 音效系统 B1 计划 §2.3）：配音随 Master、不单列滑条；
+                    // 混音器缺失（Audio 组未装）=组引用 null 等同直连，两条路径都不阻塞配音。
+                    _voiceSource.outputAudioMixerGroup = Tide.HotUpdate.AudioService.VoiceGroup;
                 }
                 _voiceSource.clip = clip;
                 _voiceSource.Play();

@@ -9,12 +9,12 @@ using Tide.HotUpdate;
 namespace SynergyUI
 {
     /// <summary>
-    /// 启动页 TapTap 登录区（2026-11-09 登录迁移：主菜单右上徽章退役，登录 UI 迁入 LaunchScreen
-    /// 的 LoginSlot——本类实例化进槽位居中摆放，视觉烘焙在 TapLoginBadge.prefab，锚点按槽位口径）。
-    /// 两态：未登录=「TapTap 登录」按钮（登录成功→云侧补登录+启动同步→启动页自动进主菜单）；
-    /// 已登录=昵称行「已登录 {昵称}，正在进入…」（静默续登/换页闪现）。退出登录按钮退役——
-    /// 退出归主菜单云存档面板（用户定案）。状态源=两侧账号服务事件（任一登录即算已登录：
-    /// 云侧 basic_info 静默或联机侧 PUBLIC_PROFILE 手动，先到先放行）。
+    /// 设置面板·TapTap 登录区（2026-11-22 登录迁移定案：登录从启动页 LoginSlot 迁入主菜单
+    /// 设置面板账号区 slot-login——本类实例化进槽位，视觉烘焙在 TapLoginBadge.prefab）。
+    /// 两态：未登录=「TapTap 登录」按钮（登录成功→云侧补登录+启动同步，**原地停留**——
+    /// 云存档入口状态行随之刷新，玩家就在账号区，无需跳页）；已登录=昵称行「已登录：{昵称}」
+    /// （静默续登闪现同款）。退出登录在云存档面板（CloudSaveMenuController）。状态源=两侧账号
+    /// 服务事件（任一登录即算已登录：云侧 basic_info 静默或联机侧 PUBLIC_PROFILE 手动）。
     /// TODO(合规)：上架前按 TapTap《登录按钮设计规范》换官方按钮素材（开发者中心下载，
     /// 届时只动 prefab 换贴图，状态机不动）。
     /// </summary>
@@ -27,15 +27,14 @@ namespace SynergyUI
         private TMP_Text _loginLabel;
         private bool _loggingIn;
         private TipPromptHost _tips;
-        private LaunchScreen _screen;
 
         private static GameObject _prefab; // 进程级预制体句柄保活（同 TipPromptHost 口径）
 
-        /// <summary>往启动页登录槽位实例化登录区并接线（每次进屏槽位全新——实例随屏销毁重建）。
-        /// 返回登录可用性（false=编辑器/未配置/平台不支持——不实例化，启动页走游客自动放行）。</summary>
-        public static bool Attach(LaunchScreen screen)
+        /// <summary>往设置面板账号区槽位实例化登录区并接线（每次建屏槽位全新——实例随屏销毁重建）。
+        /// 返回登录可用性（false=编辑器/未配置/平台不支持——不实例化，登录区缺席即正确态）。</summary>
+        public static bool AttachToSettings(MainMenuScreen menu)
         {
-            var slot = screen?.LoginSlot;
+            var slot = menu?.SettingsLoginSlot;
             if (slot == null) return false;
             if (!TapAccountService.IsSupported) return false; // 编辑器/未配置——登录区缺席即正确态
 
@@ -49,13 +48,12 @@ namespace SynergyUI
             }
             var go = Instantiate(_prefab, slot, false);
             go.name = "taptap-login"; // 锚点/尺寸烘焙在预制体根（居中摆放，随槽位）
-            go.AddComponent<TapLoginBadge>().Build(screen);
+            go.AddComponent<TapLoginBadge>().Build();
             return true;
         }
 
-        private void Build(LaunchScreen screen)
+        private void Build()
         {
-            _screen = screen;
             var rt = (RectTransform)transform;
             _tips = new TipPromptHost(() => (RectTransform)rt.parent);
 
@@ -74,11 +72,6 @@ namespace SynergyUI
             TapAccountService.OnChanged += OnAccountChanged;           // 联机侧（PUBLIC_PROFILE 手动登录/登出）
             CloudSave.TapAccountService.OnAccountChanged += OnAccountChanged; // 云侧（basic_info 静默登录/登出）
             Refresh();
-
-            // 装配即对账当前态：启动静默续登可能先于本页装配完成——OnAccountChanged 事件
-            // 在订阅前已发过（被错过），不补发则已登录玩家停在登录页（真机再次进入复现）。
-            // 兑现 ITapModule.AttachLaunchLogin 文档承诺的"已登录→true 触发自动进主菜单"。
-            if (IsLoggedIn) _screen?.NotifyLoginStateChanged(true);
         }
 
         private void OnDestroy()
@@ -87,11 +80,10 @@ namespace SynergyUI
             CloudSave.TapAccountService.OnAccountChanged -= OnAccountChanged;
         }
 
-        /// <summary>任一侧登录态变化：已登录（任一侧）→通知启动页放行；否则回登录按钮态。</summary>
+        /// <summary>任一侧登录态变化：原地刷新两态（登录成功云同步自动启动——无跳页动作）。</summary>
         private void OnAccountChanged()
         {
             Refresh();
-            _screen?.NotifyLoginStateChanged(IsLoggedIn);
         }
 
         private static bool IsLoggedIn =>
@@ -107,7 +99,7 @@ namespace SynergyUI
                 if (logged && _nameLabel != null)
                 {
                     var profile = TapAccountService.Current;
-                    _nameLabel.text = profile != null ? $"已登录 {profile.Name}，正在进入…" : "已登录，正在进入…";
+                    _nameLabel.text = profile != null ? $"已登录：{profile.Name}" : "已登录";
                 }
             }
         }

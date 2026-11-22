@@ -11,16 +11,18 @@ namespace CloudSave
 {
     /// <summary>
     /// 主菜单云存档 UI 控制器（2026-10-23 接入，2026-10-24 预编译隔离自 MainMenuScreen 迁入本程序集）：
-    /// 右下角常驻入口（CloudSaveEntry.prefab）+ 弹开式面板（CloudSavePanel.prefab，打开时建、关闭即毁）。
-    /// 2026-11-09 登录迁移改版：入口文案=「昵称 · 同步态」；未登录点入口=清栈回启动页（登录界面，
-    /// 不开面板）；面板账号操作只剩「退出登录」（登录入口在启动页）；云恢复完成=全量重载+回启动页。
+    /// 设置面板账号区入口（CloudSaveEntry.prefab，2026-11-22 登录迁移迁入 slot-cloud）+ 弹开式面板
+    ///（CloudSavePanel.prefab，打开时建、关闭即毁）。入口文案=「昵称 · 同步态」；未登录点入口=提示
+    /// 先在上方登录（2026-11-22 用户定案：登录就在同面板账号区，不再清栈回启动页）；面板账号操作
+    /// 只剩「退出登录」；**云恢复完成=原地刷新**（数据已由 GameDataReload 全量失效，重订教学事件+
+    /// 刷门槛即读新数据——2026-11-22 用户定案「不走重进」，旧清栈回启动页链退役）。
     /// 经 TapModule.OnMainMenuBuilt/Enter/Exit 驱动；本地单机风味本类不编译——入口整体缺席。
     /// 控制器随 TapModule 进程级存续、每任主菜单 Build 重绑（事件订阅在控制器方法上，跨屏重订对称）。
     /// </summary>
     public sealed class CloudSaveMenuController
     {
         private MainMenuScreen _menu;
-        private RectTransform _root; // 当前主菜单根（入口/面板挂点——Build 时刷新）
+        private RectTransform _root; // 当前主菜单根（面板挂点——Build 时刷新）
 
         private Button _cloudButton;
         private TMP_Text _cloudStatusLabel;
@@ -28,21 +30,30 @@ namespace CloudSave
         private TMP_Text _cloudStatusLine;
         private TMP_Text _cloudAccountLine;
         private Button _cloudLoginButton; // 文案随登录态换「登录/退出登录」
+        private TipPromptHost _tips;      // 游客闸提示（2026-11-22：替代旧清栈回启动页）
 
         private static GameObject _cloudEntryPrefab; // 进程级预制体句柄保活（同 TipPromptHost 口径）
         private static GameObject _cloudPanelPrefab;
 
-        /// <summary>主菜单 Build 期：右下角云存档入口实例化+绑定（视觉/锚点烘焙在预制体）。
-        /// 未启用平台/未配置凭证时置灰——状态文本仍可见（编辑器冒烟=「编辑器/PC 未启用」态）。</summary>
+        /// <summary>主菜单 Build 期：云存档入口实例化进设置面板账号区槽位+绑定（视觉烘焙在预制体，
+        /// 落位=槽位居中）。未启用平台/未配置凭证时置灰——状态文本仍可见（编辑器冒烟=「编辑器/PC 未启用」态）。</summary>
         public void Build(MainMenuScreen menu)
         {
             _menu = menu;
             _root = menu.Root;
+            _tips = new TipPromptHost(() => _root);
             _cloudPanel = null; // 上一任主菜单的面板已随屏销毁——引用归零防悬挂
             _cloudStatusLine = null;
             _cloudAccountLine = null;
             _cloudLoginButton = null;
 
+            var slot = menu.SettingsCloudSlot; // 设置面板账号区槽位（2026-11-22 登录迁移）
+            if (slot == null)
+            {
+                Debug.LogError("[MainMenu] 设置面板缺 slot-cloud 节点——云存档入口不显示"
+                               + "（检查 MainUI.prefab panel-settings）");
+                return;
+            }
             if (_cloudEntryPrefab == null)
                 _cloudEntryPrefab = HotUpdateAssets.Load<GameObject>("CloudSaveEntry", UiKit.PrefabPath("CloudSaveEntry"));
             if (_cloudEntryPrefab == null)
@@ -51,9 +62,11 @@ namespace CloudSave
                                + "（检查 Assets/Art/Prefab/CloudSaveEntry.prefab 与 Yoo UI 组收集）");
                 return;
             }
-            var entry = UnityEngine.Object.Instantiate(_cloudEntryPrefab, _root, false);
-            entry.name = "cloud-entry"; // 锚点/尺寸烘焙在预制体根（右下 -16,12）
-            var rt = (RectTransform)entry.transform;
+            var entry = UnityEngine.Object.Instantiate(_cloudEntryPrefab, slot, false);
+            entry.name = "cloud-entry";
+            var rt = (RectTransform)entry.transform; // 预制体根原锚点=主菜单右下——落槽改居中（尺寸保持烘焙值）
+            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
+            rt.anchoredPosition = Vector2.zero;
             var btnNode = UiKit.FindDeep(rt, "btn-cloud");
             _cloudButton = btnNode != null ? btnNode.GetComponentInChildren<Button>(true) : null;
             if (_cloudButton != null) _cloudButton.onClick.AddListener(OpenCloudPanel);
@@ -106,14 +119,14 @@ namespace CloudSave
         }
 
         /// <summary>云存档面板：CloudSavePanel.prefab 实例化+接线（打开时建、关闭即毁）。
-        /// 状态/账号行 + 上传/恢复/退出登录/关闭（登录入口 2026-11-09 迁启动页——面板不再提供登录）。</summary>
+        /// 状态/账号行 + 上传/恢复/退出登录/关闭（登录入口在设置面板账号区——2026-11-22 登录迁移）。</summary>
         private void OpenCloudPanel()
         {
-            // 游客闸（2026-11-09 用户定案）：未登录点云存档=弹登录界面（清栈回启动页）而非存档面板；
-            // 登录成功自动回主菜单，云同步随之启动，玩家再点入口即见面板。
+            // 游客闸（2026-11-22 用户定案：登录就在设置面板账号区，不再清栈回启动页）：
+            // 未登录点云存档=提示先在上方登录（登录成功云同步自动启动，原地再点即见面板）。
             if (!TapAccountService.LoggedIn && !SynergyUI.Online.TapAccountService.IsLoggedIn)
             {
-                UIBootstrap.ReturnToLaunch();
+                _tips?.ShowAsync("登录 TapTap 后可使用云存档（在设置面板上方登录）", "知道了").Forget();
                 return;
             }
             CloseCloudPanel();
@@ -191,15 +204,16 @@ namespace CloudSave
             return $"{name}（openId {(openId.Length > 8 ? openId.Substring(0, 8) + "…" : openId)}）";
         }
 
-        /// <summary>退出登录（2026-11-09 用户定案：面板内唯一账号操作）：双侧登出——先联机侧
-        ///（清 PUBLIC_PROFILE 态+SDK 账号缓存；云侧 OnAccountChanged 桥只清内存不清 SDK 缓存，
-        /// 顺序反了会残留缓存导致下次「静默续登」复活），后云侧（清云端档案引用）→ 清栈回启动页。</summary>
+        /// <summary>退出登录（2026-11-09 用户定案：面板内唯一账号操作；2026-11-22 起原地停留——
+        /// 登录就在设置面板账号区，无需回启动页）：双侧登出——先联机侧（清 PUBLIC_PROFILE 态+SDK
+        /// 账号缓存；云侧 OnAccountChanged 桥只清内存不清 SDK 缓存，顺序反了会残留缓存导致下次
+        /// 「静默续登」复活），后云侧（清云端档案引用）→ 关面板原地刷新（账号区事件自动回落登录按钮态）。</summary>
         private void LogoutFromPanel()
         {
             CloseCloudPanel();
             SynergyUI.Online.TapAccountService.Logout();
             TapAccountService.Logout();
-            UIBootstrap.ReturnToLaunch();
+            RefreshCloudEntry(); // 入口状态行回「未登录」（账号区徽章经 OnAccountChanged 自刷）
         }
 
         /// <summary>手动「从云端恢复」：二次确认后执行（覆盖本地内容属破坏性操作）。</summary>
@@ -239,14 +253,15 @@ namespace CloudSave
                 "暂不恢复", () => CloudSyncServiceRef.AnswerRestorePrompt(false), danger: true);
         }
 
-        /// <summary>云存档已还原（2026-11-09 重载定案）：数据已由 GameDataReload 全量失效——
-        /// 清栈回启动页（带停留提示）后自动续进主菜单，整树重建后必读新数据；
-        /// 主菜单 OnEnter 自会向新教学单例重订事件（原 RebindTutorialProgressEvents 调用随之退役）。</summary>
+        /// <summary>云存档已还原（2026-11-22 用户定案：**原地刷新、不走重进**）：数据已由
+        /// GameDataReload 全量失效——关面板 + 向新教学单例重订事件并刷门槛（RebindTutorialProgressEvents
+        /// 自带补订+RefreshTutorialGates）+ 入口状态行回「已恢复」即读新数据；其余屏（卡组/构筑等）
+        /// 层级每进屏重建、重建即读新数据。旧「清栈回启动页+PendingNotice 停留提示」链退役。</summary>
         private void OnCloudRestored()
         {
             CloseCloudPanel();
-            LaunchScreen.PendingNotice = "云端存档已恢复，数据已刷新";
-            UIBootstrap.ReturnToLaunch();
+            _menu?.RebindTutorialProgressEvents(); // 新 TutorialProgressManager 补订 + 门槛刷新
+            RefreshCloudEntry();
         }
 
         private static string FormatCloudTime(long unixSeconds)

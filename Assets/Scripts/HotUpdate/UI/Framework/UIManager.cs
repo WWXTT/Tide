@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Tide.HotUpdate; // ScreenMusic（2026-11-22 音效系统 B3：屏级音乐钩）
 using UnityEngine;
 
 namespace SynergyUI
@@ -100,6 +101,7 @@ namespace SynergyUI
         {
             screen.Mount(this, _root); // Bind → 建/实例化 Root → Build（绑定）→ OnEnter
             BattleStageDirector.OnScreenActivated(screen); // 舞台态：主菜单=黑洞 / 战场自装台 / 其它屏隐藏黑洞
+            ScreenMusic.OnScreenActivated(screen); // 屏级音乐（2026-11-22 音效系统 B3）：Audio.json 场景表切曲，未配置屏=no-op
         }
 
         private void Deactivate(UIScreen screen)

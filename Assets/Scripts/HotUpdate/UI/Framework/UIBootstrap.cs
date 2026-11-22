@@ -18,21 +18,10 @@ namespace SynergyUI
     {
         private UIManager _manager;
 
-        /// <summary>当前活动界面管理器（2026-11-09 登录迁移）：登出/云恢复等跨屏跳转
-        ///（清栈回启动页）经 <see cref="ReturnToLaunch"/> 走此口，不经屏实例互相持有。</summary>
+        /// <summary>当前活动界面管理器（2026-11-09 登录迁移）：编辑器探针/工具经此驱动导航。
+        /// 旧 ReturnToLaunch 口随 2026-11-22「登录迁设置面板+云恢复原地刷新」定案退役
+        ///（登出/云恢复不再清栈回启动页）。</summary>
         public static UIManager ActiveManager { get; private set; }
-
-        /// <summary>清空导航栈回启动页（2026-11-09 登录迁移定案：登出=回登录界面、云恢复=回页
-        /// 后已登录则自动续进主菜单）。无管理器时静默 no-op（启动竞态兜底）。</summary>
-        public static void ReturnToLaunch()
-        {
-            if (ActiveManager == null)
-            {
-                Debug.LogWarning("[UINav] ReturnToLaunch：无活动 UIManager（启动竞态？），忽略");
-                return;
-            }
-            ActiveManager.ResetTo<LaunchScreen>();
-        }
 
         /// <summary>进 Play 清引擎/事件总线单例（2026-10-14，域重载关闭防护）：静态单例跨 Play
         /// 存活时，上一局已销毁屏的订阅链会让本局事件逐条抛 MissingReferenceException——
@@ -51,6 +40,9 @@ namespace SynergyUI
         {
             // 移动端锁 30 帧压发热（真机反馈"热飞了"），PC 保持 60；与 Launch.Start 同口径
             Application.targetFrameRate = Application.isMobilePlatform ? 30 : 60;
+            // 音频服务常驻引导（2026-11-22 音效系统 B1 计划 §4.1：启动初始化+DontDestroyOnLoad；
+            // 幂等——域重载/再使能不重复建。编辑器直启与真机 Launch 流程都过本口）
+            Tide.HotUpdate.AudioService.Boot();
             // 幂等补齐 Canvas 体系（场景挂点通常只有本脚本；AddComponent<Canvas> 会自动带上 RectTransform）
             var canvas = GetComponent<Canvas>();
             if (canvas == null)

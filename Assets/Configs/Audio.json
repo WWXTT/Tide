@@ -1,0 +1,46 @@
+{
+  "music": [
+    {
+      "id": "Menu",
+      "clip": "music_menu_loop",
+      "intro": null,
+      "outro": null,
+      "fadeInSec": 1.0
+    },
+    {
+      "id": "Battle",
+      "clip": "music_battle_loop",
+      "intro": "music_battle_intro",
+      "outro": "music_battle_outro",
+      "fadeInSec": 1.5
+    }
+  ],
+  "screens": [
+    { "screen": "LaunchScreen", "music": "Menu" },
+    { "screen": "MainMenuScreen", "music": "Menu" },
+    { "screen": "LobbyScreen", "music": "Menu" },
+    { "screen": "DeckBuilderScreen", "music": "Menu" },
+    { "screen": "CardComposerScreen", "music": "Menu" },
+    { "screen": "EffectComposerScreen", "music": "Menu" },
+    { "screen": "MatchHistoryScreen", "music": "Menu" },
+    { "screen": "ChallengeScreen", "music": "Menu" },
+    { "screen": "BattleScreen", "music": "Battle" }
+  ],
+  "sfx": [
+    { "id": "Draw", "clip": "sfx_draw_01" },
+    { "id": "HitLight", "clip": "sfx_hit_light_01" },
+    { "id": "HitHeavy", "clip": "sfx_hit_heavy_01" },
+    { "id": "DeathUnit", "clip": "sfx_death_unit_01" },
+    { "id": "DeathHero", "clip": "sfx_death_hero_01" },
+    { "id": "Win", "clip": "sfx_win_01" },
+    { "id": "Lose", "clip": "sfx_lose_01" }
+  ],
+  "preload": [
+    "Draw",
+    "HitLight",
+    "DeathUnit",
+    "Win"
+  ],
+  "hitHeavyThreshold": 3.0,
+  "tutorialDuckDb": -6.0
+}
