@@ -251,6 +251,8 @@ namespace SynergyUI
                 TickTutorialResetButton(); // 常驻考验重置门控（2026-10-19）：显隐+可点性逐帧评估
                 PollTutorialJumpKey();    // T 键测试跳段（2026-10-21）：教学局直跳最终考验
                 PollFieldClearStep();     // 教学自由清场步（2026-10-19 教学二段一）：栈收口+表现播毕后空场即推进
+                BattleRevealDirector.PumpBoardReady(); // 显隐指令就绪泵（2026-11-21）：Solo 早于棋盘装配时补拍（basics_01 scene 全藏）
+                TutorialFocusController.Tick(); // 教学遮罩逐帧（2026-11-21）：窗跟新+模糊链+点窗内恢复（未启用=零开销）
                 PollFieldPointer(); // 3D 棋盘悬停/点击（区域格/功能格/单位地牌统一入口——2026-10-13）
                 _hudTicker.Tick();  // HUD 时间/速度/产量格（4Hz 节流；BattleHudTicker·2026-10-18 拆分）
                 WatchdogStalePick(); // 选择/响应窗帧驱动看门狗（2026-10-17）：孤悬窗口强制收口——不依赖 UniTask.Delay
@@ -509,6 +511,7 @@ namespace SynergyUI
             _projector?.Dispose(); // 投影订阅退订（B2 同上口径）
             //（结业镜像局会话标记 2026-10-19 随三课制整删——此处原 ClearAssessment 调用退役）
             TutorialGuide.End();            // 引导闸卸载防跨局残留
+            TutorialFocusController.Clear(); // 教学表现层遮罩/高亮清场（2026-11-21 遮罩计划 §5.3-4：RT 释放/描边退场）
 
             _decision.Shutdown(); // 守卫/响应窗收口协议（顺序依据见 BattleDecisionHub——2026-10-18 B3）
             _tutorial?.CloseIntroPanel(); // 介绍段配音卡片防跨屏残留（2026-10-17）
@@ -554,8 +557,8 @@ namespace SynergyUI
                 ResponseWindowService.HumanResponder = null;
         }
 
-        /// <summary>暂停提示层（2026-11-21 通用暂停系统·计划 §5.1 UI 层——复用 toast 宿主不新建结构）：
-        /// OpponentLost=常驻「等待重连」横幅（退出出口=认输键，重连超时策略另行定义）；
+        /// <summary>暂停提示层（2026-11-21 通用暂停系统·计划 §5.1 UI 层——复用 toast 宿主不新建结构；
+        /// v0.4：暂停调用方只有教学——联机断线=断开就结束，不经本层）：
         /// Tutorial+showHint=步 hint 常驻横幅（解说卡外可见的暂停口径）；恢复=回落常规横幅
         ///（教学局 RefreshBanner 重算引导文案，普通局清空）。</summary>
         private void OnBattlePauseChanged(bool paused, GamePauseReason reason)
@@ -563,9 +566,7 @@ namespace SynergyUI
             if (!_running) return; // 僵尸订阅自防（Root 同口径）
             if (paused)
             {
-                if (reason == GamePauseReason.OpponentLost)
-                    _toast.SetBase(BattlePauseBus.Hint ?? "对手掉线，对局已暂停——等待重连…（认输可退出）");
-                else if (reason == GamePauseReason.Tutorial && BattlePauseBus.ShowHint && !string.IsNullOrEmpty(BattlePauseBus.Hint))
+                if (reason == GamePauseReason.Tutorial && BattlePauseBus.ShowHint && !string.IsNullOrEmpty(BattlePauseBus.Hint))
                     _toast.SetBase(BattlePauseBus.Hint);
             }
             else

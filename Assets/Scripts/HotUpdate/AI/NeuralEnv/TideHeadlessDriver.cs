@@ -51,8 +51,10 @@ namespace CardCore.AI.NeuralEnv
     ///  - Main 停靠：回合玩家主阶段（栈空）——Enumerate 全动作表；
     ///  - 响应停靠：栈非空时对优先权持有方收集候选（CollectAvailableResponses + 手牌响应卡），
     ///    候选 &gt; 0 才停靠问模型（自对弈两座次都问；候选=0 驱动自动让过——停靠步数有界）。
-    ///    vs SimpleAI 模式响应窗口双侧自动让过（契约第 6 节：SimpleAI 不做守卫/响应、模型在
-    ///    SimpleAI 回合不获决策点——vs 红轴 0.75 早停口径与旧数字可比；响应能力由自对弈训练）。
+    ///    vs 模式（D2c 2026-11-22，取代旧「双侧自动让过」）：模型座同样停靠问模型（候选>0）；
+    ///    脚本座走策略响应（AiResponder=PickFor，与 AiDuelRunner 同源）；模型在 SimpleAI
+    ///    回合内不获停靠（脚本回合的窗口由引擎响应窗泵就近收口）——响应类动作（乱锋/冻结/
+    ///    回根/回收）自此在 vs 模式模型回合内可学可用。
     ///
     /// 奖励（actor-centric 自对弈，reward 恒归属「刚行动的那一方」= 本步决策座次）：
     ///   终局 ±1 主导；非终局每步 λ·(Φ_after − Φ_before)，Φ = 己方战场价值 − 对方战场价值
@@ -135,6 +137,22 @@ namespace CardCore.AI.NeuralEnv
         private BattleController _aiCtrl;
         private SimpleAI _simpleAI = new SimpleAI();
 
+        // 全脚本局（opponent="script"，2026-11-22 归因取证）：双座各自 SimpleAI（AutoMatch(己方卡组)），
+        // 座位↔实例绑定（_scriptAi1=P1 / _scriptAi2=P2）；仅 scriptVsScript 模式使用
+        private SimpleAI _scriptAi1;
+        private SimpleAI _scriptAi2;
+
+        // 全脚本局回合上限：镜像 AiDuelRunner.DuelConfig.MaxTurns 默认 200——脚本局偶发不终结
+        // （资源互耗）时的收口保险；到顶 = MaxTurns 无胜者（Python 记平局）
+        private const int ScriptMaxTurns = 200;
+
+        // 全脚本局单局墙钟上限（A1，2026-11-22 红绿归因计划）：回合粒度检查——单局即使每回合
+        // 都在推进也不得超过此时长（绿镜像 ~0.25s/回合 × 200 回合 ≈ 50s，180s 只作病态局保险：
+        // 回合越来越慢/单回合内卡长循环时强制收口）。到顶 = GameTimeout 无胜者（Python 记平局，
+        // reasons 落 "GameTimeout"）；Python 侧 EnvTimeout（默认 240s）才是真挂死兜底（杀 Unity 重启）。
+        // 已实证：smoke 4 局完局 + --game-timeout 2 强制触发 EnvTimeout 重启续跑链（2026-11-22 主仓）。
+        private const float ScriptGameTimeoutSec = 180f;
+
         // 回合内无进展防护：引擎拒绝（枚举/引擎口径漂移）的动作按签名本回合摘除 + 小额扣分——
         // 否则确定性策略会无限重选同一无效动作，回合冻结烧满步数上限、对局永不自然终局
         private readonly HashSet<string> _bannedThisTurn = new HashSet<string>();
@@ -167,33 +185,74 @@ namespace CardCore.AI.NeuralEnv
             EventManager.Instance.Subscribe<GameOverEvent>(OnGameOver);
         }
 
-        /// <summary>初始化一局（自对弈：双方座位都由模型驱动）。返回首个决策点观测。</summary>
-        public TideStepResult Reset(List<CardData> deck1, List<CardData> deck2)
-            => ResetCore(deck1, deck2, null);
+        /// <summary>初始化一局（自对弈：双方座位都由模型驱动）。返回首个决策点观测。
+        /// rngSeed（2026-11-22 评估协议 v2）：非 null 重播双随机流，缺省不重播。
+        /// skillCardId1/2（2026-11-22 阶段 D2a）：显式英雄技能卡（主题卡组正牌技能——与
+        /// TideSim/挑战/联机同源 DeckData.skillCardId）；null = AutoPickSkillCard 旧径。</summary>
+        public TideStepResult Reset(List<CardData> deck1, List<CardData> deck2, int? rngSeed = null,
+            string skillCardId1 = null, string skillCardId2 = null)
+            => ResetCore(deck1, deck2, null, rngSeed: rngSeed,
+                skillCardId1: skillCardId1, skillCardId2: skillCardId2);
 
         /// <summary>
         /// 初始化一局 vs 脚本对手：modelIsP1 指定模型座次，另一座位整回合由 SimpleAI 自动打
         /// （opponentStrategy 注入决策偏好——主题评估传 AiStrategy.AutoMatch(对手卡组)，缺省通用）。
         /// obs/合法动作/reward 恒为模型视角（对手回合在内部自动完成，Python 只见模型决策点）；
-        /// 响应窗口双侧自动让过（v2 契约口径——模型在 SimpleAI 回合不获决策点）；
+        /// 响应窗口（D2c 2026-11-22，取代旧「双侧自动让过」）：模型座候选>0 停靠问模型、
+        /// 脚本座走策略响应（PickFor）；模型在 SimpleAI 回合内不获停靠（脚本回合窗口由
+        /// 引擎响应窗泵就近收口）——ΔΦ 弧长与旧口径差异 = 模型回合内的连锁步；
         /// 非终局塑形的 ΔΦ 口径为「模型行动 + 对手整回合响应」的弧长，终局 ±1 仍按模型胜负。
+        /// rngSeed（2026-11-22 评估协议 v2）：非 null → 经 InitGame 同种子重播双随机流
+        /// （GameRng 效果随机 + ZoneContainer 洗牌）——同种子同卡组同座次 = 逐局可精确重播，
+        /// 配对评估（两检查点打同一批对局）的前提；缺省 null 沿用旧行为不重播。
+        /// skillCardId1/2（2026-11-22 阶段 D2a）：显式技能卡（正牌主题技能），null = AutoPick 旧径。
         /// </summary>
         public TideStepResult Reset(List<CardData> deck1, List<CardData> deck2, bool modelIsP1,
-            AiStrategy opponentStrategy = null)
-            => ResetCore(deck1, deck2, modelIsP1, opponentStrategy);
+            AiStrategy opponentStrategy = null, int? rngSeed = null,
+            string skillCardId1 = null, string skillCardId2 = null)
+            => ResetCore(deck1, deck2, modelIsP1, opponentStrategy, rngSeed: rngSeed,
+                skillCardId1: skillCardId1, skillCardId2: skillCardId2);
+
+        /// <summary>
+        /// 初始化一局全脚本对局（协议 opponent="script"，2026-11-22 「绿打红 0%」归因取证）：
+        /// 双方整回合由各自 SimpleAI(AutoMatch(己方卡组)) 自动打到终局——reset 请求即跑完整局，
+        /// 返回恒为终态（done=true；reward=0 占位，胜负由 Python 按 info.winner×info.modelSeat 判，
+        /// 不发 step）。modelSideIsP1 只决定 info.modelSeat 回显（modelTheme 卡组侧座次——胜率统计
+        /// 口径同 vs 模式，可与 0/96 模型矩阵同表对比）。
+        /// 环境语义与 vs 模式逐项对齐（归因实验的立身之本）：卡组装载/InitGame/后手护甲/棋盘接线
+        /// 同 ResetCore；手牌上限弃牌双座自动代选（无模型座停靠）。
+        /// **阶段 D 修复（2026-11-22）后与 vs 模式的语义差异**：D2c 起 vs 模式脚本座同样经
+        /// AiStrategyRegistry+AiResponder 走策略响应（同一装配，见 ResetCore vs 分支）——脚本局与
+        /// vs 局的响应口径已收敛；剩余差异 = 脚本局无模型座（整局脚本驱动、弃牌自动代选），
+        /// vs 局模型座停靠决策；技能卡两模式均可显式传正牌主题技能。
+        /// 棋盘绑定（D1）两种模式已统一：_aiCtrl.BindBoard(_board)。
+        /// rngSeed 同 vs 模式 Reset（2026-11-22 评估协议 v2）：非 null 重播双随机流，脚本局同样可钉。
+        /// </summary>
+        public TideStepResult ResetScriptGame(List<CardData> deck1, List<CardData> deck2, bool modelSideIsP1,
+            int? rngSeed = null, string skillCardId1 = null, string skillCardId2 = null)
+            => ResetCore(deck1, deck2, modelSideIsP1, null, scriptVsScript: true, rngSeed: rngSeed,
+                skillCardId1: skillCardId1, skillCardId2: skillCardId2);
 
         private TideStepResult ResetCore(List<CardData> deck1, List<CardData> deck2, bool? modelIsP1,
-            AiStrategy opponentStrategy = null)
+            AiStrategy opponentStrategy = null, bool scriptVsScript = false, int? rngSeed = null,
+            string skillCardId1 = null, string skillCardId2 = null)
         {
             // 变形目标形态解析器：组合根注入（镜像 AiBattleDriver / BattleController）
             CardCore.Attribute.Handlers.SummonTokenHandler.ResolveTemplate = CardCatalog.GetById;
 
             _core = GameCore.Instance;
-            // RL 环境（2026-10-07 卡牌化口径）：双方 deck 自动挑一张合格结界充当技能
-            //（与挑战模式 AI 随机卡组同口径——deck 无构筑标记）
+            // RL 环境（2026-10-07 卡牌化口径）：双方 deck 挑一张合格法术充当技能——
+            // **阶段 D2a（2026-11-22）**：显式 skillCardId 优先（主题卡组正牌技能，与
+            // TideSim DeckSim/挑战/联机同源）；null 才 AutoPick（卡组内最低锚价法术——
+            // 随机 30/掺卡等无构筑配置卡组的旧径）。此前 headless 恒 AutoPick，主题局技能
+            // 与 TideSim 分叉（绿·牺牲→卡组内最便宜法术），是「脚本绿在 headless 被削」的
+            // 首要嫌疑（红绿0胜归因计划 D2a/§3 阶段 D）。
+            // rngSeed（2026-11-22 评估协议 v2）：透传 InitGame 重播双随机流（效果+洗牌），
+            // null = 不重播（训练热路径旧行为）
             _core.InitGame(CardLoader.BuildDeck(deck1, 1), CardLoader.BuildDeck(deck2, 1),
-                skillCardId1: HeroSkillSystem.AutoPickSkillCard(deck1),
-                skillCardId2: HeroSkillSystem.AutoPickSkillCard(deck2));
+                rngSeed: rngSeed,
+                skillCardId1: skillCardId1 ?? HeroSkillSystem.AutoPickSkillCard(deck1),
+                skillCardId2: skillCardId2 ?? HeroSkillSystem.AutoPickSkillCard(deck2));
             // 规则对齐（2026-11-20，AI训练说明 §4.6）：后手（P2）开局 +SecondPlayerArmorBonus 护甲——
             // 与 AiDuelRunner（TideSim/窗口批量）/联机/本地对局同口径。此前 headless 缺失，
             // 导致训练分布 ≠ 实战，且六格 P1 虚高（脚本 P2 少甲）/P2 虚低（模型 P2 少甲）。
@@ -205,7 +264,21 @@ namespace CardCore.AI.NeuralEnv
             _modelPlayer = modelIsP1.HasValue ? (modelIsP1.Value ? _core.Player1 : _core.Player2) : null;
             _aiCtrl = modelIsP1.HasValue ? new BattleController() : null;
             if (modelIsP1.HasValue)
+            {
                 _simpleAI = new SimpleAI(opponentStrategy); // vs 模式：每局按注入策略重建（自对弈不用）
+                // 阶段 D2c（2026-11-22 模型侧响应停靠）：vs 模式脚本座响应接线——镜像 AiDuelRunner/
+                // D2b 脚本局：AiStrategyRegistry.Bind(脚本玩家) + ResponseWindowService.AiResponder=PickFor。
+                // 两处消费：① 本驱动响应循环的脚本座（TryResolveResponseWindow → GameActions.
+                // TryApplyAiResponse 单轮决策+应用）；② 脚本回合内引擎响应窗泵（SimpleAI 攻宣
+                // await SettleResponseWindowAsync——脚本在自家攻宣窗也走策略响应，与 TideSim 同源）。
+                // 模型座不绑定——PickFor 查不到返回 null，引擎泵回落 DefaultAiRespond 守卫启发
+                // （与 D2c 前行为一致，模型的响应决策权不被引擎代行）。
+                // 每局 Clear 重绑（Player 每局新建，不清会跨局累积泄漏）；Dispose 还原全局 responder。
+                AiStrategyRegistry.Clear();
+                AiStrategyRegistry.Bind(ReferenceEquals(_modelPlayer, _core.Player1) ? _core.Player2 : _core.Player1,
+                    _simpleAI.Strategy); // SimpleAI 构造口单源（null 回落 General）
+                ResponseWindowService.AiResponder = AiStrategyRegistry.PickFor;
+            }
 
             // 棋盘占用层（派生，单向读核心）：为碾压关键词注入邻接解析 + 连接光环接线（核心不绑棋盘，宿主接线）
             _board?.Dispose();
@@ -222,6 +295,11 @@ namespace CardCore.AI.NeuralEnv
             CombatSystem.RoleAdjacentResolver = _board.FlankNeighborsOfRole; // 碾压攻角色=角色格左右邻格（2026-10-16 改版）
             BranchEngines.UnityAdjacentCountOf = _board.AdjacentOccupantCount; // 团结=六邻单位数（2026-10-20 效果序位换轴）
             GameBoard.LinkAuraSystem.Attach(_board); // 连接光环（三轨制）：箭头指向格占据者享受 linkAuras
+            // 阶段 D1（2026-11-22 红绿0胜归因计划）：脚本侧 BattleController 绑定同一棋盘——
+            // 镜像 AiDuelRunner.AttachBoard 的 ctrl?.BindBoard。此前 Board=null，SimpleAI 的
+            // TryPinPlacement 直接跳过（出永久物不钉格，策略落格/未来聚集布局失效）。
+            // vs 模式与脚本局统一绑定：模型自身落格走动作空间+MoveUnitRules，不经此口，零影响。
+            _aiCtrl?.BindBoard(_board);
 
             _gameOver = false;
             _winner = null;
@@ -242,6 +320,39 @@ namespace CardCore.AI.NeuralEnv
             _stallCount = 0;
             _hasLastFingerprint = false;
             _loopPrunedThisStep = false; // L3-A 单步标志归零
+
+            if (scriptVsScript)
+            {
+                // 全脚本局（2026-11-22 归因取证）：双方 SimpleAI(AutoMatch(己方卡组))；无模型座停靠
+                // ——手牌上限弃牌双座自动代选（否则 EnforceHandLimitAsync 挂起死等永不来的 step）；
+                // _modelPlayer 保留（info.modelSeat 回显 modelTheme 侧座次），但决策全部由脚本接管。
+                // 阶段 D2b（2026-11-22）：镜像 AiDuelRunner 的响应接线——AiStrategyRegistry.Bind +
+                // ResponseWindowService.AiResponder=PickFor。此前响应窗 AiResponder=null → 引擎回落
+                // 内置守卫启发（DefaultAiRespond），脚本侧**没有策略响应**（RespondPlay/归根回收等
+                // 反制类决策全缺）——TideSim 基线是有策略响应的口径，这是脚本局语义分叉的主嫌之一。
+                // D2c（2026-11-22）起 vs 模式在 ResetCore vs 分支同样装配（模型座停靠+脚本座 PickFor），
+                // 本 finally 清零后由 vs 局 reset 重新装配——两种模式同一响应口径。
+                var s1 = AiStrategy.AutoMatch(deck1);
+                var s2 = AiStrategy.AutoMatch(deck2);
+                _scriptAi1 = new SimpleAI(s1);
+                _scriptAi2 = new SimpleAI(s2);
+                AiStrategyRegistry.Bind(_core.Player1, s1);
+                AiStrategyRegistry.Bind(_core.Player2, s2);
+                ResponseWindowService.AiResponder = AiStrategyRegistry.PickFor;
+                HandLimitDiscardGate.Bind(p => false);
+                try
+                {
+                    RunScriptGameToEnd();
+                }
+                finally
+                {
+                    // 镜像 AiDuelRunner.Run 的 finally：注册表/响应器归零，防串入后续局
+                    //（vs 局 reset 自带重装配，见上方 vs 分支）
+                    AiStrategyRegistry.Clear();
+                    ResponseWindowService.AiResponder = null;
+                }
+                return BuildResult(0f);
+            }
 
             AdvanceToDecision();
             return BuildResult(0f);
@@ -399,6 +510,10 @@ namespace CardCore.AI.NeuralEnv
         {
             HandLimitDiscardGate.Reset(); // P3 §4.1：解绑+清挂起
             HandLimitDiscardGate.Bind(null);
+            // D2c（2026-11-22）：vs 模式响应接线还原（镜像 AiDuelRunner.Run finally）——
+            // 注册表/AiResponder 是全局静态，不还原会串入同进程后续局（教学/联机/脚本局）
+            AiStrategyRegistry.Clear();
+            ResponseWindowService.AiResponder = null;
             EventManager.Instance.Unsubscribe<GameOverEvent>(OnGameOver);
             CombatSystem.AdjacentResolver = null;
             CombatSystem.RoleAdjacentResolver = null;
@@ -430,7 +545,7 @@ namespace CardCore.AI.NeuralEnv
         ///     已自动推进，此分支仅防御）→ Main 停靠（decider=回合玩家）；
         ///     End → CheckPhaseTransition → 下一回合 Standby（循环折返）。
         /// vs SimpleAI 模式：非模型回合不逐相位推进，直接整回合交给 SimpleAI（镜像 AiBattleDriver）；
-        /// 模型回合内的响应窗口也自动让过（TryResolveResponseWindow 内的 vs 分支）。
+        /// 模型回合内的响应窗口按 D2c 口径处理（模型座停靠/脚本座策略响应，见 TryResolveResponseWindow）。
         /// </summary>
         private void AdvanceToDecision()
         {
@@ -493,7 +608,8 @@ namespace CardCore.AI.NeuralEnv
 
         /// <summary>
         /// 响应窗口推进：对当前优先权方轮询——
-        ///   vs SimpleAI 模式：双侧自动让过（契约第 6 节口径）；
+        ///   vs 模式（D2c 2026-11-22）：模型座候选&gt;0 停靠问模型 / 脚本座策略响应（PickFor），
+        ///     双侧无候选（或策略不作主）自动 Pass；
         ///   自对弈：候选（CollectAvailableResponses + 手牌响应卡）&gt; 0 停靠问模型，候选=0 自动 Pass。
         /// 返回 true = 窗口关闭（栈空，双 Pass 结算完成）；false = 停靠（响应决策点）。
         /// 与引擎 FinishResolution「强制批不开窗」的口径差异：本循环对上栈对象统一开窗（有候选才停）——
@@ -509,9 +625,30 @@ namespace CardCore.AI.NeuralEnv
                 var holder = engine.CurrentPriorityHolder;
                 if (holder == null) return true; // 无优先权方（不应发生）——保守视为关闭
 
-                // vs SimpleAI：响应窗口双侧自动让过（SimpleAI 不做守卫/响应、模型不响应对手回合）
+                // vs 模式（D2c 2026-11-22 模型侧响应停靠，取代旧「双侧自动让过」）：
+                //   模型座 = 候选>0 停靠问模型（判据与自对弈分支同款；停靠/续跑复用自对弈
+                //   已跑通路径——BuildResult/EnumerateResponses/Apply 全按 _decider 驱动，g[49]=1）；
+                //   脚本座 = 策略响应（ResetCore 装配的 AiResponder=PickFor，经 GameActions.
+                //   TryApplyAiResponse 单轮决策+应用——与 AiDuelRunner/TideSim 同源链）；
+                //   无候选/不作主/应用失败 → Pass（双 Pass 触发结算推进窗口）。
+                // 不变项：ResponseWindowGuard 轮数保险、速度门（候选收集内含）、
+                // MaxActionsPerTurn/循环治理、观测布局与动作空间（零改动）。
                 if (_modelPlayer != null)
                 {
+                    if (ReferenceEquals(holder, _modelPlayer))
+                    {
+                        if (GameActions.CollectAvailableResponses(_core, holder).Count > 0
+                            || LegalActionEnumerator.HasRespondableHandCard(_core, holder))
+                        {
+                            _decider = holder;
+                            _responseStop = true;
+                            return false; // 停靠：模型响应决策点（decisionContext=1）
+                        }
+                    }
+                    else if (GameActions.TryApplyAiResponse(_core, holder))
+                    {
+                        continue; // 脚本座策略响应发动成功 → 优先权已翻转，继续轮询
+                    }
                     if (!GameActions.PassPriority(_core, holder)) return true;
                     continue;
                 }
@@ -548,6 +685,66 @@ namespace CardCore.AI.NeuralEnv
                 _gameOver = true;
                 _winner = null;
                 _reason = "SimpleAIError";
+            }
+        }
+
+        /// <summary>
+        /// 全脚本局主循环（2026-11-22 归因取证，opponent="script"）：镜像 AiDuelRunner.Run 的
+        /// 回合推进（回合玩家 SimpleAI 整回合 TakeTurn → End→Standby 补泵），环境细节对齐
+        /// 本驱动的 vs 模式（棋盘接线 D1 已统一；响应接线 D2b/D2c 已统一——窗口由 TakeTurn
+        /// 内部的响应窗泵就近收口，见下方残留排干注释）。
+        /// 异常按 SimpleAIError 收口（无胜者=平局，不炸训练服务）；回合上限到顶未终结 =
+        /// MaxTurns 收口（无胜者=平局）；单局墙钟超 ScriptGameTimeoutSec = GameTimeout 收口
+        /// （无胜者=平局，A1 2026-11-22——绿镜像慢局/病态局不再无限占时）。
+        /// </summary>
+        private void RunScriptGameToEnd()
+        {
+            var wall = System.Diagnostics.Stopwatch.StartNew();
+            for (int t = 0; t < ScriptMaxTurns && !_gameOver; t++)
+            {
+                if (wall.Elapsed.TotalSeconds > ScriptGameTimeoutSec)
+                {
+                    _gameOver = true;
+                    _winner = null;
+                    _reason = "GameTimeout";
+                    return;
+                }
+                var p = _core.TurnEngine.TurnPlayer;
+                var ai = ReferenceEquals(p, _core.Player1) ? _scriptAi1 : _scriptAi2;
+                try
+                {
+                    ai.TakeTurn(_aiCtrl);
+                    if (!_gameOver)
+                        _core.TurnEngine.CheckPhaseTransition();
+                }
+                catch (Exception ex)
+                {
+                    UnityEngine.Debug.LogError($"[TideHeadless] 全脚本局 SimpleAI 回合异常: {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
+                    _gameOver = true;
+                    _winner = null;
+                    _reason = "SimpleAIError";
+                    return;
+                }
+                // 回合残留栈/待发效果：排干（**D2b 后仅防御性**——TakeTurn 内部的响应窗泵已由
+                // AiResponder=PickFor 走策略决策，正常回合此循环零命中；仅当栈异常外溢时防卡死）
+                for (int i = 0; i < ResponseWindowGuard && !_gameOver; i++)
+                {
+                    var engine = _core.StackEngine;
+                    if (engine.IsEmpty && !engine.HasPendingEffects) break;
+                    if (engine.IsEmpty)
+                    {
+                        engine.ProcessPendingEffects();
+                        continue;
+                    }
+                    var holder = engine.CurrentPriorityHolder;
+                    if (holder == null || !GameActions.PassPriority(_core, holder)) break;
+                }
+            }
+            if (!_gameOver)
+            {
+                _gameOver = true;
+                _winner = null;
+                _reason = "MaxTurns";
             }
         }
 

@@ -995,14 +995,15 @@ namespace SynergyUI
             // 选卡组相位：服务器权威倒计时整秒校准转发（面板本地走字+此处校准）
             if (room.Phase == (int)NetRoomPhase.DeckSubmit)
                 _opening?.NetDeckPanel?.OnServerSeconds(room.DeckPickSecondsLeft);
-            // 终局三信号之一：房态 Finished（帧生产者封卷剧本——幂等）
+            // 终局三信号之一：房态 Finished（帧生产者封卷剧本——幂等）。中性文案（2026-11-21 v0.4 §5.4）：
+            // 客人端区分不了"对手断线/房主解散"——统一"连接已断开"，胜负归属走 MatchSummary 口径。
             if (room.Phase == (int)NetRoomPhase.Finished)
             {
                 _netSource?.OnMatchFinished();
                 if (!_gameEnded)
                 {
                     _gameEnded = true;
-                    MarkGameOverUi("对局作废（对手断线/房间关闭）——返回主菜单");
+                    MarkGameOverUi("连接已断开——对局已结束（返回主菜单）");
                 }
             }
         }
@@ -1012,7 +1013,9 @@ namespace SynergyUI
             _netSource?.OnMatchFinished(); // 断线=终局信号（剧本保遮蔽版落盘——全量行不再到达）
             if (_gameEnded) return;
             _gameEnded = true;
-            MarkGameOverUi("连接断开——对局作废（断线重连属后续里程碑）");
+            // 中性文案（2026-11-21 计划 v0.4 §5.4）：客人端判定不了是"自己断"还是"房主没了"
+            // ——不写"对手掉线/重连中"，断开就结束、返回主菜单
+            MarkGameOverUi("连接已断开——对局已结束");
         }
 
         /// <summary>服务器拒绝（2026-11-11 静默死局修复）：DeckSubmit 被拒=本局**永远开不了**

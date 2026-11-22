@@ -187,6 +187,7 @@ namespace SynergyUI
                         BattleBoardGrid.SelfCheck(); // 数据层自检（格数/mesh/材质/格心公式）
                         BattleZoneProps.Mount(); // 特殊格道具：卡组卡堆+墓地/除外漩涡（挂 tile 下随浮起同走）
                         BattleHudRow.Mount(); // 功能地块行（2026-10-13 按钮上盘：返回/结束回合，独立根）
+                        BattleRevealDirector.PumpBoardReady(); // 显隐指令即时补拍（2026-11-21 教学一改版）：装配同步段尾赶在首帧渲染前应用，免 scene 全藏闪一帧全亮棋盘
                         if (env != null) BattleArenaStage.Attach(env, stairs); // prefab 态：Env 已烘焙
                         else BattleArenaStage.Mount(_mapRoot); // 回落态：运行时铺（独立 EnvRoot）
                     }

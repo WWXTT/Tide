@@ -71,7 +71,23 @@ namespace SynergyUI
             if (stack == null) return;
             int n = Mathf.Clamp(count, 0, MaxCards);
             stack.localScale = new Vector3(1f, n * CardThickness, 1f);
-            stack.gameObject.SetActive(n > 0);
+            stack.gameObject.SetActive(n > 0 && !_propsHidden);
+        }
+
+        // 入场拆层（2026-11-21 教学一改版）：教学 scene 模式整体藏/显道具（卡堆+漩涡）。
+        // 卡堆显隐=SetDeckCount（n>0）与本闸相与——闸开（false）时行为与旧版完全一致。
+        private static bool _propsHidden;
+
+        /// <summary>道具整体显隐（BattleRevealDirector 拆层闸/装台补拍消费）：false=按对账常态显，
+        /// true=卡堆+漩涡全藏（对账 SetDeckCount 同步受闸——解闸后随对账复原）。</summary>
+        public static void SetAllVisible(bool on)
+        {
+            _propsHidden = !on;
+            foreach (var s in _stacks)
+                if (s != null)
+                    s.gameObject.SetActive(on && s.localScale.y > 0f); // 高度 0=空库语义保留隐藏
+            foreach (var v in _vortexes.Values)
+                if (v != null) v.gameObject.SetActive(on);
         }
 
         /// <summary>卡堆顶面世界坐标（2026-10-17 抽卡飞入起点）：未装台/依赖缺失返回 false。
@@ -176,6 +192,7 @@ namespace SynergyUI
             _exileMat = null;
             _litTemplate = null;
             _depsLogged = false;
+            _propsHidden = false; // 入场拆层闸跨 Play 复位（2026-11-21）
         }
 
         // ======================================== 内部 ========================================

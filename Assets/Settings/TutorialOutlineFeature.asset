@@ -1,0 +1,17 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 221701eac70ab8042a5dc6ce4e482d7f, type: 3}
+  m_Name: TutorialOutlineFeature
+  m_EditorClassIdentifier: Tide.RenderFX::Tide.RenderFX.TutorialOutlineFeature
+  m_Active: 1
+  m_MaskShader: {fileID: 4800000, guid: 1f0820ecc16af244abd339f38fe549a8, type: 3}
+  m_EdgeShader: {fileID: 4800000, guid: d7ad25bb208eb3b4db2960376eace110, type: 3}

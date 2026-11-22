@@ -158,8 +158,10 @@ namespace TideSim
                             Fail($"{tag} highlight.target「{target}」{why}");
                         string style = entry.Value<string>("style") ?? "outline";
                         if (style != "outline") Fail($"{tag} highlight.style 仅支持 outline（现值 {style}）");
-                        string color = entry.Value<string>("color") ?? "";
-                        if (!System.Text.RegularExpressions.Regex.IsMatch(color, "^#[0-9A-Fa-f]{6}$"))
+                        // color 缺省=C# 默认 #FFD75A（运行时同口径）——只在显式给出时验格式
+                        string color = entry.Value<string>("color");
+                        if (!string.IsNullOrEmpty(color)
+                            && !System.Text.RegularExpressions.Regex.IsMatch(color, "^#[0-9A-Fa-f]{6}$"))
                             Fail($"{tag} highlight.color「{color}」非 #RRGGBB");
                         RangeCheck(entry, "width", 1, 8, tag, "highlight");
                         var hdr = entry["hdr"];

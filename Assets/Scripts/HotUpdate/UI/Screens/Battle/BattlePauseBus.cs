@@ -14,15 +14,15 @@ namespace SynergyUI
     }
 
     /// <summary>
-    /// 战斗通用暂停总线（2026-11-21 战场遮罩/高亮/暂停计划 §5·v0.3）：逻辑+表现一起停。
+    /// 战斗通用暂停总线（2026-11-21 战场遮罩/高亮/暂停计划 §5·v0.4）：逻辑+表现一起停。
     /// 逻辑侧=GameStateManager.Pause（GameCore.Update/服务器泵/GameActions 意图闸全被
     /// CanPerformGameActions/Paused 校验拦住）；本总线只管**表现层**与**恢复口**：
     /// · 进场（Paused）：Time.timeScale=0（缩放时间动画/粒子/模型程序动画（MonsterRig 用
     ///   Time.time 驱动，时间冻结=姿态冻结）/相机 tween 冻住）+ AudioListener.pause=true
     ///   （全音频停——教学解说配音例外：BattleTutorialDirector 的解说源挂 ignoreListenerPause）；
     /// · 退场（任何来源的 Resume/终局/重置）：还原 timeScale 与音频，清横幅。
-    /// 事件源=GameStateManager.StateChangedRelay（跨实例静态口——GameCore.ResetInstance 换代不失联；
-    /// 房主侧断线暂停在逻辑线程（=主线程泵）触发，Unity API 安全）。
+    /// 事件源=GameStateManager.StateChangedRelay（跨实例静态口——GameCore.ResetInstance 换代不失联）。
+    /// 调用方：**只有教学**（v0.4 §5.4：联机断线=断开就结束，不经本总线——暂停等重连已废止）。
     /// 无订阅者不报错（§5.1 渐进接入）；回放/观战（BattlePlayhead.SetPaused）自带暂停不混入本总线（§5.3-5）。
     /// 已知边界：realtimeSinceStartup 驱动的展示（数值滚动等）在暂停期继续走完（纯表现余量，可接受）。
     /// </summary>
@@ -89,7 +89,8 @@ namespace SynergyUI
             }
         }
 
-        /// <summary>教学侧暂停入口（导演调用）：reason 固定 Tutorial；resumeBy/showHint 随步配置。
+        /// <summary>教学侧暂停入口（导演调用；v0.4：暂停调用方只有教学——断线走
+        /// NetBattleChannel.EndByDisconnect 直接结算，不经本总线）：resumeBy/showHint 随步配置。
         /// 引擎非 Running（未开局/终局）时静默不动（教学重铺期终局撤销前调用无害跳过）。</summary>
         public static bool PauseForTutorial(string hint, BattlePauseResume resumeBy, bool showHint)
         {

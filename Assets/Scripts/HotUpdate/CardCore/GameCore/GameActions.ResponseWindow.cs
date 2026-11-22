@@ -296,6 +296,29 @@ namespace CardCore
             }
         }
 
+        /// <summary>
+        /// 单轮 AI 响应决策+应用（2026-11-22 D2c，vs 模式脚本座）：收集候选 →
+        /// AiResponder ?? DefaultAiRespond（与 SettleResponseWindowAsync 的 AI 分支同一决策链）→
+        /// ApplyResponse。返回 true=已发动（优先权已翻转，调用方继续轮询）；false=无候选/
+        /// 策略不作主/应用失败（调用方让过）。供无头训练环境的自持响应循环
+        /// （TideHeadlessDriver.TryResolveResponseWindow 脚本座）复用引擎单源决策+应用——
+        /// 模型座不走本口（须停靠问模型，引擎代决策会吞掉模型的响应决策权）。
+        /// 与泵的差异：不发 ChainInquiryEvent/ChainDeclinedEvent（无头训练不消费战报行流）。
+        /// </summary>
+        public static bool TryApplyAiResponse(GameCore core, Player holder)
+        {
+            if (core == null || holder == null || core.IsGameOver) return false;
+            var options = CollectAvailableResponses(core, holder);
+            if (options.Count == 0) return false;
+            var choice = ResponseWindowService.AiResponder?.Invoke(core, holder, options)
+                         ?? DefaultAiRespond(core, holder, options);
+            // 调试口（沿用本文件 TIDE_DEBUG_RESP=1 约定，2026-11-22 D2c）：无头 vs 局脚本座
+            // 单轮决策观测——咨询数/候选数/是否作主（Editor.log grep [dbg-resp-ai]）
+            if (Environment.GetEnvironmentVariable("TIDE_DEBUG_RESP") == "1")
+                Console.WriteLine($"[dbg-resp-ai] holder={holder.Name} opts={options.Count} picked={(choice == null ? "(不作主)" : choice.Label)}");
+            return choice != null && ApplyResponse(core, holder, choice);
+        }
+
         /// <summary>应用所选响应：守卫=PushGuardDeclaration；主动=ActivateEffect；自愿效果=PlayerActivateVoluntary；
         /// 手牌卡=PlayCardInResponse（目标=声明期预选（2026-10-20 收集器下发）或 null——结算期反问单源）。
         ///（充能档已随 2026-11-05 充能系统动作化改版删除——充能=速度0系统动作，不再经响应窗。）</summary>

@@ -275,6 +275,7 @@ namespace SynergyUI
             if (host == "hero") return HeroBounds(0, out bounds, out error, verbose);
             if (host == "oppHero") return HeroBounds(1, out bounds, out error, verbose);
             if (host.StartsWith("unit:")) return UnitBounds(host.Substring(5), out bounds, out error, verbose);
+            bounds = default;
             error = $"tmp: 宿主非法：{host}";
             Warn(verbose, error);
             return false;

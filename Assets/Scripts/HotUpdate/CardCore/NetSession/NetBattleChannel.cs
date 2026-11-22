@@ -33,16 +33,10 @@ namespace CardCore.Network
         /// <summary>超时代打后的宽限（秒）：让行/结束回合后若栈上仍有待响应，下一拍不会立刻再罚。</summary>
         public const int TurnTimeoutGraceSeconds = 10;
 
-        /// <summary>回合计时到点**代打**开关（2026-11-21 战场遮罩/高亮/暂停计划 v0.3 定案：代打先屏蔽）：
-        /// false=到点只停钟不代打（挂机方让对局等着——断线走暂停等重连，不靠代打续）；
+        /// <summary>回合计时到点**代打**开关（2026-11-21 战场遮罩/高亮/暂停计划 v0.4 定案：代打先屏蔽）：
+        /// false=到点只停钟不代打（断线=直接结算见 EndByDisconnect，不靠代打续）；
         /// true=恢复旧 30s/90s 到点代打（后续按玩家需求再开）。计时读数（TurnSecondsLeft）不受此开关影响。</summary>
         public static bool TurnClockAutoPlayEnabled = false;
-
-        /// <summary>对局中断线策略开关（同上 v0.3 定案：断线=暂停等重连）：true=客人 Playing 断线走
-        /// PauseForDisconnect（引擎 Paused+广播等待提示，房主端表现层随 BattlePauseBus 冻结）；
-        /// false=旧行为 VoidMatch 作废。重连占位（Playing 期座位已释放、再进房=观战——
-        /// 重连超时策略与再入座链路另行定义，暂停期退出出口=认输/房主退房）。</summary>
-        public static bool PauseOnDisconnect = true;
 
         private readonly NetRoom _room;
         private readonly Random _rng;
@@ -681,32 +675,30 @@ namespace CardCore.Network
             _room.BroadcastError(reason, "Room", NetworkChannel.Battle);
         }
 
-        /// <summary>断线暂停（2026-11-21 通用暂停系统·v0.3 定案「断线=暂停等重连」）：客人 Playing
-        /// 断线时由 NetRoom.OnDisconnect 调用（PauseOnDisconnect 开关放行）。引擎置 Paused
-        ///（GameActions 意图闸/PumpEngine 泵闸随之全拦）+ 广播等待提示（房主端表现层经
-        /// GameStateManager.StateChangedRelay→BattlePauseBus 冻结+横幅）。未决反问保留
-        ///（不 Abort——恢复后原窗续走）；退出出口=暂停横幅提示认输/房主退房解散。
-        /// 重连恢复口=ResumeFromDisconnect（重连再入座链路落地后接，当前无调用方）。</summary>
-        internal void PauseForDisconnect(int seat, string nickname)
+        /// <summary>断线结束本局（2026-11-21 计划 v0.4 定案「断开就结束，不做等待/重连」·§5.4）：
+        /// 客人 Playing 断线时由 NetRoom.OnDisconnect 调用——**断开方判负**（reason=Concede：
+        /// 断线判负语义按认输收口，GameOverReason 不另设值防序列化面扩张），走引擎正规终局链
+        ///（EndGame→GameOverEvent→OnGameOver：摘要双发/胜负落档/阶段 Finished），房主端自然弹
+        /// 终局结算（胜）——「中性提示+回大厅」由终局画面承担。未决反问先作废（断开方的选格/
+        /// 反问悬着会卡泵）。引擎非 Running（已在终局）时回落作废口径（胜负已定不重复结算）。</summary>
+        internal void EndByDisconnect(int seat, string nickname)
         {
             var core = GameCore.Instance;
-            var hint = $"对手掉线（座位 {seat}·{nickname}），对局已暂停——等待重连…（认输可退出）";
-            bool paused = core != null && core.StateManager.Pause(GamePauseReason.OpponentLost, hint);
-            TideLog.Info($"[NetRoom] {hint}{(paused ? "" : "（引擎非 Running，跳过暂停）")}");
-            _room.BroadcastError(hint, "Pause", NetworkChannel.Battle);
-            _room.MarkSnapshotDirty(); // 暂停态随快照可见（TurnSecondsLeft 泵停后读数冻结）
-        }
-
-        /// <summary>断线暂停恢复口（重连链路 M4 落地后接）：引擎 Resume + 广播恢复。
-        /// 当前 Playing 期断线座位已释放、再进房只可观战——无调用方，保留单源接口。</summary>
-        internal void ResumeFromDisconnect()
-        {
-            var core = GameCore.Instance;
-            if (core == null || core.StateManager.CurrentState != GameState.Paused) return;
-            core.StateManager.Resume();
-            TideLog.Info("[NetRoom] 对手重连——对局恢复");
-            _room.BroadcastError("对手已重连——对局恢复", "Resume", NetworkChannel.Battle);
-            _room.MarkSnapshotDirty();
+            Player loser = core == null ? null
+                : (NetEntityMapper.SeatOf(core.Player1) == seat ? core.Player1
+                : NetEntityMapper.SeatOf(core.Player2) == seat ? core.Player2 : null);
+            if (core != null && loser != null && core.StateManager.CurrentState == GameState.Running)
+            {
+                _selector?.AbortPending();
+                Player winner = loser == core.Player1 ? core.Player2 : core.Player1;
+                TideLog.Info($"[NetRoom] 座位 {seat}（{nickname}）断开——对局结束，断开方判负（座位 {NetEntityMapper.SeatOf(winner)} 胜）");
+                core.EndGame(winner, GameOverReason.Concede); // 正规终局：OnGameOver 收口（Finished+摘要+终局快照）
+            }
+            else
+            {
+                TideLog.Info($"[NetRoom] 座位 {seat}（{nickname}）断开——引擎已非 Running，按作废收口");
+                VoidMatch($"连接已断开——对局结束（座位 {seat} 断开）");
+            }
         }
 
         private static List<CardData> BuildDeck(string[] cardIds, string[] tokenCardIds, List<string> missing)

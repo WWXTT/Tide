@@ -414,8 +414,8 @@ namespace CardCore.Network
         // ============================================================ 断线 / 重置 ============================================================
 
         /// <summary>成员断开（逻辑线程；由宿主泵发现）。房主断开=解散整房（P2P 无服务器可转移，
-        /// 2026-11-11 用户定案）；客人断开按阶段收口（Waiting/DeckSubmit 退位；Playing=暂停等重连
-        /// ——2026-11-21 v0.3 定案·PauseOnDisconnect 开关，关=回落作废）。</summary>
+        /// 2026-11-11 用户定案）；客人断开按阶段收口（Waiting/DeckSubmit 退位；Playing=断开就结束
+        /// ——2026-11-21 v0.4 定案 §5.4：断开方判负、中性提示、回大厅，不暂停不等待不代打）。</summary>
         public void OnDisconnect(INetChannel conn)
         {
             if (conn.ChairSeat == -2) return; // 未进房的连接：无房间侧状态
@@ -458,14 +458,11 @@ namespace CardCore.Network
                     break;
 
                 case NetRoomPhase.Playing:
-                    // 断线=暂停等重连（2026-11-21 战场遮罩/高亮/暂停计划 v0.3 定案，代打同批屏蔽）：
-                    // 引擎 Paused+广播等待提示，未决反问保留（恢复后续走）；退出出口=暂停横幅提示
-                    // 认输/房主退房。重连再入座链路（M4）落地前恢复口无调用方——暂停期对局悬置。
-                    // 开关关闭（PauseOnDisconnect=false）回落旧行为：作废对局不判胜负。
-                    if (NetBattleChannel.PauseOnDisconnect)
-                        _battle.PauseForDisconnect(seat, conn.Nickname);
-                    else
-                        _battle.VoidMatch($"对局作废：座位 {seat}（{conn.Nickname}）断线");
+                    // 断开就结束（2026-11-21 计划 v0.4 定案 §5.4：不暂停、不等待、不代打）：
+                    // 断开方判负走引擎正规终局（摘要/胜负落档），房主端弹终局结算=「中性提示+回大厅」；
+                    // 引擎非 Running（已在终局）回落作废口径。重连/托管/判定增强=权威服务器部署后再议
+                    //（docs/拓展方向.md §10）。
+                    _battle.EndByDisconnect(seat, conn.Nickname);
                     break;
 
                 case NetRoomPhase.Finished:

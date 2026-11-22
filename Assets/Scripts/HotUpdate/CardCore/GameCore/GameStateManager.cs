@@ -2,15 +2,14 @@ using System;
 
 namespace CardCore
 {
-    /// <summary>暂停原因（2026-11-21 通用暂停系统·战场遮罩/高亮/暂停计划 §5）：
+    /// <summary>暂停原因（2026-11-21 通用暂停系统·战场遮罩/高亮/暂停计划 §5·v0.4）：
     /// 谁发起的暂停——UI 侧 BattlePauseBus 据此分流提示文案与恢复口。
-    /// None=无暂停在位（Resume/Reset 清零）。</summary>
+    /// None=无暂停在位（Resume/Reset 清零）。注：联机断线**不走暂停**（v0.4 §5.4 定案
+    /// 「断开就结束」——NetBattleChannel.EndByDisconnect 判负结算），暂停调用方只有教学。</summary>
     public enum GamePauseReason
     {
         None,
-        /// <summary>联机对手掉线（v0.3 定案：断线=暂停等重连，代打屏蔽）。</summary>
-        OpponentLost,
-        /// <summary>教学解说步（v0.3 定案：默认关，按步由用户点名挂）。</summary>
+        /// <summary>教学解说步（v0.3/v0.4 定案：默认关，按步由用户点名挂）。</summary>
         Tutorial
     }
 

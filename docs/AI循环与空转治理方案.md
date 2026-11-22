@@ -209,7 +209,7 @@ F = hash(
   1. 排干栈 → `EndTurn`（收口本回合，不判和、不改奖励）；
   2. 把触发动作的 `Signature` 加入 `_bannedThisTurn`（本回合不再出现该选项）；
   3. 打 `loop_pruned` 标记（供 L3 剪枝），并按类型计数 `loopCycle` / `loopStall`。
-- **作用域**：仅 Main 相决策；响应窗口沿用现有 `StallDrawThreshold`（vs 脚本口径下响应窗本就自动让过）。
+- **作用域**：仅 Main 相决策；响应窗口沿用现有 `StallDrawThreshold`（D2c 2026-11-22 起 vs 脚本口径模型座也停靠响应窗——响应停靠步数有界：速度门 + ResponseWindowGuard + MaxActionsPerTurn 三层兜底不变）。
 - **扫描成本**：全部是 `List.Count` + 战场排序（≤20 张），单步 < 0.1ms。
 
 > 为什么指纹不含手牌内容：成本高且易误判（同名不同编号的卡互换不算进展）。指纹抓"净零"，

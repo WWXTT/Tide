@@ -288,6 +288,17 @@ namespace SynergyUI
                 }
             }
 
+            // 教学表现层（2026-11-21 遮罩/高亮/暂停计划 §6）：非 intro 步=步进即挂遮罩/高亮
+            //（暂停若配了也在此挂）；intro 步=清上部残留、等解说卡摆出时再挂（解说摆出来→暂停
+            // 同拍，卡在遮罩之上不受糊——ShowIntroPanel 应用点）；引导完成=全清。
+            // 旧档无三块=空操作零变化（ApplyStep 内判空）。
+            if (step == null)
+                TutorialFocusController.Clear();
+            else if (step.type != "intro")
+                TutorialFocusController.ApplyStep(Root, step);
+            else
+                TutorialFocusController.ApplyStep(Root, null); // 只清视觉：pause 等卡出来再挂
+
             // 考验开局（2026-10-17）：过场卡（basics_12·aiTurnOnConfirm）确定即把回合交给对手——
             // 援军全清重铺后=对手进攻回合（OnEndTurnFan 现成序列：EndTurn→等翻 P2→驱动剧本 AI）。
             if (stepIndex > 0 && stepIndex <= TutorialGuide.Steps.Count
@@ -417,11 +428,15 @@ namespace SynergyUI
                 var token = raw.Trim();
                 if (token.Length == 0) continue;
                 BattleRevealDirector.Solo(token);
-                // 解闸/藏柱类 token 须随后对账：zone:role 解柱闸建柱（对手柱建后隐藏），all=操作
+                // 解闸/藏柱类 token 须随后对账：zone:role/heroes 解柱闸建柱（对手柱建后隐藏），all=操作
                 // 预告段解除双方柱隐藏，RefreshField 让柱当场显隐（2026-10-18；2026-11-09 己方柱
-                // 同口——独占段 activation/right/mid/p1-land/p1-field 藏柱也靠这次对账消费标记）；
-                // hand 解手牌闸填手牌；units 解单位闸（RefreshField 建单位=生物出场）
-                if (token == "zone:role" || token == "all" || token == "units"
+                // 同口——独占段 activation/right/mid/p1-land/p1-field 藏柱也靠这次对账消费；
+                // 2026-11-21 heroes=basics_02 确定后角色浮现，只解柱闸不 Solo 藏格；lands=地牌行
+                // 浮现须对账重建图标/计数/glow）；
+                // hand 解手牌闸填手牌；units 解单位闸（RefreshField 建单位=生物出场）；
+                // props（卡组堆/漩涡）/board（裸格子）即刻生效不依赖对账
+                if (token == "zone:role" || token == "heroes" || token == "all" || token == "units"
+                    || token == "lands"
                     || token == "zone:activation" || token == "zone:right" || token == "zone:mid"
                     || token == "zone:p1-land" || token == "zone:p1-field") _refreshField();
                 else if (token == "hand") _refreshFans();
@@ -463,6 +478,9 @@ namespace SynergyUI
         private void ShowIntroPanel(TutorialGuideStepSpec step)
         {
             CloseIntroPanel();
+            // 教学表现层（2026-11-21 遮罩/高亮/暂停计划 §6）：解说摆出来→遮罩/高亮/暂停同拍挂
+            //（intro 步的唯一应用点——步进期只清残窗）；配音随暂停继续播（ignoreListenerPause）。
+            TutorialFocusController.ApplyStep(Root, step);
             if (_tipPanelPrefab == null)
                 _tipPanelPrefab = HotUpdateAssets.Load<GameObject>("TipPanel", UiKit.PrefabPath("TipPanel"));
             if (_tipPanelPrefab == null)
@@ -473,6 +491,7 @@ namespace SynergyUI
             }
             var panel = UnityEngine.Object.Instantiate(_tipPanelPrefab, Root, false);
             panel.name = "tip-panel";
+            panel.transform.SetAsLastSibling(); // 抬到 mask-img 之上（2026-11-21 遮罩：解说卡/确定钮在遮罩外可读可点）
             var rt = panel.transform as RectTransform;
             var msgTmp = UiKit.FindDeep(rt, "msg")?.GetComponent<TMP_Text>();
             if (msgTmp != null) msgTmp.text = step.hint;
@@ -484,6 +503,7 @@ namespace SynergyUI
                 if (lbl != null) lbl.text = "确定"; // 预制体改双按钮后 label 运行时赋文（2026-10-17）
                 button.onClick.AddListener(() =>
                 {
+                    BattlePauseBus.ResumeByConfirm(); // 教学暂停恢复（2026-11-21）：确定=恢复口之一（未暂停=no-op）
                     CloseIntroPanel();
                     TutorialGuide.NotifyIntroConfirmed();
                 });
@@ -613,16 +633,18 @@ namespace SynergyUI
                 ctrl.StartNewGame(playerCards, aiCards, _scriptedAi,
                     rngSeed: matchSeed, scenario: tutorial.scenario);
                 ctrl.EnablePassiveAiResponder();
+                // 语音联动显隐（2026-10-19 建；2026-11-21 时序修复）：guide 以 intro 开头=介绍段
+                // 模式——**先于 Begin 上闸**：Begin 内发射 OnStepAdvanced(0) 会立刻消费首步 reveal
+                //（basics_01=scene 全藏），闸未上时 Solo 早退=指令被吞、开局全摆好（实测暴露）。
+                bool introMode = tutorial.guide != null && tutorial.guide.Count > 0
+                                 && tutorial.guide[0] != null && tutorial.guide[0].type == "intro";
+                if (introMode)
+                    BattleRevealDirector.BeginIntroReveal();
                 TutorialGuide.Begin(tutorial); // 暂停引导（2026-10-06）：guide 为空时内部不激活
                 InTrialSegment = false;
                 _phaseIndex = 0;
                 _phaseStarts.Clear();
                 _phaseStarts.Add(0);
-                // 语音联动显隐（2026-10-19 实测补调）：guide 以 intro 开头=介绍段模式——开局全隐藏，
-                // 随 reveal 指令分段出场（units,hand→all）。scenario 直入分支此前提前 return 漏调
-                // ——Solo 恒 _active=False 早退，分段演出全哑（重置路径有此调用故"重置后正常"）。
-                if (TutorialGuide.Active && TutorialGuide.Current?.type == "intro")
-                    BattleRevealDirector.BeginIntroReveal();
                 return true;
             }
             // 旧第三分支（scenario==null 真实对局注入：entry deck/镜像/锁牌库）=lunzhuan 专属，

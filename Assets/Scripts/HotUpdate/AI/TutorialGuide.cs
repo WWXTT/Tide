@@ -84,20 +84,20 @@ namespace SynergyUI
     }
 
     /// <summary>
-    /// 战场遮罩规格（2026-11-21 遮罩/高亮/暂停计划 v0.3 §2）：相机渲进 RT→mask-bg 全屏显示→
-    /// 游戏 UI 原样→mask-img 全屏模糊图在窗位挖洞——窗外=模糊（连 UI 一起盖掉）、窗内=洞
-    ///（露真实 3D+UI，可点）。每步**单窗**（v0.3 定案：不做多窗）。
+    /// 战场遮罩规格（2026-11-21 遮罩/高亮/暂停计划 v0.4 §2·第六轮定稿）：透明区域=**目标轮廓**
+    ///（目标 renderer 平涂剪影，相机矩阵下对位——2026-11-21 用户定案去掉矩形窗限制）——
+    /// 轮廓内=全透（露真实 3D+UI，可点）、轮廓外=模糊图（连 UI 一起盖掉）。
     /// 像素值以 1920×1080 为参考，运行时按屏幕比例换算。
     /// </summary>
     [Serializable]
     public class TutorialFocusMaskSpec
     {
-        public string target;        // 窗目标 token（§2.1 词表：hero/oppHero/unit:{id}/tmp:{token}/
+        public string target;        // 目标 token（§2.1 词表：hero/oppHero/unit:{id}/tmp:{token}/
                                      // cell:{x}:{z}/zone:role|activation|p1-land|mid|board|units；单目标）
-        public float pad = 16f;      // 包围盒外扩 px
-        public float radius = 12f;   // 圆角 px（0=直角矩形）
-        public float feather = 24f;  // 窗缘羽化 px
-        public float strength = 1f;  // 模糊强度 0..1（高斯半径分档）
+        public float pad = 16f;      // 交互 AABB 外扩 px（点目标恢复/日志取 bounds 投影，不参与合成）
+        public float radius = 12f;   // 已废弃（2026-11-21 轮廓模式）：矩形圆角不再使用——保留字段兼容旧配置
+        public float feather = 24f;  // 轮廓软边 px（蒙版膨胀羽化——值越大目标周围越柔）
+        public float strength = 1f;  // 模糊强度 0..1（降采样首档半径 1.5~3 + 迭代轮数固定 3）
     }
 
     /// <summary>

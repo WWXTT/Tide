@@ -85,6 +85,14 @@ namespace SynergyUI
             Paint(_oppPanel, OppColor, seat == 1);
         }
 
+        /// <summary>整体显隐（2026-11-21 入场拆层）：教学 scene 模式藏（介绍段无优先权语义），
+        /// all/End 复原；对账幂等直写，未建（EnsurePanels 前挂）时跳过——下一对账收敛。</summary>
+        public static void SetVisible(bool on)
+        {
+            if (_panelsRoot != null && _panelsRoot.gameObject.activeSelf != on)
+                _panelsRoot.gameObject.SetActive(on);
+        }
+
         // ======================================== 内部 ========================================
 
         private static void EnsurePanels()

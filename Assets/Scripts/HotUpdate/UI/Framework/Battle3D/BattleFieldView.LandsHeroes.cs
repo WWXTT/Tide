@@ -25,6 +25,16 @@ namespace SynergyUI
             /// 计数条=格面平铺 TMP（不看向相机——平贴地块，见 EnsureFlatCellLabel）。</summary>
         private void ReconcileLands(List<BattleCardView> lands, BattlePlayerView pv, int owner)
         {
+            // 入场拆层闸（2026-11-21 教学一改版）：地牌行整体不浮现——跳过对账（图标/glow 由
+            // Apply 开头 ClearAll 熄、本方法不重建）+ 计数标签逐个藏（标签是本类字典直管）。
+            // 解闸（Solo("lands")）后随对账全量重建=地牌行浮现。
+            if (BattleRevealDirector.SuppressLands)
+            {
+                foreach (var kv in _landCounts)
+                    if (kv.Value != null && kv.Value.gameObject.activeSelf)
+                        kv.Value.gameObject.SetActive(false);
+                return;
+            }
             // 按色聚合（引擎固定元素格保证同色同格；无锁色异常卡按灰聚拢=同引擎口径）
             var byColor = new Dictionary<int, LandGroup>();
             foreach (var card in lands ?? new List<BattleCardView>())

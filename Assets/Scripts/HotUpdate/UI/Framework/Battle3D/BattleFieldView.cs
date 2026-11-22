@@ -222,6 +222,7 @@ namespace SynergyUI
             //      人机 AI 同帧让过持有者恒翻己方致旧锚法恒误亮）；中线行时间格角标仍亮**可响应方**
             //      （轮到谁响应/行动）——两信息并存；空栈/网络快照未携带（-1）=光条回落旧口径 ----
             BattlePriorityGlow.Apply(GlowSeatOf(d));
+            BattlePriorityGlow.SetVisible(!BattleRevealDirector.SuppressPriorityGlow); // 入场拆层闸收敛（2026-11-21）
             BattleHudRow.SetTimePriority(PrioritySeatOf(d));
 
             // ---- 单位区（生物/结界/衍生物） ----
@@ -254,6 +255,9 @@ namespace SynergyUI
             // ---- 技能格（2026-10-16 撤销）：英雄技能不再占格——介绍=角色格悬停、发动=角色格三键 ----
 
             // ---- 特殊格道具对账（卡组卡堆高度随牌库数 0..60 钳制；墓地/除外漩涡常驻自转） ----
+            // 入场拆层闸收敛（2026-11-21）：scene 模式藏道具/解闸复原——每对账直写（幂等，
+            // 闸开时与旧行为一致：卡堆随库数、漩涡常亮）
+            BattleZoneProps.SetAllVisible(!BattleRevealDirector.SuppressZoneProps);
             BattleZoneProps.SetDeckCount(0, d.Self.DeckCount);
             BattleZoneProps.SetDeckCount(1, d.Opp.DeckCount);
 
