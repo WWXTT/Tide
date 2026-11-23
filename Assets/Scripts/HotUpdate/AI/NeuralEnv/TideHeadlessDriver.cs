@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using CardCore;
+using Cysharp.Threading.Tasks; // D2d：RunWrapAsync().Forget()（UniTask 扩展）
 using SynergyUI;
 
 namespace CardCore.AI.NeuralEnv
@@ -35,6 +36,30 @@ namespace CardCore.AI.NeuralEnv
         /// <summary>本回合已用动作数（含本步；收口步=触发时计数。协议 info.turnActions——
         /// max_turn_actions 指标数据源）。</summary>
         public int TurnActions;
+        // ---- 2026-11-23 模型行为仪表（B4 用户口径：「牺牲 + 回收」与 14 费大哥落地）----
+        /// <summary>本局模型侧「牺牲」发动次数（Apply 成功才计）。</summary>
+        public int ModelSacrifices;
+        /// <summary>本局模型侧「归根」打出次数（Apply 成功才计）。</summary>
+        public int ModelRecalls;
+        /// <summary>本局是否走通「先牺牲 → 后归根」链（1=走通，0=未走通）。</summary>
+        public int ModelChain;
+        /// <summary>本局模型侧「系命者 阿格洛斯」（14 费）落地次数。</summary>
+        public int ModelAgros;
+        /// <summary>首次落地时的全局回合号（0=从未落地）。绿自家 T5 ≈ 全局第 9(P1)/10(P2) 回合。</summary>
+        public int ModelAgrosTurnMin;
+        // ---- 2026-11-23 追加：绿成长 / 红法术线（用户口径：招牌操作是否真的学到）----
+        /// <summary>绿「沃土」成功打出次数（PlayCard，地落不计）——地成长指标。</summary>
+        public int ModelGrow;
+        /// <summary>全局 T1 首次决策时的地数（-1=未记录）。</summary>
+        public int ModelLandT1;
+        /// <summary>全局 T3（≥3 回合）首次决策时的地数（-1=未记录）。</summary>
+        public int ModelLandT3;
+        /// <summary>红「血偿」成功打出次数。</summary>
+        public int ModelBlood;
+        /// <summary>红「活体炸弹」成功打出次数。</summary>
+        public int ModelBomb;
+        /// <summary>是否有过「同回合血偿+炸弹都打出」的斩杀尝试（1=有）。</summary>
+        public int ModelCombo;
     }
 
     /// <summary>
@@ -52,9 +77,11 @@ namespace CardCore.AI.NeuralEnv
     ///  - 响应停靠：栈非空时对优先权持有方收集候选（CollectAvailableResponses + 手牌响应卡），
     ///    候选 &gt; 0 才停靠问模型（自对弈两座次都问；候选=0 驱动自动让过——停靠步数有界）。
     ///    vs 模式（D2c 2026-11-22，取代旧「双侧自动让过」）：模型座同样停靠问模型（候选>0）；
-    ///    脚本座走策略响应（AiResponder=PickFor，与 AiDuelRunner 同源）；模型在 SimpleAI
-    ///    回合内不获停靠（脚本回合的窗口由引擎响应窗泵就近收口）——响应类动作（乱锋/冻结/
-    ///    回根/回收）自此在 vs 模式模型回合内可学可用。
+    ///    脚本座走策略响应（AiResponder=PickFor，与 AiDuelRunner 同源）。
+    ///    D2d（2026-11-22 对手回合响应停靠）：脚本回合改异步链（TakeTurnAsync 不阻塞），链内
+    ///    响应窗经引擎 AiAsyncResponder 对**模型座也停靠**（Step 完成映射回的 ResponseOption
+    ///    续跑，内联无 player loop 依赖）——响应类动作（乱锋/冻结/回根/回收）在 vs 模式
+    ///    双方回合内可学可用。
     ///
     /// 奖励（actor-centric 自对弈，reward 恒归属「刚行动的那一方」= 本步决策座次）：
     ///   终局 ±1 主导；非终局每步 λ·(Φ_after − Φ_before)，Φ = 己方战场价值 − 对方战场价值
@@ -129,6 +156,103 @@ namespace CardCore.AI.NeuralEnv
         // 当前停靠点（BuildResult 按它构建观测与动作表；Step 按它归属奖励）
         private Player _decider;
         private bool _responseStop;
+
+        // ---- D2d（2026-11-22 对手回合响应停靠）：脚本回合异步链 + 模型座停靠 ----
+        // 脚本回合链在途（含停靠挂起——finally 才清；AdvanceToDecision 据此识别「链已停靠，
+        // 不得再起第二条链」）。链 = RunSimpleAiTurnAsync 起的 TakeTurnAsync 包装，不阻塞调用线程。
+        private bool _scriptTurnChainActive;
+
+        // ---- 2026-11-23 模型行为仪表（B4 用户口径）：卡 ID 精确计数，Apply 成功才计 ----
+        // 与 Python 侧 action_usage_stats 的「选中了某行」口径互补：那边回答「采样有没有覆盖」，
+        // 这边回答「真的落地没有」。每局 ResetCore 清零，随 info 回传（协议 mSac/mRec/mChain/…）。
+        private const string IdGreenSacrifice = "C_AC7FC01F"; // 绿英雄技能「牺牲」
+        private const string IdGreenRecall = "C_D1A00009";    // 绿「归根」（牌库 11 张，8 费）
+        private const string IdGreenAgros = "C_B0EF3C08";     // 绿「系命者 阿格洛斯」（14 费）
+        private int _mSac, _mRec, _mAgros, _mAgrosTurnMin, _mChain;
+        private bool _mSacSeen;
+        // 2026-11-23 战斗伤害计价：本步内「打到我 / 打到对手」的战斗伤害点数（Φ 已按生命 1.0 计过，
+        // 末尾按 −0.5 修正到用户口径的 0.5 费/点；法术/效果伤害不在此列，保持 1.0）
+        private int _combatDmgSelfStep, _combatDmgOppStep;
+
+        // ---- 2026-11-23 追加（用户口径：红/绿的「招牌操作」是否真的学到）----
+        // 绿：成长 = 沃土打出（PlayCard，不是地落）+ 全局 T1/T3 的地数快照；
+        // 红：血偿 + 活体炸弹 各打了多少张 + 是否有"同回合两法术都打"的斩杀尝试。
+        private const string IdGreenGrow = "C_A92F5E99";   // 绿「沃土」（6 费，铺地成长）
+        private const string IdRedBlood = "C_E105FABA";   // 红「血偿」（3 费，直伤 5）
+        private const string IdRedBomb = "C_5705F9FE";    // 红「活体炸弹」（0 费，参照攻伤害）
+        private int _mGrow, _mLandT1, _mLandT3;
+        private int _mBlood, _mBomb, _mCombo;
+        private int _mSpellTurn = -1;      // 本轮记录的血偿/炸弹所属回合
+        private bool _mBloodThisTurn, _mBombThisTurn;
+
+        /// <summary>地数（地牌池张数）——成长指标口径：池里每张=一线永久产出。</summary>
+        private int LandCountOf(Player p)
+            => _core?.ElementPool?.GetPooledCards(p)?.Count ?? 0;
+
+        /// <summary>2026-11-23：回合边界快照地数（全局 T1 首次决策 = T1 地数；T3 同理）。
+        /// 在 Step 入口调（Apply 之前），保证记的是"本步动手前"的盘面。</summary>
+        private void SnapshotGrowth(Player me)
+        {
+            if (me == null) return;
+            int t = _core.TurnEngine.TurnNumber;
+            if (_mLandT1 < 0) _mLandT1 = LandCountOf(me);
+            if (t >= 3 && _mLandT3 < 0) _mLandT3 = LandCountOf(me);
+        }
+
+        // 调试开关（TIDE_DEBUG_B4=1）：逐条打印被仪表看到的动作（校验卡 ID/回合/座次口径）
+        private static readonly bool _debugB4 =
+            Environment.GetEnvironmentVariable("TIDE_DEBUG_B4") == "1";
+
+        /// <summary>2026-11-23 行为仪表：记录一次「模型侧已成功应用」的动作（Apply 返回 true 后调）。
+        /// 只认卡 ID，不认费用档——避免被减费/同名歧义干扰（如 蓝·蛰伏 与 绿·牺牲 同为无域原子技能）。</summary>
+        private void TrackModelBehavior(TideAction a)
+        {
+            var id = a.Card?.ID;
+            if (string.IsNullOrEmpty(id)) return;
+            if (_debugB4)
+                Console.WriteLine($"[B4] turn={_core.TurnEngine.TurnNumber} type={a.Type} id={id} "
+                    + $"name={(a.Card as IHasName)?.CardName} seat={SeatOf(_modelPlayer)}");
+            // ⚠ 口径关键（2026-11-23 实测踩坑）：绿套地牌池是用卡做的，「阿格洛斯/归根 当土地打出」
+            // 走的是 PlayLand（实测 turn=2 就把 14 费卡当地落场）。因此「召唤成功」必须要求
+            // PlayCard/RespondPlay，否则会把地落当成召唤（agros_turn=2 那种假阳性）。
+            bool asCard = a.Type == TideActionType.PlayCard || a.Type == TideActionType.RespondPlay;
+            if (id == IdGreenSacrifice)
+            {
+                _mSac++;
+                _mSacSeen = true;
+            }
+            else if (id == IdGreenRecall)
+            {
+                if (!asCard) return;           // 归根当地落不算「回收」
+                _mRec++;
+                if (_mSacSeen) _mChain = 1;    // 先牺牲 → 后归根 = 走通回收链
+            }
+            else if (id == IdGreenAgros)
+            {
+                if (!asCard) return;           // 阿格洛斯当地落不算「召唤」
+                _mAgros++;
+                int t = _core.TurnEngine.TurnNumber;
+                if (_mAgrosTurnMin == 0 || t < _mAgrosTurnMin) _mAgrosTurnMin = t;
+            }
+            // ---- 2026-11-23 追加：绿成长 / 红法术线 ----
+            else if (id == IdGreenGrow)
+            {
+                if (asCard) _mGrow++;          // 沃土「打出来」= 成长（地落不算）
+            }
+            else if (id == IdRedBlood || id == IdRedBomb)
+            {
+                if (!asCard) return;
+                int t = _core.TurnEngine.TurnNumber;
+                if (t != _mSpellTurn) { _mSpellTurn = t; _mBloodThisTurn = _mBombThisTurn = false; }
+                if (id == IdRedBlood) { _mBlood++; _mBloodThisTurn = true; }
+                else { _mBomb++; _mBombThisTurn = true; }
+                if (_mBloodThisTurn && _mBombThisTurn) _mCombo = 1; // 同回合两法术 = 斩杀尝试
+            }
+        }
+        // 当前停靠：泵 await 挂起的 TCS + 泵收集的候选表（Step 按行→候选映射完成 TCS 续跑，
+        // 续跑内联在本线程——探针实证无 player loop 依赖，见 2026-11-22 tcs_continuation_probe）。
+        private Cysharp.Threading.Tasks.UniTaskCompletionSource<ResponseOption> _parkTcs;
+        private List<ResponseOption> _parkOptions;
         private bool _discardStop; // P3（2026-11-19 §4.1）：手牌上限弃牌停靠（legal=DiscardChoice 行）
 
         // vs 脚本对手位：_modelPlayer != null 时，非模型回合由 SimpleAI 整回合自动打
@@ -183,6 +307,19 @@ namespace CardCore.AI.NeuralEnv
         {
             // 订阅终局（全局事件总线；Dispose 反订阅，避免跨局泄漏）
             EventManager.Instance.Subscribe<GameOverEvent>(OnGameOver);
+            // 2026-11-23 战斗伤害计价（用户口径）：战斗伤害按 0.5 费/点计（法术/效果伤害仍 1.0）。
+            // 势能里生命是 1.0/点一刀切，故本步末尾对「战斗伤害」做 −0.5 修正（见 Step）。
+            EventManager.Instance.Subscribe<CombatDamageEvent>(OnCombatDamage);
+        }
+
+        /// <summary>2026-11-23：本步战斗伤害记账（区分打到我/打到对手，用于 0.5 计价修正）。</summary>
+        private void OnCombatDamage(CombatDamageEvent e)
+        {
+            if (e == null || e.Damage <= 0) return;
+            if (e.Defender is Player p && _modelPlayer != null && ReferenceEquals(p, _modelPlayer))
+                _combatDmgSelfStep += e.Damage;
+            else
+                _combatDmgOppStep += e.Damage;
         }
 
         /// <summary>初始化一局（自对弈：双方座位都由模型驱动）。返回首个决策点观测。
@@ -197,10 +334,11 @@ namespace CardCore.AI.NeuralEnv
         /// <summary>
         /// 初始化一局 vs 脚本对手：modelIsP1 指定模型座次，另一座位整回合由 SimpleAI 自动打
         /// （opponentStrategy 注入决策偏好——主题评估传 AiStrategy.AutoMatch(对手卡组)，缺省通用）。
-        /// obs/合法动作/reward 恒为模型视角（对手回合在内部自动完成，Python 只见模型决策点）；
+        /// obs/合法动作/reward 恒为模型视角（Python 只见模型决策点）；
         /// 响应窗口（D2c 2026-11-22，取代旧「双侧自动让过」）：模型座候选>0 停靠问模型、
-        /// 脚本座走策略响应（PickFor）；模型在 SimpleAI 回合内不获停靠（脚本回合窗口由
-        /// 引擎响应窗泵就近收口）——ΔΦ 弧长与旧口径差异 = 模型回合内的连锁步；
+        /// 脚本座走策略响应（PickFor）。D2d（2026-11-22 对手回合响应停靠）：脚本回合异步链
+        /// （TakeTurnAsync 不阻塞），链内响应窗对模型座同样停靠（AiAsyncResponder→TCS，
+        /// Step 续跑）——ΔΦ 弧长与 D2c 前口径差异 = 双方回合内的连锁步；
         /// 非终局塑形的 ΔΦ 口径为「模型行动 + 对手整回合响应」的弧长，终局 ±1 仍按模型胜负。
         /// rngSeed（2026-11-22 评估协议 v2）：非 null → 经 InitGame 同种子重播双随机流
         /// （GameRng 效果随机 + ZoneContainer 洗牌）——同种子同卡组同座次 = 逐局可精确重播，
@@ -240,6 +378,14 @@ namespace CardCore.AI.NeuralEnv
             // 变形目标形态解析器：组合根注入（镜像 AiBattleDriver / BattleController）
             CardCore.Attribute.Handlers.SummonTokenHandler.ResolveTemplate = CardCatalog.GetById;
 
+            // D2d（2026-11-22）：上局残留的停靠链清引用——悬挂的 TCS 不完成（不在旧核心状态上
+            // 续跑，链随本驱动引用断开交 GC）；泵在途标记防御性复位（internal set 同程序集可写，
+            // 旧泵 finally 永不回=false 会令新局相位窗泵全部让路）。
+            _parkTcs = null;
+            _parkOptions = null;
+            _scriptTurnChainActive = false;
+            if (GameCore.Instance != null) GameCore.Instance.ResponsePumpInFlight = false;
+
             _core = GameCore.Instance;
             // RL 环境（2026-10-07 卡牌化口径）：双方 deck 挑一张合格法术充当技能——
             // **阶段 D2a（2026-11-22）**：显式 skillCardId 优先（主题卡组正牌技能，与
@@ -269,15 +415,24 @@ namespace CardCore.AI.NeuralEnv
                 // 阶段 D2c（2026-11-22 模型侧响应停靠）：vs 模式脚本座响应接线——镜像 AiDuelRunner/
                 // D2b 脚本局：AiStrategyRegistry.Bind(脚本玩家) + ResponseWindowService.AiResponder=PickFor。
                 // 两处消费：① 本驱动响应循环的脚本座（TryResolveResponseWindow → GameActions.
-                // TryApplyAiResponse 单轮决策+应用）；② 脚本回合内引擎响应窗泵（SimpleAI 攻宣
-                // await SettleResponseWindowAsync——脚本在自家攻宣窗也走策略响应，与 TideSim 同源）。
-                // 模型座不绑定——PickFor 查不到返回 null，引擎泵回落 DefaultAiRespond 守卫启发
-                // （与 D2c 前行为一致，模型的响应决策权不被引擎代行）。
+                // TryApplyAiResponse 单轮决策+应用）；② 脚本回合内引擎响应窗泵——脚本座策略响应，
+                // 与 TideSim 同源。模型座不绑定——PickFor 查不到返回 null，回落 DefaultAiRespond
+                // 守卫启发（模型的响应决策权不被同步口代行）。
                 // 每局 Clear 重绑（Player 每局新建，不清会跨局累积泄漏）；Dispose 还原全局 responder。
                 AiStrategyRegistry.Clear();
                 AiStrategyRegistry.Bind(ReferenceEquals(_modelPlayer, _core.Player1) ? _core.Player2 : _core.Player1,
                     _simpleAI.Strategy); // SimpleAI 构造口单源（null 回落 General）
                 ResponseWindowService.AiResponder = AiStrategyRegistry.PickFor;
+                // D2d（2026-11-22 对手回合响应停靠）：注册引擎异步响应口——脚本回合（链在途且回合方
+                // =脚本）的模型座停靠问模型（OnEngineAsyncResponse 内分流：其余语境返回完成态的
+                // 同步决策 DecideAiResponse=未注册原路，零漂移）。未注册该口的模式（自对弈/脚本局）
+                // 泵走旧同步链，逐位不变。
+                ResponseWindowService.AiAsyncResponder = OnEngineAsyncResponse;
+            }
+            else
+            {
+                // 自对弈不注册（模型两座都走本驱动的响应循环）；残留回调清零防上局 vs 局串入
+                ResponseWindowService.AiAsyncResponder = null;
             }
 
             // 棋盘占用层（派生，单向读核心）：为碾压关键词注入邻接解析 + 连接光环接线（核心不绑棋盘，宿主接线）
@@ -307,6 +462,14 @@ namespace CardCore.AI.NeuralEnv
             _decider = null;
             _responseStop = false;
             _discardStop = false;
+            // 2026-11-23 行为仪表：每局清零（B4「牺牲+回收」/ 14 费大哥落地计数）
+            _mSac = _mRec = _mAgros = _mAgrosTurnMin = _mChain = 0;
+            _mSacSeen = false;
+            // 2026-11-23 追加：红/绿招牌操作（成长 / 法术斩杀线）每局清零
+            _mGrow = _mBlood = _mBomb = _mCombo = 0;
+            _mLandT1 = _mLandT3 = -1;
+            _mSpellTurn = -1;
+            _mBloodThisTurn = _mBombThisTurn = false;
             // P3（2026-11-19 §4.1）：模型座手牌上限弃牌改停靠决策（DiscardChoice 行）——
             // 自对弈（_modelPlayer=null）双座皆模型；vs 模式仅模型座
             HandLimitDiscardGate.Reset();
@@ -347,9 +510,10 @@ namespace CardCore.AI.NeuralEnv
                 finally
                 {
                     // 镜像 AiDuelRunner.Run 的 finally：注册表/响应器归零，防串入后续局
-                    //（vs 局 reset 自带重装配，见上方 vs 分支）
+                    //（vs 局 reset 自带重装配，见上方 vs 分支；D2d 异步口一并清）
                     AiStrategyRegistry.Clear();
                     ResponseWindowService.AiResponder = null;
+                    ResponseWindowService.AiAsyncResponder = null;
                 }
                 return BuildResult(0f);
             }
@@ -364,10 +528,17 @@ namespace CardCore.AI.NeuralEnv
             if (_gameOver) return BuildResult(0f); // 已终局：无动作可执行
 
             var me = _decider ?? _core.TurnEngine.TurnPlayer; // 本步决策座次（Main=回合玩家 / 响应=优先权方）
-            // 奖励势能剔除手牌（2026-09-22 定案）：含手牌时「每回合摸牌」是白拿的正奖励流；
+            // 2026-11-23 成长指标：本步动手前的 T1/T3 地数快照（红/绿招牌操作分析用）
+            SnapshotGrowth(me);
+            // 2026-11-23 战斗伤害计价：每步清零（本步内的 CombatDamageEvent 由 OnCombatDamage 记账）
+            _combatDmgSelfStep = _combatDmgOppStep = 0;
+            // 2026-11-23 用户定案（塑形口径 v2）：势能改为 **含手牌**——与定价体系对齐
+            //（一张卡 ≈ 2 费；从卡组抽 2 费、从墓地回收 2 费，详见 FieldValueReward 权重表）。
+            // 旧 2026-09-22「剔除手牌」是为抑制"摸牌白拿奖励"，但那条已由 λ 0.05→0.005 与
+            // 「横置=产出元素」新口径取代；若再出现拖局刷塑形，回滚点=此处改回 false。
             // λ=0 基线跳过计算（非终局奖励恒 0，势能白算）
             float before = _shapingLambda > 0f
-                ? FieldValueReward.ComputePotential(_core, me, includeHand: false)
+                ? FieldValueReward.ComputePotential(_core, me, includeHand: true)
                 : 0f;
 
             // 越界下标：保守兜底——不推进、奖励 0，重观测同状态。但必须计入停滞与回合动作数：
@@ -375,6 +546,14 @@ namespace CardCore.AI.NeuralEnv
             // 不计数则 StallDraw 永远到不了阈值（64×512≈3.3 万步空转），2026-09-30 复发实证。
             if (_legal == null || actionIndex < 0 || actionIndex >= _legal.Actions.Count)
             {
+                // D2d：停靠步越界也必须放行泵（否则链悬挂死锁后续对局）——按让过完成 TCS
+                if (_parkTcs != null)
+                {
+                    var stale = _parkTcs;
+                    _parkTcs = null;
+                    _parkOptions = null;
+                    stale.TrySetResult(null); // 内联续跑（可能再次停靠——BuildResult 渲染新停靠）
+                }
                 if (_legal != null && _legal.Count == 1)
                 {
                     var t = _legal.Actions[0].Type;
@@ -412,7 +591,9 @@ namespace CardCore.AI.NeuralEnv
 
             // L2 回合预算收口（2026-11-18 循环治理 §5.3）：尽力收口——排干栈 → Main 相强 EndTurn；
             // EndTurn 可能被引擎拒绝（阶段/栈态），此时只打日志不重试（MaxActionsPerTurn=256 硬保险兜底）。
-            if (_actionsThisTurn >= TurnActionBudget && !_budgetClosedThisTurn)
+            // D2d：停靠步不收口（本步完成 TCS 后链内联自推进；停靠链上强排干/EndTurn 会与挂起泵
+            // 双主冲突——速度门+ResponseWindowGuard+StallDraw 已兜住停靠链的有界性）。
+            if (_actionsThisTurn >= TurnActionBudget && !_budgetClosedThisTurn && _parkTcs == null)
             {
                 _budgetClosedThisTurn = true;
                 _loopBudgetCount++;
@@ -422,7 +603,38 @@ namespace CardCore.AI.NeuralEnv
                 Console.WriteLine($"[LoopGuard] budget turn={_core.TurnEngine.TurnNumber} seat={SeatOf(_decider)} actions={_actionsThisTurn} n={_legal?.Count ?? 0} hand={_core.ZoneManager.GetCards(_decider, Zone.Hand)?.Count ?? 0}");
             }
 
-            if (_actionsThisTurn > MaxActionsPerTurn)
+            if (_parkTcs != null)
+            {
+                // D2d（2026-11-22 对手回合响应停靠）续跑：本步=脚本回合响应窗的模型选择。
+                // 所选行按 ParkedOptionOfRow 映射回泵收集的 ResponseOption（RespondPlay 行的
+                // Targets/DynamicCounts 写回候选——泵 PlayCardInResponse 按声明期预选目标消费）；
+                // PassPriority 兜底行=让过（null）。TrySetResult 后泵在本线程内联应用并推进：
+                // 可能再次停靠（AdvanceToDecision 见链在途直接返回，BuildResult 渲染新停靠）或
+                // 整回合完成（链内折返相位）→ 公共尾推进到下一决策点。应用不走下方动作链
+                // （LegalActionEnumerator.Apply 会与泵的 ApplyResponse 双应用）。
+                var tcs = _parkTcs;
+                var opts = _parkOptions;
+                _parkTcs = null;
+                _parkOptions = null;
+                ResponseOption choice = null;
+                if (a.Type != TideActionType.PassPriority)
+                {
+                    int oi = _legal.ParkedOptionOfRow[Math.Min(actionIndex, _legal.ParkedOptionOfRow.Count - 1)];
+                    if (oi >= 0 && oi < opts.Count)
+                    {
+                        choice = opts[oi];
+                        if (a.Type == TideActionType.RespondPlay)
+                        {
+                            choice.Targets = a.Targets;          // 声明期预选目标随行（2026-10-20 口径）
+                            choice.DynamicCounts = a.DynamicCounts;
+                        }
+                    }
+                }
+                if (Environment.GetEnvironmentVariable("TIDE_DEBUG_D2D") == "1")
+                    Console.WriteLine($"[D2d-resume] turn={_core.TurnEngine.TurnNumber} choice={(choice == null ? "pass" : choice.Kind.ToString())}");
+                tcs.TrySetResult(choice);
+            }
+            else if (_actionsThisTurn > MaxActionsPerTurn)
             {
                 // 保险：同回合动作数超限（如换状态翻转死循环、模型互挂响应）→
                 // 强制收口（响应窗口先强排干，Main 再强制 EndTurn），保证回合流动（疲劳/战斗最终能终结对局）
@@ -473,6 +685,8 @@ namespace CardCore.AI.NeuralEnv
                 }
                 // 应用成功：不立即 DrainStack——对方回合响应窗口由 AdvanceToDecision 的
                 // 响应循环接管（候选>0 停靠问模型 / 候选=0 自动让过 = 旧双 Pass 行为）
+                // 2026-11-23 行为仪表（B4）：只在 Apply 成功后计数 → 数的是「真的落地」。
+                TrackModelBehavior(a);
             }
 
             // 推进到下一决策点（End→Standby 折返 / Standby→Main / 回合初横置 / 响应窗口；可能触发疲劳判负）
@@ -498,8 +712,13 @@ namespace CardCore.AI.NeuralEnv
             }
             else
             {
-                float after = FieldValueReward.ComputePotential(_core, me, includeHand: false);
-                reward = FieldValueReward.ShapingDelta(before, after, _shapingLambda);
+                float after = FieldValueReward.ComputePotential(_core, me, includeHand: true); // v2 同口径
+                float delta = after - before;
+                // 2026-11-23 战斗伤害 0.5 费/点（用户口径）：Φ 把生命按 1.0 计，战斗伤害要按 0.5 →
+                // 打对手 +1.0×dmg 多算了，故 −0.5×dmg；自己挨打 −1.0 要收窄成 −0.5，故 +0.5×dmg。
+                // 法术/效果伤害（DamageEvent 非战斗）不在本修正内，保持 1.0。
+                delta += 0.5f * (_combatDmgSelfStep - _combatDmgOppStep);
+                reward = _shapingLambda * delta;
             }
 
             return BuildResult(reward);
@@ -510,11 +729,13 @@ namespace CardCore.AI.NeuralEnv
         {
             HandLimitDiscardGate.Reset(); // P3 §4.1：解绑+清挂起
             HandLimitDiscardGate.Bind(null);
-            // D2c（2026-11-22）：vs 模式响应接线还原（镜像 AiDuelRunner.Run finally）——
-            // 注册表/AiResponder 是全局静态，不还原会串入同进程后续局（教学/联机/脚本局）
+            // D2c/D2d（2026-11-22）：vs 模式响应接线还原（镜像 AiDuelRunner.Run finally）——
+            // 注册表/AiResponder/AiAsyncResponder 是全局静态，不还原会串入同进程后续局
             AiStrategyRegistry.Clear();
             ResponseWindowService.AiResponder = null;
+            ResponseWindowService.AiAsyncResponder = null;
             EventManager.Instance.Unsubscribe<GameOverEvent>(OnGameOver);
+            EventManager.Instance.Unsubscribe<CombatDamageEvent>(OnCombatDamage); // 2026-11-23 战斗伤害记账
             CombatSystem.AdjacentResolver = null;
             CombatSystem.RoleAdjacentResolver = null;
             BranchEngines.UnityAdjacentCountOf = null; // 团结邻接注入同步归零
@@ -544,7 +765,8 @@ namespace CardCore.AI.NeuralEnv
         ///   栈空 → 相位推进：若仍处 Standby 走兼容口 SkipElementPool 入 Main（正常流程 StartNewTurn
         ///     已自动推进，此分支仅防御）→ Main 停靠（decider=回合玩家）；
         ///     End → CheckPhaseTransition → 下一回合 Standby（循环折返）。
-        /// vs SimpleAI 模式：非模型回合不逐相位推进，直接整回合交给 SimpleAI（镜像 AiBattleDriver）；
+        /// vs SimpleAI 模式：非模型回合不逐相位推进，整回合交 SimpleAI 异步链（D2d：TakeTurnAsync
+        /// 不阻塞，链内响应窗经 AiAsyncResponder 停靠模型座，见 RunSimpleAiTurnAsync/OnEngineAsyncResponse）；
         /// 模型回合内的响应窗口按 D2c 口径处理（模型座停靠/脚本座策略响应，见 TryResolveResponseWindow）。
         /// </summary>
         private void AdvanceToDecision()
@@ -564,10 +786,14 @@ namespace CardCore.AI.NeuralEnv
 
                 var turnPlayer = _core.TurnEngine.TurnPlayer;
 
-                // vs SimpleAI：对手回合整段自动打（TakeTurn 自带回合准备与 EndTurn，不折返）
+                // vs SimpleAI：对手回合整段自动打（D2d 异步链——TakeTurnAsync 自带回合准备与 EndTurn，
+                // 不折返）。链停靠模型座（Step 续跑后本步内再停靠）→ 停靠即决策点，直接返回；
+                // 整回合无停靠 = 链同步跑完（相位已在链内折返）→ 循环重查。
                 if (_modelPlayer != null && turnPlayer != _modelPlayer)
                 {
-                    RunSimpleAiTurn();
+                    if (_scriptTurnChainActive) return; // D2d：链已停靠——不得再起第二条链
+                    RunSimpleAiTurnAsync();
+                    if (_parkTcs != null) return;       // D2d：脚本回合响应窗停靠模型座
                     continue;
                 }
 
@@ -667,25 +893,65 @@ namespace CardCore.AI.NeuralEnv
         }
 
         /// <summary>
-        /// SimpleAI 整回合驱动（镜像 AiBattleDriver 时序）：TakeTurn 内部完成回合准备 →
-        /// 动作耗尽 → 战斗 → EndTurn（只推进到 End 相位），此处补一次 CheckPhaseTransition
-        /// 完成 End→Standby 折返。异常不炸训练服务：按异常中止收口（无胜者 → Python 记平局）。
+        /// SimpleAI 整回合驱动（D2d 2026-11-22 异步化，取代旧同步 RunSimpleAiTurn）：
+        /// TakeTurnAsync 起链**不阻塞**调用线程——链内响应窗（出牌/攻宣/自愿桶）经引擎泵问
+        /// AiAsyncResponder：模型座停靠 TCS（本驱动 OnEngineAsyncResponse），脚本座同步策略响应。
+        /// 无候选整回合 = 全链同步跑完（PacingWait=null 契约，时序/线程与旧同步口一致）；
+        /// 有停靠 = 链挂起、控制返回调用方（AdvanceToDecision 见 _parkTcs 即返），模型 Step 的
+        /// TrySetResult 后续跑**内联在本线程**（2026-11-22 探针实证，无 player loop 依赖）。
+        /// 链内完成 End→Standby 折返（原同步口的补泵时点）；异常按 SimpleAIError 收口
+        /// （无胜者 → Python 记平局，不炸训练服务）。
         /// </summary>
-        private void RunSimpleAiTurn()
+        private void RunSimpleAiTurnAsync()
         {
-            try
+            _scriptTurnChainActive = true;
+            RunWrapAsync().Forget();
+            async Cysharp.Threading.Tasks.UniTask RunWrapAsync()
             {
-                _simpleAI.TakeTurn(_aiCtrl);
-                if (!_gameOver)
-                    _core.TurnEngine.CheckPhaseTransition();
+                try
+                {
+                    await _simpleAI.TakeTurnAsync(_aiCtrl);
+                    if (!_gameOver)
+                        _core.TurnEngine.CheckPhaseTransition();
+                }
+                catch (Exception ex)
+                {
+                    UnityEngine.Debug.LogError($"[TideHeadless] SimpleAI 回合异常: {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
+                    _gameOver = true;
+                    _winner = null;
+                    _reason = "SimpleAIError";
+                }
+                finally
+                {
+                    _scriptTurnChainActive = false;
+                }
             }
-            catch (Exception ex)
+        }
+
+        /// <summary>
+        /// D2d 引擎异步响应口（注册于 ResetCore vs 分支）：**脚本回合**（链在途且回合方=脚本——
+        /// 排除链尾折返后模型回合的相位窗泵，防双主停靠冲突）的模型座 → 停靠（_parkTcs 挂起泵，
+        /// 停靠观测/续跑复用响应停靠契约：_decider=模型、_responseStop=true、g[49]=1）；
+        /// 其余语境（脚本座 / 模型自己回合的相位窗泵 / 自对弈残留）→ 返回**完成态**的同步决策
+        /// DecideAiResponse（=未注册时的原路，零漂移）。
+        /// </summary>
+        private Cysharp.Threading.Tasks.UniTask<ResponseOption> OnEngineAsyncResponse(
+            GameCore core, Player holder, List<ResponseOption> options)
+        {
+            if (_scriptTurnChainActive && _modelPlayer != null
+                && ReferenceEquals(holder, _modelPlayer)
+                && !ReferenceEquals(core.TurnEngine.TurnPlayer, _modelPlayer))
             {
-                UnityEngine.Debug.LogError($"[TideHeadless] SimpleAI 回合异常: {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
-                _gameOver = true;
-                _winner = null;
-                _reason = "SimpleAIError";
+                _parkTcs = new Cysharp.Threading.Tasks.UniTaskCompletionSource<ResponseOption>();
+                _parkOptions = options;
+                _decider = holder;
+                _responseStop = true;
+                if (Environment.GetEnvironmentVariable("TIDE_DEBUG_D2D") == "1")
+                    Console.WriteLine($"[D2d-park] turn={core.TurnEngine.TurnNumber} opts={options.Count} "
+                        + $"[{string.Join(",", options.Select(o => o == null ? "?" : o.Kind.ToString()))}]");
+                return _parkTcs.Task;
             }
+            return Cysharp.Threading.Tasks.UniTask.FromResult(GameActions.DecideAiResponse(core, holder, options));
         }
 
         /// <summary>
@@ -920,7 +1186,13 @@ namespace CardCore.AI.NeuralEnv
                 if (snap.cards != null)
                     _legal = LegalActionEnumerator.EnumerateDiscardChoices(_core, _decider, snap.cards, snap.over);
             }
-            else if (_responseStop) _legal.EnumerateResponses(_core, _decider);
+            else if (_responseStop)
+            {
+                // D2d：脚本回合停靠步——行集来自泵给定候选（1:1 映射，Step 据此完成 TCS）；
+                // 自对弈/D2c 模型回合停靠照旧重收集
+                if (_parkTcs != null) _legal.EnumerateParkedResponses(_core, _decider, _parkOptions);
+                else _legal.EnumerateResponses(_core, _decider);
+            }
             else _legal.Enumerate(_core, _decider);
             if (!_discardStop)
             {
@@ -942,6 +1214,20 @@ namespace CardCore.AI.NeuralEnv
                 LoopPruned = prunedThisStep,   // L3-A：收口那一步 true（协议 info.loopPruned）
                 LoopReason = reasonThisStep,  // 协议 info.loopReason（cycle/stall/budget/""）
                 TurnActions = turnActionsAtBuild, // 协议 info.turnActions（本回合已用步数）
+                // 2026-11-23 行为仪表（B4 用户口径）：模型侧「牺牲 + 回收」与 14 费大哥落地计数，
+                // 每局累计、ResetCore 清零；协议 info.mSac/mRec/mChain/mAgros/mAgrosTurn。
+                ModelSacrifices = _mSac,
+                ModelRecalls = _mRec,
+                ModelChain = _mChain,
+                ModelAgros = _mAgros,
+                ModelAgrosTurnMin = _mAgrosTurnMin,
+                // 2026-11-23 追加：绿成长（沃土打出 / T1·T3 地数）+ 红法术线（血偿/炸弹/同回合斩杀尝试）
+                ModelGrow = _mGrow,
+                ModelLandT1 = _mLandT1,
+                ModelLandT3 = _mLandT3,
+                ModelBlood = _mBlood,
+                ModelBomb = _mBomb,
+                ModelCombo = _mCombo,
             };
         }
 

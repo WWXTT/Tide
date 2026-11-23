@@ -61,6 +61,14 @@ namespace CardCore
         /// <summary>AI 响应决策器：返回所选候选或 null（Pass）。缺省内置守卫启发（SimpleAI 同款）。</summary>
         public static Func<GameCore, Player, List<ResponseOption>, ResponseOption> AiResponder;
 
+        /// <summary>异步 AI 响应决策器（2026-11-22 D2d 对手回合响应停靠）：IsAI 座的响应决策可交
+        /// 异步方——无头训练的模型座停靠（回调持有 pending UniTask 挂起泵，驱动在模型 Step 时
+        /// TrySetResult 续跑；续跑内联在完成线程，无 player loop 依赖——2026-11-22 探针实证）。
+        /// 优先于 AiResponder；未注册（null）走同步链（AiResponder → DefaultAiRespond）逐位不变。
+        /// 注册方自负座位分流：不停靠的座（脚本座等）应返回**完成态**的同步决策结果
+        /// （GameActions.DecideAiResponse），返回 pending 即停靠、返回完成 null 即让过。</summary>
+        public static Func<GameCore, Player, List<ResponseOption>, UniTask<ResponseOption>> AiAsyncResponder;
+
         /// <summary>显式放弃响应哨兵（2026-10-02 教学固定局）：AiResponder 返回本对象=让过——
         /// 返回 null 会回落内置守卫启发（GameActions 里 ?? DefaultAiRespond），"永不反制"的教学机器人
         /// 必须走本哨兵；ApplyResponse 对未知类别回落 false → PassPriority，语义即 Pass。</summary>

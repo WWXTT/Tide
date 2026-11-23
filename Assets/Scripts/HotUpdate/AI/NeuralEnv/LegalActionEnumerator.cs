@@ -196,6 +196,12 @@ namespace CardCore.AI.NeuralEnv
 
         public int Count => Actions.Count;
 
+        /// <summary>D2d 停靠窗口行→候选映射（2026-11-22 对手回合响应停靠）：与 Actions 同长——
+        /// EnumerateParkedResponses 专填；第 i 行对应的 _parkOptions 下标（PassPriority 兜底行=-1）。
+        /// 驱动 Step 据此把所选行映射回 ResponseOption（行上 Targets/DynamicCounts 写回候选——
+        /// 泵 PlayCardInResponse 按声明期预选目标消费）。其他枚举口不填不读（BuildResult 每次新建实例）。</summary>
+        public List<int> ParkedOptionOfRow = new List<int>();
+
         // 枚举上下文缓存（BuildFeatures 的槽位反查 / RemoveAll 后重建特征用）
         private GameCore _core;
         private Player _me;
@@ -285,6 +291,103 @@ namespace CardCore.AI.NeuralEnv
             EnforceActionCap(TideActionType.PassPriority);
             BuildFeatures();
         }
+
+        /// <summary>
+        /// D2d 停靠窗口行枚举（2026-11-22 对手回合响应停靠）：从**泵给定的候选列表**建行——
+        /// 脚本回合内引擎泵（SettleResponseWindowAsync）问 AiAsyncResponder 时收集的 options
+        /// 原样传入（泵 await 挂起期间引擎状态即收集时状态，不重收集、不做早退守卫——守卫失配
+        /// 由 AppendFallback 的 PassPriority 兜底降级为让过）。行构造复用 EnumerateResponses 的
+        /// 各构造器（Guard/Voluntary/Activated 一候选一行；HandCard 按候选 ModeIndex 逐目标组合
+        /// 展开——多行同指一个候选），PassPriority 恒末位；<see cref="ParkedOptionOfRow"/> 同步记
+        /// 行→候选下标（兜底行=-1）。与 EnumerateResponses 的差异：行集来自给定 options——驱动
+        /// Step 完成 TCS 时按映射取回 ResponseOption 并把行上 Targets/DynamicCounts 写回候选。
+        /// 上限守卫与 EnforceActionCap 同口径但同步维护映射表（超限截断可选性，兜底行不丢）。
+        /// </summary>
+        public void EnumerateParkedResponses(GameCore core, Player me, List<ResponseOption> options)
+        {
+            Actions.Clear();
+            Features = Array.Empty<float>();
+            ParkedOptionOfRow.Clear();
+            if (core == null || me == null || core.IsGameOver || options == null)
+            {
+                Actions.Add(PassFallback());
+                ParkedOptionOfRow.Add(-1);
+                BuildFeatures();
+                return;
+            }
+            _core = core;
+            _me = me;
+            var hand = core.ZoneManager.GetCards(me, Zone.Hand) ?? new List<Card>();
+            if (core.StackEngine != null) hand = hand.Where(c => !core.StackEngine.IsPendingCast(c)).ToList(); // S3b 同口径
+
+            for (int oi = 0; oi < options.Count; oi++)
+            {
+                var opt = options[oi];
+                if (opt == null) continue;
+                switch (opt.Kind)
+                {
+                    case ResponseOption.ResponseKind.GuardAbility:
+                        // 角色守卫（SourcePlayer）/单位守卫（SourceCard）同口径
+                        if (opt.AttackInstance != null && (opt.SourceCard != null || opt.SourcePlayer != null))
+                        {
+                            Actions.Add(BuildGuardAction(core, me, opt));
+                            ParkedOptionOfRow.Add(oi);
+                        }
+                        break;
+                    case ResponseOption.ResponseKind.VoluntaryEffect:
+                        if (opt.Pending?.Effect != null)
+                        {
+                            Actions.Add(BuildVoluntaryAction(core, me, opt.Pending));
+                            ParkedOptionOfRow.Add(oi);
+                        }
+                        break;
+                    case ResponseOption.ResponseKind.ActivatedAbility:
+                        if (opt.Definition != null && opt.SourceCard != null)
+                        {
+                            int before = Actions.Count;
+                            AddActivatedRows(core, me, opt.SourceCard, opt.Definition, TideActionType.RespondActivate);
+                            for (int k = before; k < Actions.Count; k++) ParkedOptionOfRow.Add(oi);
+                        }
+                        break;
+                    case ResponseOption.ResponseKind.HandCard:
+                    {
+                        var c = opt.SourceCard;
+                        if (c == null || !RuleHooks.CanPlay(core, me, c, Zone.Hand)) break;
+                        int m = opt.ModeIndex; // 收集期已过可付/目标域门（每卡一票的首个可行模式）
+                        var castDefs = GameActions.GetCastableEffectDefinitions(c);
+                        if (m < castDefs.Count && UnsupportedForAi(castDefs[m])) break; // 镜像 EnumerateRespondPlay 闸
+                        int hi = hand.FindIndex(x => ReferenceEquals(x, c));
+                        if (hi < 0) break; // 收集后离手（S3b 声明期上栈）——本窗口已不可响应
+                        int src = TideObservation.CardIndex(me, me, Zone.Hand, hi);
+                        foreach (var set in ExpandCardTargets(core, me, c, m))
+                        {
+                            AddRowsWithInteraction(core, me, m < castDefs.Count ? castDefs[m] : null,
+                                TideActionType.RespondPlay, c, m, src, set.Targets, response: true,
+                                reference: ReferencePickOf(core, me, c, m, set.Targets),
+                                dynamicCounts: set.Counts); // P1 v0.3：目标/动态数量随行
+                            ParkedOptionOfRow.Add(oi);
+                        }
+                        break;
+                    }
+                }
+            }
+
+            Actions.Add(PassFallback());
+            ParkedOptionOfRow.Add(-1);
+            if (Actions.Count > MaxActions) // 与 EnforceActionCap 同口径——同步截映射表，兜底行不丢
+            {
+                int keep = MaxActions - 1;
+                Actions.RemoveRange(keep, Actions.Count - keep);
+                ParkedOptionOfRow.RemoveRange(keep, ParkedOptionOfRow.Count - keep);
+                Actions.Add(PassFallback());
+                ParkedOptionOfRow.Add(-1);
+            }
+            BuildFeatures();
+        }
+
+        /// <summary>让过兜底行（响应窗停靠，两处复用）。</summary>
+        private static TideAction PassFallback()
+            => new TideAction { Type = TideActionType.PassPriority, ResponseContext = true, SourceIndex = -1, TargetIndex = -1 };
 
         // ===================================================== L3-B 动作表折叠（2026-11-18 循环治理 §5.5） =====
 

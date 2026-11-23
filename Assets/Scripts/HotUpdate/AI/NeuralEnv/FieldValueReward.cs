@@ -30,18 +30,28 @@ namespace CardCore.AI.NeuralEnv
     /// </summary>
     public static class FieldValueReward
     {
-        // ---- 权重参数（可调，用户可通过配置覆盖）----
-        /// <summary>生命点权重（建议 0.1~0.2：1 生命 ≈ 0.1~0.2 费）</summary>
-        public static float LifeWeight = 0.15f;
-        /// <summary>bank 法力权重（建议 0.3~0.5：1 法力 ≈ 0.3~0.5 费；已支付待用资源）</summary>
-        public static float ManaWeight = 0.4f;
-        /// <summary>黑白（万用色）bank 权重（2026-09-14 黑白万用化）：可替代红蓝绿灰支付，
-        /// 替代面宽于任何纯色 → 估值高于纯色（对齐 LandTokenWeight 档）。</summary>
-        public static float WildManaWeight = 0.6f;
-        /// <summary>地牌剩余指示物权重（建议 0.5~0.8：1 指示物 ≈ 0.5~0.8 费；未来产出价值折现）</summary>
-        public static float LandTokenWeight = 0.6f;
-        /// <summary>手牌权重（建议 0.5~0.7：1 手牌 ≈ 0.5~0.7 费；未打出潜在价值折现）</summary>
-        public static float HandWeight = 0.6f;
+        // ---- 权重参数（2026-11-23 用户定案：塑形口径 v3 = 定价体系逐项映射）----
+        // 定案口径（用户原话逐条映射，单位统一=费）：
+        //  ① 手牌 = 卡面标价（3 费卡在手 = 3）→ 抽牌/回收自然是加分项；
+        //  ② 地牌 = 1/块（比标价低）= 把牌变永久产出的"投资折价"，之后每横置 +1（产出元素 1 费）；
+        //  ③ 场面生物按属性计价：1/1 = 1 费（=(攻+血)/2）；给自己加甲 1 层 = 1 费；
+        //  ④ 攻击 = 攻击力转伤害，每 1 点伤害 = 1 费（体现为对手生命 −1 → Φ +1），属性转伤害完全净增；
+        //  ⑤ 生命 = 1/点（自己 +1、对手 −1 对称计）。
+        /// <summary>生命点权重（2026-11-23：0.15 → 1.0 —— 1 生命 = 1 费，与伤害=费用同轴）</summary>
+        public static float LifeWeight = 1.0f;
+        /// <summary>临时法力权重（产出元素 = 1 费）</summary>
+        public static float ManaWeight = 1.0f;
+        /// <summary>万用元素（Any）权重（= 1 费，不溢价）</summary>
+        public static float WildManaWeight = 1.0f;
+        /// <summary>地牌权重（2026-11-23：0.6 → 1.0；横置不打折——横置的收益在产出元素那一项）</summary>
+        public static float LandTokenWeight = 1.0f;
+        /// <summary>手牌权重（2026-11-23：改为「卡面标价 × 1.0」语义——3 费卡在手 = 3）</summary>
+        public static float HandWeight = 1.0f;
+        /// <summary>护甲权重（2026-11-23 新增：1 层护甲 = 1 费，此前护甲完全不在 Φ 里）</summary>
+        public static float ArmorWeight = 1.0f;
+        /// <summary>场面生物属性权重：价值 = (攻 + 血) × BioStatWeight；1/1 → 1（2026-11-23 新增，
+        /// 与"场面属性 1-1 算 1 费"对齐；非生物仍按标价 CardBaseValue 计）</summary>
+        public static float BioStatWeight = 0.5f;
         /// <summary>横置状态折扣（建议 0.7~0.9：横置卡本回合不可攻击/发动，价值打折）</summary>
         public static float TappedDiscount = 0.8f;
         /// <summary>召唤失调折扣（建议 0.6~0.8：刚入场、本回合不可动）</summary>
@@ -91,8 +101,14 @@ namespace CardCore.AI.NeuralEnv
         {
             if (card == null) return 0f;
 
-            // 1) 基础价（静态 DerivedTotal 或声明费用）
+            // 1) 基础价（2026-11-23 v3：生物按 **属性** 计价——(攻+血)×BioStatWeight，
+            //    1/1 = 1 费，与"场面属性 1-1 算 1 费"对齐；非生物仍按标价 DerivedTotal）
             float baseValue = CardBaseValue(card);
+            int pw = card.GetPower();
+            int lf = card.GetLife();
+            bool isCreature = (card is CardWrapper bw && bw.GetData()?.Supertype == Cardtype.Creature)
+                              || (!(card is CardWrapper) && pw + lf > 0); // 裸 Card（token/复制）按属性
+            if (isCreature && pw + lf > 0) baseValue = (pw + lf) * BioStatWeight;
 
             // 2) 属性指示物增益（+1/+1, PowerUp, LifeUp）与减益（-1/-1, PowerDown, LifeDown）
             float counterDelta = 0f;
@@ -118,7 +134,10 @@ namespace CardCore.AI.NeuralEnv
             return Math.Max(0f, finalValue); // 保底 0（负面极端情况不拖累总势能）
         }
 
-        /// <summary>单卡基础价（静态 DerivedTotal 或声明费用）。</summary>
+        /// <summary>单卡基础价 = **卡面标价**（`DerivedTier`：玩家实际支付的卡费；2026-11-23 修正）。
+        /// 旧口径用 `DerivedTotal`（推导价 D，已含代价价 P），会让「代价」被收两遍——
+        /// 一次在手牌价值里、一次在代价结算后的盘面损失里（血偿因此算成 −2 而永不出手）。
+        /// 代价本身由结算后的 Φ 变化体现（消灭生物 → 盘面值下降），不再进卡面价。</summary>
         private static float CardBaseValue(Card card)
         {
             if (card == null) return 0f;
@@ -126,7 +145,10 @@ namespace CardCore.AI.NeuralEnv
             {
                 var data = wrapper.GetData();
                 if (data != null)
-                    return CardCostService.Derive(data).DerivedTotal;
+                {
+                    var cost = CardCostService.Derive(data);
+                    return cost.DerivedTier; // 卡面费（净支付），不含代价抵扣面
+                }
             }
             // 裸 Card（token/复制）：回退声明费用和
             return GameActions.GetCardCost(card).Total;
@@ -141,8 +163,12 @@ namespace CardCore.AI.NeuralEnv
 
             float value = 0f;
 
-            // 1) 生命
+            // 1) 生命（2026-11-23 v3：1 生命 = 1 费，"攻击把攻击力转成伤害"就是净增）
             value += player.GetLife() * LifeWeight;
+
+            // 1b) 护甲（2026-11-23 v3 新增：1 层 = 1 费。此前护甲完全不在 Φ 里，
+            //     "给自己加甲"在塑形上是 0 收益——这是绿/蓝都不愿加甲的根因之一）
+            value += player.GetCounterCount(CardCore.Attribute.KeywordRules.ArmorCounter) * ArmorWeight;
 
             // 2) 临时钱包（2026-10-11 现取现用：bank 退役；万能货币 Any 按 WildManaWeight 估值
             //    ——白/黑席位已随 2026-10-28 P2 收缩删除）
@@ -154,25 +180,28 @@ namespace CardCore.AI.NeuralEnv
                         ? WildManaWeight : ManaWeight);
             }
 
-            // 3) 地牌（永久产线：每块按 LandTokenWeight 估值——锁色不耗竭，未横置=当回合仍可支付）
+            // 3) 地牌（2026-11-23 v2：横置不打折——地价恒定，横置的收益体现在「产出元素」那一项上。
+            //    于是"横置一块地"净 Φ = 0（地）+ 1.0（元素）= +1，成长/复用链条才有正梯度）
             var pooledCards = core.ElementPool.GetPooledCards(player);
             if (pooledCards != null)
             {
                 foreach (var pc in pooledCards)
                 {
                     if (pc == null) continue;
-                    value += (pc.IsTapped ? 0 : 1) * LandTokenWeight;
+                    value += LandTokenWeight;
                 }
             }
 
-            // 4) 手牌（潜在价值）——奖励势能口径下剔除（includeHand=false）：摸牌/囤牌不再是白拿的奖励流
+            // 4) 手牌（2026-11-23 v2：按定价体系「每张 2.0」计价，不再按卡面价折算。
+            //    奖励势能口径仍由 includeHand 控制——驱动器端已改为 true（见 ComputePotential 调用点），
+            //    使"抽牌/回收"的价值与费用体系一致）
             if (includeHand)
             {
                 var hand = core.ZoneManager.GetCards(player, Zone.Hand);
                 if (hand != null)
                 {
                     foreach (var c in hand)
-                        value += CardBaseValue(c) * HandWeight;
+                        if (c != null) value += HandWeight; // 每张固定 2.0
                 }
             }
 

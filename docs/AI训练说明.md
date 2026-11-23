@@ -153,7 +153,7 @@ reward = 终局 ±1（actor-centric：归属「刚行动的一方」）
 | 口径 | 含义 |
 |---|---|
 | `opponent="selfplay"`（默认） | 主题整组 vs `Cards.json` 随机 30，双方同一策略；座次随机 |
-| `opponent="simpleai"` | 模型 vs 脚本主题卡组（SimpleAI + AutoMatch），座次随机（先后手各半）。**响应窗口径（D2c 2026-11-22，取代旧「双侧自动让过」）**：模型座候选>0 停靠问模型（与自对弈同判据，`g[49]=1` 响应停靠步进训练流）；脚本座走策略响应（`AiResponder=PickFor`，与 AiDuelRunner 同源）；模型在脚本回合内不获停靠（脚本回合窗口由引擎泵就近收口）。观局分布会变（决策点变多）——与 D2a 同属换环境须重训项 |
+| `opponent="simpleai"` | 模型 vs 脚本主题卡组（SimpleAI + AutoMatch），座次随机（先后手各半）。**响应窗口径（D2c+D2d 2026-11-22，取代旧「双侧自动让过」）**：模型座候选>0 停靠问模型（与自对弈同判据，`g[49]=1` 响应停靠步进训练流）；脚本座走策略响应（`AiResponder=PickFor`，与 AiDuelRunner 同源）；**D2d 起脚本回合也停靠**（`TakeTurnAsync` 异步链 + 引擎 `AiAsyncResponder`→TCS，模型 Step 续跑内联——对手回合的响应类动作可学可用）；边界：脚本回合**始相位窗**（Standby 触发桶）不停靠、停靠 RespondPlay 永久物不钉格（泵应用口径）。观局分布会变（决策点变多）——与 D2a 同属换环境须重训项 |
 | `opponent="script"`（2026-11-22 归因取证） | 全脚本局：双方 SimpleAI + AutoMatch(各自卡组) 自动打到终局，reset 响应即终态（done=true、不发 step）；`modelTheme` 侧座次回显在 `info.modelSeat`（卡组/环境语义与 `simpleai` 逐位一致）。**A2 判定已出（红绿0胜归因计划 C7）**：9 对 headless 脚本矩阵实测——绿红 0/400、绿蓝 8.5%、蓝绿 91.5%、绿镜像座位极性反转（红蓝轴正常）→ 判 (ii) 驱动削绿，41% 只是 TideSim 口径不可引用（§0.2 注记）；单局墙钟 180s 判和（A1） |
 
 ### 3.2 对手池（`--opponent-pool`，2026-11-02 C 期，默认 `current` = 旧行为不变）
@@ -194,8 +194,10 @@ FSP 口径；开启后日志/config 标注 `fsp=true`，`info.fsp=True`。
   - `""`（默认）= **red / green / blue 三主题各 50 局**（共 150 局），输出**分主题胜率**；
   - `"red"` = 单主题 50 局（旧临时口径，绿/蓝脚本重设计期用）；
   - `"red,green"` = 逗号列表。
-- **早停与 best 选点按选择口径**（B4，2026-11-22 起 = 18 格矩阵最小 margin，见下方 6 格口径
-  段；此前先后用过总胜率/6 格最小 margin）；但**分主题胜率
+- **早停与 best 选点分家（2026-11-22 晚用户拍板·稳健达标口径）**：best 排序仍 = **18 格矩阵
+  最小 margin（min Δ，B4）**；**达标/早停门 = 稳健口径**——覆盖齐（3 执色×3 对手×2 座位=18 格）
+  且 **Δ 中位数 ≥ +5pp 且 Δ ≥ −5pp 的格数 ≥ 16/18**（容忍 ≤2 格恶化，对 16 局/格 ±12pp 单格
+  噪声鲁棒；此前先后用过总胜率/6 格最小 margin/全格 margin≥0——末者被单格噪声绑架）；但**分主题胜率
   必印**（控制台 Multi-theme Evaluation 块 + `eval.jsonl` 每主题一行 + 总行 theme=ALL +
   `stats.jsonl` 的 `theme_win_rates`）——否则看不出对某主题的退化被总胜率掩盖。
 - 自对弈训练时另有先手座次胜率口径（只记录不选点，衡量先后手失衡）。
@@ -659,6 +661,9 @@ FSP 口径；开启后日志/config 标注 `fsp=true`，`info.fsp=True`。
 | 2026-11-20 | **学习率退火归零修复**：`transition_steps` 由 `num_updates` 改为 `num_updates × update_epochs`（`train_tide_complete.py` L587-600） | **optax 的 count 是优化器步数**，而每个 update 在 PPO 段连调 `update_epochs`=4 次 `apply_gradients`——原写法让 lr 在总步数 25% 处就精确归零：300k 两 run 均 u294/step 75,264（elapsed 10,034s 与 10,084s 不同、update 相同），2M run u1954/step 500,224。归零后 `pg_loss`≈1e-8、`approx_kl`≈1e-10、`clipfrac`=0；`1795132376` 冻结后又跑 115k 步（约 4h15m）白烧，评估 49,920/99,840/149,760 = 100%/98%/98%、绿/P1 恒 1.00。修复后 u293 lr 1.87e-4、到 u1171 末步才为 0。**2026-11-20 两轮绿 bootcamp（`1795132376`/`1795157731`）作废**，停训待深潭碑规则修正后重跑 |
 | 2026-11-21 | **评估模型卡组与训练口径解耦**（§3.4）：新增 `--eval-model-theme`（默认 `all`）+ `eval_model_themes()`（`train_tide_complete.py`）——周期评估与最终评估都显式传 `model_themes`，默认三预组都评；新增 `tide_rl/eval_checkpoint.py`（对已有 checkpoint 单独跑 6 格评估，不训练）；「vs_script ALL」行局数改为实计 `wins+losses+draws`（旧写法 `eval_episodes×主题数` 在 3 卡组下少报 2/3） | v20 绿 bootcamp（`...1795178705`，`--model-theme green --eval-theme green`）每 50k 只评出 green/P1、green/P2 两格，**6 格标尺缺 4 格**，单次评估仅 48 局；6 格判定（§3.4.1 池化）本该由三套 × 先后手铺满。影响：单次评估 10min → **约 29min**（144 局），300k run 6 次评估约 +2h |
 | 2026-11-22 | **vs 模式响应停靠 D2c**（§3.1）：`TideHeadlessDriver.TryResolveResponseWindow` vs 分支从「双侧自动让过」改为「模型座候选>0 停靠（复用自对弈路径）+ 脚本座 `GameActions.TryApplyAiResponse`（AiResponder=PickFor，`ResetCore` vs 分支装配、Dispose 还原）」；布局/动作空间/g[49] 语义零改动 | 开训前最后一个环境缺口（模型在 vs 口径被剥夺全部响应类动作——蓝乱锋/冻结、绿回根/回收既用不出也学不到）；验收四项全过（脚本局 20 组×3 轮逐位 0 不一致、蓝|红 20 局响应停靠 88/RespondPlay 45/全自然终局、2k smoke P50/P95=10/17 无 EnvTimeout、契约文档同批改）——详见 [红绿0胜归因_修改计划](红绿0胜归因_修改计划.md) D2c 节 |
+| 2026-11-22 | **对手回合响应停靠 D2d**（§3.1）：引擎加 `ResponseWindowService.AiAsyncResponder`（异步 AI 响应口，泵 `await` 优先于同步链，未注册逐位不变——脚本局 20 组与 D2a 基线仍逐位一致）+ `GameActions.DecideAiResponse` 同步决策单源；驱动脚本回合改 `TakeTurnAsync` 异步链不阻塞，模型座停靠 TCS（`EnumerateParkedResponses` 给定候选 1:1 建行 + `ParkedOptionOfRow` 映射回选），Step `TrySetResult` 续跑**内联在本线程**（TCS 内联性 batchmode 探针实证）；布局/动作空间/g[49] 语义零改动 | D2c 遗留边界「模型在脚本回合不获停靠」收口；验收：脚本局零回归 ✓、蓝|红 20 局真响应停靠 88→169（含脚本回合 94 次停靠全恢复、模型选 HandCard 实响应）、2k smoke 蓝 35.9%/P50/P95=12/32 绿 6.3%/9/18 全自然终局 0 触顶 0 EnvTimeout、合法 seed 两遍 20 局**逐步观测哈希逐位一致**；附带发现并修工具坑：**reset seed 超 int32 被 JsonUtility 静默损坏成 0**（echo=0——官方 `tide_env_tcp` 有回显断言会拦，自写冒烟须校验；`d2c_vs_smoke.py` 已加断言+换合法基） |
+
+| 2026-11-22 晚 | **达标门改稳健口径**：18 格矩阵早停门由「全格 margin≥0」改为「覆盖齐前提下 Δ 中位数 ≥+5pp 且 Δ≥−5pp 格数 ≥16/18」；best 排序不变（min Δ） | 旧门被 16 局/格 ±12pp 单格噪声绑架（一格翻车即永不达标）；门控分量（delta_median/robust_cells/gate）随 selector 行落 eval.jsonl，控制台每次评估打印；`train_tide_complete.py` 双仓同批改，改后 D2d 环境首轮重训启动 |
 
 ## 10. 未来拓展：人类对局日志（模仿学习）
 

@@ -241,8 +241,15 @@ namespace CardCore
                         // 「连锁了」、让过=ChainDeclinedEvent。
                         core.PublishEvent(new ChainInquiryEvent { Holder = holder });
                         if (holder.IsAI)
-                            choice = ResponseWindowService.AiResponder?.Invoke(core, holder, options)
-                                     ?? DefaultAiRespond(core, holder, options);
+                        {
+                            // D2d（2026-11-22 对手回合响应停靠）：异步口优先——模型座停靠挂起泵，
+                            // Step 完成后内联续跑；未注册走同步链（原表达式上提为 DecideAiResponse，
+                            // 语义零变化）。回调对不停靠的座应返回完成态的同步决策。
+                            if (ResponseWindowService.AiAsyncResponder != null)
+                                choice = await ResponseWindowService.AiAsyncResponder(core, holder, options);
+                            else
+                                choice = DecideAiResponse(core, holder, options);
+                        }
                         else if (ResponseWindowService.HumanResponder != null)
                         {
                             choice = await ResponseWindowService.HumanResponder(holder, options);
@@ -296,6 +303,14 @@ namespace CardCore
             }
         }
 
+        /// <summary>AI 响应**同步决策**单源（2026-11-22 D2d 拆口）：AiResponder 查表策略 →
+        /// DefaultAiRespond 守卫启发兜底。两处共用：泵的未注册 AiAsyncResponder 分支（原内联
+        /// 表达式原样上提，语义与求值序零变化）+ 无头驱动异步回调的「不停靠座」路径
+        /// （返回完成态决策——与未注册时同链，见 TideHeadlessDriver.OnEngineAsyncResponse）。</summary>
+        public static ResponseOption DecideAiResponse(GameCore core, Player holder, List<ResponseOption> options)
+            => ResponseWindowService.AiResponder?.Invoke(core, holder, options)
+               ?? DefaultAiRespond(core, holder, options);
+
         /// <summary>
         /// 单轮 AI 响应决策+应用（2026-11-22 D2c，vs 模式脚本座）：收集候选 →
         /// AiResponder ?? DefaultAiRespond（与 SettleResponseWindowAsync 的 AI 分支同一决策链）→
@@ -310,8 +325,7 @@ namespace CardCore
             if (core == null || holder == null || core.IsGameOver) return false;
             var options = CollectAvailableResponses(core, holder);
             if (options.Count == 0) return false;
-            var choice = ResponseWindowService.AiResponder?.Invoke(core, holder, options)
-                         ?? DefaultAiRespond(core, holder, options);
+            var choice = DecideAiResponse(core, holder, options);
             // 调试口（沿用本文件 TIDE_DEBUG_RESP=1 约定，2026-11-22 D2c）：无头 vs 局脚本座
             // 单轮决策观测——咨询数/候选数/是否作主（Editor.log grep [dbg-resp-ai]）
             if (Environment.GetEnvironmentVariable("TIDE_DEBUG_RESP") == "1")

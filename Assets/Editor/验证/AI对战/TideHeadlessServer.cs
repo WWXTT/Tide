@@ -573,6 +573,20 @@ namespace CardCore.Editor.TideHeadless
                     loopPruned = r.LoopPruned,
                     loopReason = r.LoopReason ?? "",
                     turnActions = r.TurnActions,
+                    // 2026-11-23 行为仪表（B4 用户口径）：模型侧「牺牲 + 回收」链 / 14 费大哥落地。
+                    // 每局累计、ResetCore 清零——step 响应里即本局迄今的计数（终局那步=全量）。
+                    mSac = r.ModelSacrifices,
+                    mRec = r.ModelRecalls,
+                    mChain = r.ModelChain,
+                    mAgros = r.ModelAgros,
+                    mAgrosTurn = r.ModelAgrosTurnMin,
+                    // 2026-11-23 追加：红/绿招牌操作（成长 / 法术斩杀线）
+                    mGrow = r.ModelGrow,
+                    mLandT1 = r.ModelLandT1,
+                    mLandT3 = r.ModelLandT3,
+                    mBlood = r.ModelBlood,
+                    mBomb = r.ModelBomb,
+                    mCombo = r.ModelCombo,
                 },
             };
             return JsonUtility.ToJson(resp);
@@ -595,7 +609,11 @@ namespace CardCore.Editor.TideHeadless
         // v2 布局握手字段（2026-09-30 契约第 5 节）：layoutVersion / dims / decisionSeat；
         // P-1（2026-11-19）dims 增 cardPoolSize/typePoolSize（稳定下标池尺寸两侧对账）
         [Serializable] public class HeadlessDims { public int nCard; public int nGlobal; public int nAction; public int maxActions; public int maxCards; public int cardPoolSize; public int typePoolSize; }
-        [Serializable] public class HeadlessInfo { public int toPlay; public string winner; public string reason; public int turn; public int modelSeat; public string theme; public string modelTheme; public string modelDoped; public int layoutVersion; public HeadlessDims dims; public int decisionSeat; public bool loopPruned; public string loopReason; public int turnActions; public int seed; }
+        [Serializable] public class HeadlessInfo { public int toPlay; public string winner; public string reason; public int turn; public int modelSeat; public string theme; public string modelTheme; public string modelDoped; public int layoutVersion; public HeadlessDims dims; public int decisionSeat; public bool loopPruned; public string loopReason; public int turnActions; public int seed;
+            // 2026-11-23 行为仪表（B4 用户口径）：模型侧「牺牲 + 回收」链与 14 费大哥落地（每局累计）
+            public int mSac; public int mRec; public int mChain; public int mAgros; public int mAgrosTurn;
+            // 2026-11-23 追加：绿成长（沃土打出 / T1·T3 地数）+ 红法术线（血偿/炸弹/同回合斩杀尝试）
+            public int mGrow; public int mLandT1; public int mLandT3; public int mBlood; public int mBomb; public int mCombo; }
         [Serializable] public class HeadlessResponse { public string op; public HeadlessObs obs; public float reward; public bool done; public HeadlessInfo info; }
     }
 }
