@@ -29,8 +29,9 @@ namespace CardCore.AI.NeuralEnv
         Guard = 10,              // 守卫宣言（拦截栈上的攻击宣言对象）
         TapCreature = 11,        // 横置带地牌特性(LandTrait)的生物产 1 元素进临时钱包（主阶段；产色自动=费用首色）
         Charge = 12,             // 墓碑位（2026-11-15 充能整链删除，不复用编号；枚举器不再产生本动作）
-        DiscardChoice = 13,      // 手牌上限弃牌（P3 2026-11-19 §4.1：回合末停靠决策，Targets=选中张；
-                                 // 独立枚举口 EnumerateDiscardChoices，随 HandLimitDiscardGate 生命周期）
+        DiscardChoice = 13,      // 手牌上限弃牌（P3 2026-11-19 §4.1 建；A0 2026-11-24 逐张弃：每步
+                                 // Targets=选中 1 张；独立枚举口 EnumerateDiscardChoices，随
+                                 // HandLimitDiscardGate 生命周期）
     }
 
     /// <summary>一个可执行动作：模型输出离散下标 → 桥接按此结构调用 GameActions.*。</summary>
@@ -1370,77 +1371,36 @@ namespace CardCore.AI.NeuralEnv
             sink.Add(new TargetSet(new List<Entity>(candidates))); // 全取行（k=n 超上限，兜底补上）
         }
 
-        /// <summary>手牌上限弃牌行上限（P3 2026-11-19 §4.1）：over 张组合 ≤24；
-        /// over&gt;3 时前组合截断 + 恒补默认组（前 over 张）防死锁（停靠决策必至少一行）。</summary>
-        private const int MaxDiscardRows = 24;
-
-        /// <summary>P3（2026-11-19 §4.1）手牌上限弃牌行——**独立枚举口**（非主动作流）：
-        /// 驱动（TideHeadlessDriver）在 HandLimitDiscardGate 挂起时停靠调用。行=over 张组合
-        ///（over=1 逐张 / over=2 C(n,2) / over≥3 组合截断+默认组），Targets=选中卡组，
-        /// 特征 [10]=张数、[3]=首卡槽、[14..17]=-1。恒至少一行（默认组兜底）。</summary>
+        /// <summary>P3（2026-11-19 §4.1 建）手牌上限弃牌行——**独立枚举口**（非主动作流）：
+        /// 驱动（TideHeadlessDriver）在 HandLimitDiscardGate 挂起时停靠调用。A0（2026-11-24
+        /// 回到一期训练目标·逐张弃）改为**每张手牌一行**（Targets=单卡、特征 [10]=1、[3]=该卡槽、
+        /// [14..17]=-1）；原「over 张组合行 + MaxDiscardRows=24 截断 + 默认组兜底」随
+        /// 「一次选完 over 张」旧语义废弃（over→剩余张数只剩引擎侧元数据，不再进枚举签名）。
+        /// 恒至少一行（空手防御行：无目标，交引擎兜底弃第一张）。</summary>
         public static LegalActionEnumerator EnumerateDiscardChoices(GameCore core, Player me,
-            IReadOnlyList<Card> hand, int over)
+            IReadOnlyList<Card> hand)
         {
             var lae = new LegalActionEnumerator { _core = core, _me = me };
             var cards = new List<Card>();
             if (hand != null)
                 foreach (var c in hand)
                     if (c != null) cards.Add(c); // 不滤 IsAlive——手牌卡 IsAlive=false 是常态（仅战场/在场为 true，池地牌同例）
-            if (cards.Count == 0 || over <= 0)
+            if (cards.Count == 0)
             {
                 lae.Actions.Add(new TideAction { Type = TideActionType.DiscardChoice, SourceIndex = -1, TargetIndex = -1 });
                 return lae;
             }
 
-            void Emit(List<Entity> combo)
+            foreach (var c in cards)
             {
-                var row = new TideAction
+                lae.Actions.Add(new TideAction
                 {
                     Type = TideActionType.DiscardChoice,
-                    Targets = combo,
+                    Targets = new List<Entity> { c },
                     SourceIndex = -1,
-                    TargetIndex = combo[0] is Card tc ? TideObservation.IndexOfCard(core, me, tc) : -1,
+                    TargetIndex = TideObservation.IndexOfCard(core, me, c),
                     TargetKindCode = 1,
-                };
-                lae.Actions.Add(row);
-            }
-
-            int n = cards.Count;
-            if (n <= over)
-            {
-                // 候选不足 over（快照竞态/防御）：单行全取（默认组语义，恒可解）
-                var all = new List<Entity>();
-                foreach (var c in cards) all.Add(c);
-                Emit(all);
-            }
-            else if (over == 1)
-            {
-                foreach (var c in cards) Emit(new List<Entity> { c });
-            }
-            else
-            {
-                var combos = new List<List<Entity>>();
-                EmitCombinations(cards.Cast<Entity>().ToList(), over, MaxDiscardRows - 1, combos);
-                foreach (var combo in combos) Emit(combo);
-                // 默认组兜底（组合截断/候选不足）：前 over 张——已含于组合集时不重复补
-                //（C(n,over) 全量枚举时默认组=字典序首组合；2026-11-19 反馈：重复行致 over=2 出 11 行）
-                if (n > 1)
-                {
-                    var def = new List<Entity>();
-                    for (int i = 0; i < n && def.Count < over; i++) def.Add(cards[i]);
-                    bool already = false;
-                    foreach (var r in lae.Actions)
-                    {
-                        if (r.Targets.Count != def.Count) continue;
-                        var ra = r.Targets.ToList();
-                        var da = def.ToList();
-                        bool same = true;
-                        for (int i = 0; i < da.Count; i++)
-                            if (!ReferenceEquals(ra[i], da[i])) { same = false; break; }
-                        if (same) { already = true; break; }
-                    }
-                    if (!already) Emit(def);
-                }
+                });
             }
             lae.BuildFeatures();
             return lae;

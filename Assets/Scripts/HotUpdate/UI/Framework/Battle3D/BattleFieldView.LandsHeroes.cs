@@ -69,6 +69,12 @@ namespace SynergyUI
                 byColor.TryGetValue(element, out var g);
                 int remaining = (g != null ? g.Untapped : 0) + wallet;
                 if (remaining > 0) BattleTileFx.SetLandGlow(cell.x, cell.z, element);
+                // fx-ring 常驻池环（2026-11-23 验收定案：各格环=各自元素色，有可用元素亮原色、
+                // 无=暗灰；双方同规则）——随对账落地（池增减/横置恢复均触发对账），亮灰与
+                // 「可用/上限」读数同源同拍
+                BattleTileFx.SetCellRing(cell.x, cell.z,
+                    remaining > 0 ? BattleTileFx.PoolRingColor((CardCore.ManaType)element)
+                                  : BattleTileFx.PoolUnlitGray);
                 var label = EnsureFlatCellLabel(((long)cell.x << 32) | (uint)cell.z, cell.x, cell.z,
                     selfSide ? 0.42f : -0.504f);
                 if (label != null)
@@ -90,6 +96,9 @@ namespace SynergyUI
             int anyWallet = pv != null && (int)ManaType.Any < pv.WalletByColor.Length
                 ? pv.WalletByColor[(int)ManaType.Any] : 0;
             if (anyWallet > 0) BattleTileFx.SetLandGlow(anyCell.x, anyCell.z, (int)ManaType.Any);
+            // 彩池环同规则（2026-11-23）：余额>0 亮米白、无暗灰
+            BattleTileFx.SetCellRing(anyCell.x, anyCell.z,
+                anyWallet > 0 ? BattleTileFx.PoolRingColor(ManaType.Any) : BattleTileFx.PoolUnlitGray);
             var anyLabel = EnsureFlatCellLabel(((long)anyCell.x << 32) | (uint)anyCell.z, anyCell.x, anyCell.z,
                 owner == 0 ? 0.42f : -0.504f);
             if (anyLabel != null)

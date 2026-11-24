@@ -330,17 +330,74 @@ namespace CardCore
         private readonly Action<CardPutToBattlefieldEvent> _equipEnterHandler =
             e => EquipRules.OnEnterBattlefield(e?.Card);
 
+        /// <summary>A0（2026-11-24 回到一期训练目标）逐张弃轮次硬上限：模型座有界循环最多推进
+        /// 轮数。原值=弃牌组合行上限 24（MaxDiscardRows，随「一次选完」旧语义退役）转用——
+        /// 正常局至多弃「手牌数−上限」张（≤ 手牌区 12 槽），到顶即异常态（防御收口，不空转）。</summary>
+        private const int MaxDiscardRounds = 24;
+
+        /// <summary>有效手牌（S3b 单口口径）：施放中的卡留手牌但不占手牌上限（不可被上限
+        /// 弃牌指到——IsPendingCast）。A0 逐张弃每轮重取，非模型座路径同源。</summary>
+        private List<Card> EffectiveHand(Player player)
+        {
+            var hand = ZoneManager.GetCards(player, Zone.Hand);
+            if (hand == null) return null;
+            var stack = StackEngine;
+            return stack != null
+                ? hand.Where(c => !(c is Card hc && stack.IsPendingCast(hc))).ToList()
+                : hand;
+        }
+
+        /// <summary>上限弃牌单卡入墓（A0 逐张弃与非模型座多选共用尾段）：Move + CardDiscardEvent。</summary>
+        private void DiscardToGraveyard(Player player, Card card)
+        {
+            ZoneManager.MoveCard(card, player, Zone.Hand, Zone.Graveyard);
+            EventManager.Instance.Publish(new CardDiscardEvent
+            {
+                Player = player,
+                Card = card,
+                Source = null,
+            });
+        }
+
         private async UniTask EnforceHandLimitAsync(Player player)
         {
             if (player == null) return;
 
-            var hand = ZoneManager.GetCards(player, Zone.Hand);
-            if (hand == null) return;
+            // A0（2026-11-24 回到一期训练目标·逐张弃）：模型驱动座改**有界循环**——每次停靠只挂
+            // 1 张、弃完在续段里重取手牌/重算上限再决定是否再挂（9 张/上限 7 → 恰 2 个连续弃牌步）；
+            // 非模型座仍「一次选完 over 张」旧行为不变。终止不变量：共弃 max(0, 手牌数−上限) 张、
+            // 每步恰 1 张；任何一步给不出合法卡都走兜底（弃有效手牌第一张）并留日志，禁止空转。
+            if (HandLimitDiscardGate.IsDriverSeat(player))
+            {
+                for (int round = 0; round < MaxDiscardRounds; round++)
+                {
+                    var handNow = EffectiveHand(player);
+                    if (handNow == null || handNow.Count == 0) return;
+                    int remaining = handNow.Count - RuleHooks.GetHandLimit(player);
+                    if (remaining <= 0) return;
 
-            // S3b 全域剔除：施放中的卡留手牌但不占手牌上限（不可被上限弃牌指到——IsPendingCast 单口）
-            var stack = StackEngine;
-            if (stack != null)
-                hand = hand.Where(c => !(c is Card hc && stack.IsPendingCast(hc))).ToList();
+                    if (!HandLimitDiscardGate.TryPark(player, handNow, remaining))
+                        return; // 循环中途解绑（Reset/Dispose 竞态）：静默退出，不回落旧行为
+                    List<Card> picked;
+                    try { picked = await HandLimitDiscardGate.WaitChosenAsync(); }
+                    catch (OperationCanceledException) { return; } // 重置/释放取消：静默退出，不留未观察异常
+
+                    // 无效选择兜底（终止不变量）：选集里第一张仍在手牌的卡；全无效 → 弃第一张
+                    var card = picked?.FirstOrDefault(c =>
+                        c != null && ZoneManager.IsCardInZone(c, player, Zone.Hand));
+                    if (card == null)
+                    {
+                        card = handNow[0];
+                        TideLog.Warn($"[EnforceHandLimit] 弃牌步无合法选择，兜底弃第一张（round={round} over={remaining}）");
+                    }
+                    DiscardToGraveyard(player, card);
+                }
+                TideLog.Warn("[EnforceHandLimit] 逐张弃达到轮次硬上限，防御收口（异常态）");
+                return;
+            }
+
+            var hand = EffectiveHand(player);
+            if (hand == null) return;
 
             // 手牌上限：规则扩展点（OCP）修改链（基值 7；自己回合中无上限）。2026-11-18 定案：满员入手
             // 已在 ZoneContainer.Move/Add 即时改投除外区，本口仅剩「上限缩水」兜底——
@@ -349,37 +406,24 @@ namespace CardCore
             int over = hand.Count - limit;
             if (over <= 0) return;
 
+            // 非模型座（人类/SimpleAI/无头脚本局）：一次选完 over 张，AI/超时自动弃先头（旧行为不变）
             List<Entity> chosen;
-            // P3（2026-11-19 §4.1）：模型驱动座改为停靠决策——HandLimitDiscardGate 挂起，
-            // 驱动用 DiscardChoice 动作行交模型选后 Complete 释放；非模型座回落 RequestAsync
-            //（AI/无头自动选前 N，旧行为不变）
-            if (HandLimitDiscardGate.TryPark(player, hand, over))
-                chosen = (await HandLimitDiscardGate.WaitChosenAsync()).Cast<Entity>().ToList();
-            else
-                chosen = await TargetSelectionService.RequestAsync(new TargetSelectionRequest
-                {
-                    Candidates = hand.Cast<Entity>().ToList(),
-                    MinCount = over,
-                    MaxCount = over,
-                    Chooser = player,
-                    Title = $"回合结束，手牌超出{limit}张，请选择丢弃",
-                    Hint = $"弃掉 {over} 张手牌",
-                    AllowCancel = false,
-                    PromptAtom = AtomicEffectType.DiscardCard, // 2026-11-14：标注弃牌语义，AI 排序保留关键牌
-                });
+            chosen = await TargetSelectionService.RequestAsync(new TargetSelectionRequest
+            {
+                Candidates = hand.Cast<Entity>().ToList(),
+                MinCount = over,
+                MaxCount = over,
+                Chooser = player,
+                Title = $"回合结束，手牌超出{limit}张，请选择丢弃",
+                Hint = $"弃掉 {over} 张手牌",
+                AllowCancel = false,
+                PromptAtom = AtomicEffectType.DiscardCard, // 2026-11-14：标注弃牌语义，AI 排序保留关键牌
+            });
 
             foreach (var entity in chosen)
             {
                 if (entity is Card card)
-                {
-                    ZoneManager.MoveCard(card, player, Zone.Hand, Zone.Graveyard);
-                    EventManager.Instance.Publish(new CardDiscardEvent
-                    {
-                        Player = player,
-                        Card = card,
-                        Source = null,
-                    });
-                }
+                    DiscardToGraveyard(player, card);
             }
         }
 

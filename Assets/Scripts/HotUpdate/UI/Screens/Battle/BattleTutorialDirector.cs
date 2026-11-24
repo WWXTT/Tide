@@ -547,6 +547,7 @@ namespace SynergyUI
             // 排到遮罩之后=视觉在遮罩之上——解说文案/确定钮不被糊、可读可点（intro 步先 ApplyStep
             // 挂遮罩再走到这里，次序天然成立）。
             panel.transform.SetAsLastSibling();
+            PositionTipPanelDynamic(panel.transform as RectTransform); // 动态摆位：不盖开洞展示目标
             var rt = panel.transform as RectTransform;
             var msgTmp = UiKit.FindDeep(rt, "msg")?.GetComponent<TMP_Text>();
             if (msgTmp != null) msgTmp.text = step.hint;
@@ -567,6 +568,25 @@ namespace SynergyUI
             if (noBtn != null) noBtn.gameObject.SetActive(false); // 介绍段单键形态：只留确定
             _introPanel = panel;
             PlayTutorialVoiceAsync(step.audio).Forget();
+        }
+
+        /// <summary>解说卡动态摆位（2026-11-23 验收：避免盖住遮罩开洞展示的目标）——遮罩窗在
+        /// 下半屏=卡上移到 75% 高度、上半屏=卡降到 25%、无窗=预制体默认居中。锚=居中（预制体
+        /// 口径），anchoredPosition.y 按 Root 高度换算，X 不动。</summary>
+        private void PositionTipPanelDynamic(RectTransform rt)
+        {
+            if (rt == null) return;
+            var root = Root as RectTransform;
+            if (root == null) return;
+            float targetNorm = 0.5f; // 默认=预制体居中位
+            var win = TutorialMaskController.WindowPx;
+            if (TutorialMaskController.Active && win.height > 0f)
+            {
+                float winCenterNorm = (win.yMin + win.height * 0.5f) / Mathf.Max(1f, Screen.height);
+                targetNorm = winCenterNorm < 0.5f ? 0.75f : 0.25f; // 目标在下=卡放上、目标在上=卡放下
+            }
+            rt.anchoredPosition = new Vector2(rt.anchoredPosition.x,
+                (targetNorm - 0.5f) * root.rect.height);
         }
 
         public void CloseIntroPanel()

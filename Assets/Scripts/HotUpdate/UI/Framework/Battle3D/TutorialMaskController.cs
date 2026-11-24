@@ -122,7 +122,7 @@ namespace SynergyUI
             _spec = spec;
             if (_handMode) LiftFanAboveMask(root);
             _img.material = null;    // 默认 UI 材质：qFinal 自带 alpha 洞（Blend SrcAlpha OneMinusSrcAlpha）
-            _img.raycastTarget = false;
+            _img.raycastTarget = true; // 遮罩拦 UGUI 射线（2026-11-23 验收：开遮罩=只能点弹窗）
             _img.gameObject.SetActive(true);
             TutorialMaskSceneCache.Requested = true; // feature 开始逐帧拷成片 + 写目标剪影
             _active = true;
@@ -272,7 +272,8 @@ namespace SynergyUI
             rt.offsetMin = Vector2.zero;
             rt.offsetMax = Vector2.zero; // 全屏拉伸（随分辨率/竖切自适应）
             var img = go.GetComponent<RawImage>();
-            img.raycastTarget = false;   // 遮罩不拦射线：窗内窗外的 UI 点击全靠各节点自身
+            img.raycastTarget = true;    // 遮罩拦 UGUI 射线（2026-11-23 验收：开遮罩=只能点弹窗；
+                                         // 其上的解说卡照常可点；点窗内恢复走原生 Input 口不受影响）
             rt.SetAsLastSibling();
             return img;
         }

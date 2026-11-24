@@ -103,9 +103,11 @@ namespace CardCore.Attribute
             return true;
         }
 
-        /// <summary>死亡计数增幅（2026-11-10 用户定案）：宿主卡手牌累计 DeathTollCounter；
+        /// <summary>死亡计数增幅（2026-11-10 用户定案；2026-11-24 口径更新）：宿主卡手牌累计
+        /// DeathTollCounter（**无上限**——旧「普通计数上限 6、增幅 9」两代满值口径退役）；
         /// 该卡之后所有 {value} 原子都吃同一增幅，直到离场（计数器由 CounterRules 换区口径保证）。
-        /// 增幅 = min(9, floor(deaths / 该原子每 +1 value 的费))；1 死亡=1 费，不同原子单价不同；普通计数上限6、增幅9。
+        /// 增幅 = floor(deaths / 该原子每 +1 value 的费)，不封顶——1 死亡=1 费，不同原子单价不同
+        ///（计价侧已收开启费 +2，增幅按死亡数线性自限）。
         /// 只对描述含 {value} 的行生效；动态 valueExpr 不在此口（保持原值）。</summary>
         private static int DeathTollBonusOf(AtomicEffectInstance effect, EffectExecutionContext context)
         {
@@ -120,7 +122,7 @@ namespace CardCore.Attribute
             if (!string.IsNullOrEmpty(effect.ValueExpr)) return 0;
             float step = CostDerivationService.ValueStepFee(effect, context.ResolvingEffect);
             if (step <= 0.0001f) return 0;
-            return Math.Min(9, Math.Max(0, (int)Math.Floor(deaths / step)));
+            return Math.Max(0, (int)Math.Floor(deaths / step)); // 无 min(9)：旧满值口径 2026-11-24 退役
         }
 
         /// <summary>

@@ -25,6 +25,9 @@ namespace CardCore.AI.NeuralEnv
     ///   [69..76] 除外区 Exile (8 = v10 逐卡入册，区内时序 index0=最先放逐；超出 8 截断)
     /// v9（2026-11-02 牌库双通道）：尾接己方牌库块 [154..183] 共 30 槽（仅决策座次方，无序集合
     /// 按内容哈希排序编码——见 WriteOwnDeck；对方牌库不进 cards_，走 g[50..57] 开局标签通道）。
+    /// v21（2026-11-24 卡组分布与策略分界）：牌库块语义改「每种唯一卡一槽 + 卡特征 [157] 张数」
+    ///（30 槽=唯一卡种类上限，总张数不再影响可见性）；己方牌库开局标签进 g[88..95]、
+    /// 牌库唯一卡超 30 种的截断标记 g[96]。
     /// v10（2026-11-02 观测欠账四件套）：+牌库顶槽 [184]（光环命中才编码，防泄露下一抽）
     /// +对方牌库被展示卡块 [185..188]（RevealRules 信息轴）；对方手牌被展示卡豁免为全特征开图。
     /// 对方手牌是隐藏信息：只写 valid+controller（不开图），张数在 globals g[6]。
@@ -105,10 +108,26 @@ namespace CardCore.AI.NeuralEnv
         // 无棋盘（服务器/纯核心）各块写 0 不炸。Python LAYOUT_VERSION/N_CARD_FEATURES/
         // N_GLOBAL_FEATURES/N_ACTION_FEATURES 同步 20/157/88/20（副本随刷新）；旧 checkpoint/
         // ONNX/fixture 全部作废（按 dims 拒载回落 SimpleAI）。
-        public const int LayoutVersion = 20;
+        // v21（2026-11-24 观测·卡组分布与策略分界，docs/观测_卡组分布与策略分界_实施方案.md）：
+        // 己方牌库块 [154..183] 语义换血——由「每张物理卡一槽」改「**每种唯一卡一槽 + 张数**」：
+        // DeckSlots=30 仍是槽总数，但口径变**唯一卡种类上限**（总张数不再影响可见性——此前绿 60 张
+        // 经 30 槽截断只编码出 2 种卡）；同内容副本合并为一组，组内张数写卡特征 [157] countInZone
+        //（其它区恒 1）；唯一卡 >30 种按排序键截断并在 g[96] 标记（不静默）。
+        // 卡特征 157→**158**（+[157] countInZone）；globals 88→**97**——+g[88..95] 己方牌库开局
+        // 标签（DeckTagsOf(OriginalDeckOf(me))，与对方 g[50..57] 同函数同口径）+g[96] deckTruncated。
+        // 动作特征 20 不变。旧 checkpoint/ONNX/fixture 全部作废（按 dims 拒载回落 SimpleAI）；
+        // 同批（维度不变、身份换血）：生物攻/守资格按「带发动条件的主动效果」进内容身份——原子槽
+        // [10]=攻击/[11]=守卫、结构哈希含其骨架、卡特征 [7] 可攻击粗判加攻资格闸（此前火灵·攻/守
+        // 仅攻守资格不同、观测逐位相同——牌库块按特征行分组时会被并成一种卡，红·快攻只见 4 种）。
+        // 死亡计数 [152] 同批改原始层数（2026-11-24：手牌累计无上限 + 计价改基价 +2 开启费——
+        // 旧 /9 归一化与 ×4 计价口径随满值口径退役）。
+        // Python LAYOUT_VERSION/N_CARD_FEATURES/N_GLOBAL_FEATURES 同步 21/158/97。
+        public const int LayoutVersion = 21;
         public const int MaxCardsPerPlayer = 77; // v10：43→77（墓地 4→30、除外 8 入册）
         // v9 己方牌库块（尾接全局块，不走 ZoneLayout 每玩家偏移语义——专用 DeckBase+排序名次路径）：
-        public const int DeckSlots = 30;                                      // 截断护栏（初始整组 30 恰满；衍生物入库超出不编码）
+        // v21 起槽=**唯一卡种类**上限（每种唯一卡一槽、[157] 写张数）——超过 30 种按排序键截断
+        //（g[96]=1 标记）；v20 及以前=物理卡截断护栏（初始整组 30 恰满；衍生物入库超出不编码）。
+        public const int DeckSlots = 30;
         public const int DeckBase = MaxCardsPerPlayer * 2;                    // v10：86→154
         public const int DeckTopSlot = DeckBase + DeckSlots;                  // v10 [184]：牌库顶虚拟手牌（光环命中才编码）
         public const int OppDeckExposedSlots = 4;                             // v10：对方牌库被展示卡截断护栏
@@ -122,17 +141,24 @@ namespace CardCore.AI.NeuralEnv
         //   [0..13]  状态特征（valid/controller/超类/力量/生命/费用/横置/关键词/指示物…实时值）
         //   [14]     LandTrait（v3 复用神佑死维：TapCreature 资格与威胁预测）
         //   [15..26] 原子精确内容哈希下标（跨效果按执行序展平，超出 12 个截断；参数敏感。
-        //            容量依据 2026-10-16：正式卡满配 9 = 代价1 + 主动/自动组合各按2 + 关键词3，留3槽余量）
-        //   [27]     组合结构哈希下标（时点/条件/代价/Steps 骨架 =「怎么组合」）
+        //            容量依据 2026-10-16：正式卡满配 9 = 代价1 + 主动/自动组合各按2 + 关键词3，留3槽余量。
+        //            v21：生物的 [10]=攻击资格原子 / [11]=守卫资格原子（战斗底盘——卡面声明的攻/守
+        //            资格按「带发动条件的主动效果」入身份，CardIdentityService.ChassisAttackSlot/GuardSlot
+        //            预留位，未声明=0），效果原子占 [0..9]；非生物两槽恒 0）
+        //   [27]     组合结构哈希下标（时点/条件/代价/Steps 骨架 =「怎么组合」；v21 起含生物攻/守
+        //            资格的合成效果骨架——攻击=主要阶段主动、守卫=响应拦截）
         //   [28]     关键词/tag/光环组合哈希下标
-        //   [29..40] 原子 EffectType 下标（原子表内排名，参数无关）
+        //   [29..40] 原子 EffectType 下标（原子表内排名，参数无关；[10]/[11]=Attack/Guard 类型行，
+        //            有攻击/守卫资格的生物各共享同一行）
         //   [41..148] 原子参数浮点块（12 槽 × CardIdentityService.AtomParamDim=9 维；v19 布局见其头注释：
         //            value(引擎门槛x)/settleKind/branchParam/branchBudget/kinds三槽/amp/costTotal）
         //   [149][150] 格坐标 x/Width、z/Height（未落格 = -1）
-        //   [151] zoneKind；[152] 死亡计数 /9（2026-11-20 原子属性化补 1 维；关/无=0）
+        //   [151] zoneKind；[152] 死亡计数原始层数（2026-11-20 原子属性化补 1 维；2026-11-24 手牌累计
+        //            无上限、去 /9 归一化——旧满值口径退役；关/无=0）
+        //   [157] countInZone（v21：该槽代表的同特征卡张数；己方牌库块=组内张数，其余区恒 1）
         // 精确哈希 = 冻结的查表身份；类型 + 参数 = 泛化通路。0 = 无该成分 / token / 未登记。
         public const int HashIdStart = 15;
-        public const int AtomIdSlots = 12; // 2026-10-16 6→12（正式卡满配9+余量3）
+        public const int AtomIdSlots = CardIdentityService.ChassisGuardSlot + 1; // =12。2026-10-16 6→12（正式卡满配9+余量3）；v21 经底盘预留槽派生（[10]攻击/[11]守卫），观测必覆盖到它们
         public const int StructureSlot = HashIdStart + AtomIdSlots;            // [27] 组合结构哈希
         public const int CompositionSlot = StructureSlot + 1;                  // [28] 关键词/tag/光环组合哈希
         public const int TypeIdStart = CompositionSlot + 1;                    // [29..40] 类型下标槽
@@ -145,9 +171,10 @@ namespace CardCore.AI.NeuralEnv
         // 对方隐藏手牌=2（WriteConcealedCard；被展示卡豁免为全特征，仍写 2=手牌）。
         // v19：[115]→[151]（参数块 6→9 维整体后移；语义不变）。
         public const int ZoneKindSlot = PosZSlot + 1;                          // [151]
-        // 死亡计数维 [152]（2026-11-20 原子属性化补 1 维）：该卡 DeathTollCounter 层数 /9（关/无=0）。
-        // 死亡计数增幅=原子属性 deathToll（与 rand/defer 同级），手牌累计、满 6、进战场冻结、离场清零
-        //——计数实时值此前完全不可见（模型只能从伤害反推），本维补盲。归一化分母 9=历史增幅档上限余量。
+        // 死亡计数维 [152]（2026-11-20 原子属性化补 1 维；2026-11-24 口径更新）：该卡
+        // DeathTollCounter **原始层数**（指示物口径，与 state 段毒素 [9] 同族——v21 起手牌累计
+        // 无上限，旧 /9 归一化随满值口径退役）。死亡计数增幅=原子属性 deathToll（与 rand/defer
+        // 同级），手牌累计、进战场冻结、离场清零——计数实时值此前完全不可见（模型只能从伤害反推）。
         public const int DeathTollSlot = ZoneKindSlot + 1;                     // [152]
         // 邻接维 [153]（v20 2026-11-20 计划 §3.4 团结观测）：战场卡所在格的 6 邻**己方生物数** /6
         //（团结口径——只数 IsAlive∧IsLivingUnit∧同 controller，结界/角色格/地牌格/敌方不计；
@@ -161,7 +188,12 @@ namespace CardCore.AI.NeuralEnv
         public const int EngineRewardCountSlot = AdjacencySlot + 1;            // [154]
         public const int EngineRewardType0Slot = EngineRewardCountSlot + 1;    // [155]
         public const int EngineRewardValue0Slot = EngineRewardType0Slot + 1;   // [156]
-        public const int NCard = EngineRewardValue0Slot + 1; // v19：116→153（+死亡计数维）；v20：→157（+邻接/奖励摘要 4 维）；python N_CARD_FEATURES 同步
+        // 同区张数维 [157]（v21 2026-11-24 卡组分布与策略分界）：该槽代表的**特征行全同**卡张数——
+        // 己方牌库块=该唯一卡组内张数（原始计数不归一化，钳 99，与费用 [5] 同族；v21 起牌库块
+        // 每种唯一卡占一槽，张数在此读）；其余各区（手牌/战场/墓地/牌库顶/…）恒 1。
+        // 不变量：valid=1 ⇔ countInZone≥1；空槽/对方隐藏手牌以外恒 0 的槽只有空槽。
+        public const int CountSlot = EngineRewardValue0Slot + 1;               // [157]
+        public const int NCard = CountSlot + 1; // v19：116→153（+死亡计数维）；v20：→157（+邻接/奖励摘要 4 维）；v21：→158（+同区张数维）；python N_CARD_FEATURES 同步
         // globals v3（50 维，契约 §5——重排序+归一化+放逐计数+弹药维；v2 g[48] 冗余删除）：
         //   g[0..16] 双方生命/30、回合/40、相位、座次、各区计数（墓地/30、牌库/60、放逐新）；
         //   g[17..28] 临时钱包 12 维；g[29] 栈占用；g[30..31] 势能 Φ/30；g[32..33] 地牌上限/14；
@@ -179,8 +211,14 @@ namespace CardCore.AI.NeuralEnv
         //   g[70..78] 己方 9 单位格（UnitCells 下标序）占用码（0=空/1=己方/2=敌方，/2；无棋盘=0）
         //   g[79..87] 上述 9 格各自的 6 邻**己方生物数** /6（团结口径——只数活生物；
         //             空格邻接不可从卡特征导出，落格/召唤计划行（[17] 格下标）价值直读）
-        public const int NGlobal = 88; // v19：58→70（+12 元素块）；v20：→88（+9 占用码+9 格邻接）
+        // v21 尾加（2026-11-24 卡组分布与策略分界；Python 同步 97）：
+        //   g[88..95] 己方牌库开局标签（DeckTagsOf(OriginalDeckOf(me))——与对方 g[50..57] 同函数
+        //             同口径、同为整局恒定的入局快照；「我是哪套」显式可见，此前只有对方有）
+        //   g[96]    deckTruncated（己方牌库唯一卡种类 >30、牌库块被截断时=1；否则 0——不静默）
+        public const int NGlobal = 97; // v19：58→70（+12 元素块）；v20：→88（+9 占用码+9 格邻接）；v21：→97（+8 己方牌库标签+1 截断标记）
         public const int DeckTagStart = 50; // v9 g[50..57] = DeckTagsOf（对方牌库开局标签）
+        public const int OwnDeckTagStart = 88; // v21 g[88..95] = DeckTagsOf（己方牌库开局标签）
+        public const int DeckTruncatedSlot = OwnDeckTagStart + 8; // v21 g[96]：己方牌库块唯一卡超 DeckSlots 种被截断=1
         // 动作特征槽（v8 8→11 维；v13 11→12；v14 12→14；v17 14→17=P1 v0.3 移动/宣言）：
         // [0]valid [1]type [2]sourceIndex [3]targetIndex [4]modeIndex
         // [5]actionCost [6]effectIdentity [7]targetKind + v8 多目标追加：
@@ -249,6 +287,7 @@ namespace CardCore.AI.NeuralEnv
         /// <summary>卡实例 → cards_ 槽位下标：动作行目标/栈顶来源的反查——扫描双方全部已编码区
         ///（v9 起含己方牌库块、v10 起含除外区；未编码区如对方牌库/衍生物临时区返回 -1）。
         /// v15 拆场地：战场场地卡先路由到场地专用槽（先于区扫描）；战场单位序=剔场地后名次。
+        /// v21：牌库块=唯一卡分组槽——同组（特征行全同）任一张都映射到该组槽位（见 TryDeckSlot）。
         /// 仅枚举/观测辅助用，非热路径权威。</summary>
         public static int IndexOfCard(GameCore core, Player me, Card c)
         {
@@ -257,20 +296,25 @@ namespace CardCore.AI.NeuralEnv
                 return FieldSlotOf(me, c.GetController()); // v15：场地专用槽（不占战场单位槽）
             int slot = TryZoneSlot(core.ZoneManager, me, c, 0);
             if (slot >= 0) return slot;
-            slot = TryDeckSlot(core.ZoneManager, me, c); // v9：己方牌库块（排序名次对齐编码序）
+            slot = TryDeckSlot(core, me, c); // v9：己方牌库块（v21：组序对齐编码序）
             if (slot >= 0) return slot;
             var opp = me.Opponent;
             return opp != null ? TryZoneSlot(core.ZoneManager, opp, c, MaxCardsPerPlayer) : -1;
         }
 
-        /// <summary>己方牌库块反查（v9）：牌库卡在 [DeckBase..] 的槽位 = 排序名次（与
-        /// WriteOwnDeck 同享 SortDeckForEncoding 单源序）。对方牌库不编码，恒 -1。</summary>
-        private static int TryDeckSlot(ZoneManager zm, Player me, Card c)
+        /// <summary>己方牌库块反查（v9 起；v21 改分组语义）：牌库卡在 [DeckBase..] 的槽位 =
+        /// 它所在唯一卡组的组序（与 WriteOwnDeck 同享 GroupDeckForEncoding 单源——同组任一张
+        /// 映射同一槽；所在组超出 DeckSlots 种被截断或对方牌库卡恒 -1）。
+        /// 快速路径：c 不在己方牌库列表即返回（对方卡/其它区卡的反查不必跑整库分组——
+        /// IndexOfCard 对每个对方目标都会走到这里，分组要算整库特征行，不能无脑跑）。</summary>
+        private static int TryDeckSlot(GameCore core, Player me, Card c)
         {
-            var cards = zm.GetCards(me, Zone.Deck);
+            var cards = core.ZoneManager.GetCards(me, Zone.Deck);
             if (cards == null) return -1;
-            int rank = SortDeckForEncoding(cards).IndexOf(c);
-            return rank >= 0 && rank < DeckSlots ? DeckBase + rank : -1;
+            int at = cards.IndexOf(c);
+            if (at < 0) return -1;
+            GroupDeckForEncoding(core, me, cards, cards[at], out int group);
+            return group >= 0 && group < DeckSlots ? DeckBase + group : -1;
         }
 
         private static readonly Zone[] EncodedZones =
@@ -404,20 +448,90 @@ namespace CardCore.AI.NeuralEnv
 
         // =====================================================
 
-        /// <summary>己方牌库块 [DeckBase..]（v9 牌库双通道·己侧）：完整卡表**无序集合**——
-        /// 按内容哈希排序（SortDeckForEncoding 单源）写入前 DeckSlots 张全特征卡（身份/类型/
-        /// 参数三通路全吃；posX/posZ=-1、zoneKind=6）。排序键位置无关——**不泄露洗牌顺序**
-        ///（同哈希副本特征全同可互换；诅咒/祝福标记差异在卡特征内公开呈现，与槽序无关）。
-        /// cap=30 截断护栏：衍生物入库等超出部分不编码，剩余计数仍走 g[13]（同手牌 12 槽先例）。
-        /// 对方牌库不进 cards_——走 g[50..57] 开局标签通道（真实玩家口径=开局展示的卡组标签）。</summary>
+        /// <summary>己方牌库块 [DeckBase..]（v9 牌库双通道·己侧；v21 改「唯一卡 + 张数」分布编码）：
+        /// 牌库完整卡表**无序集合**按内容哈希排序（SortDeckForEncoding 单源，位置无关——
+        /// **不泄露洗牌顺序**）后分组（GroupDeckForEncoding 单源）：**每种唯一卡一槽**，写该组
+        /// 代表卡全特征（身份/类型/参数三通路全吃；posX/posZ=-1、zoneKind=6），组内张数写
+        /// 卡特征 [157] countInZone。30 槽=唯一卡**种类**上限——总张数不再影响可见性（绿 60 张
+        /// 4 种=4 槽完整表达；v20 及以前每张物理卡一槽，30 槽截断后只剩 2 种）；剩余总张数照走 g[13]。
+        /// 唯一卡 &gt;30 种：按排序键截断（只编码前 30 组），g[96] deckTruncated=1 标记不静默。
+        /// 对方牌库不进 cards_——走 g[50..57] 开局标签通道（真实玩家口径=开局展示的卡组标签）；
+        /// 己方开局标签 v21 起在 g[88..95]（WriteGlobals）。</summary>
         private void WriteOwnDeck(GameCore core, Player seat)
         {
             var cards = core.ZoneManager.GetCards(seat, Zone.Deck);
             if (cards == null || cards.Count == 0) return;
-            var sorted = SortDeckForEncoding(cards);
-            int n = Math.Min(DeckSlots, sorted.Count);
+            var groups = GroupDeckForEncoding(core, seat, cards, null, out _);
+            int n = Math.Min(DeckSlots, groups.Count);
             for (int i = 0; i < n; i++)
-                WriteCard(core.LayerEngine, sorted[i], DeckBase + i, false, -1f, -1f, 6);
+                WriteCard(core.LayerEngine, groups[i].Rep, DeckBase + i, false, -1f, -1f, 6, 0f, groups[i].Count);
+            Globals[DeckTruncatedSlot] = groups.Count > DeckSlots ? 1f : 0f;
+        }
+
+        /// <summary>牌库唯一卡组（v21）：Rep=组内排序首张（该组特征行由它写出）、Count=组内张数、
+        /// Row=组特征行（合并判据，见 GroupDeckForEncoding）。</summary>
+        private sealed class DeckGroup
+        {
+            public Card Rep;
+            public int Count;
+            public float[] Row;
+        }
+
+        /// <summary>己方牌库分组（v21 单源——WriteOwnDeck 写入与 TryDeckSlot 反查同享，保证「写进去的
+        /// 槽」与「反查出的槽」逐组一致）：先按 SortDeckForEncoding 排序，再把**内容键
+        ///（Structure→Composition 哈希）相同且编码特征行逐位相等**的卡合并为一组。
+        /// 判据为何不是「只看内容键」：费用增减/指示物/赠予关键词等是逐卡实例态、在卡特征内公开
+        ///（v9 起既有口径——「诅咒/祝福标记差异在卡特征内公开呈现」），只按内容键合并会把组内
+        /// 副本的实例态差异吞成首张一份。收紧到「模型看到的一样」=特征行全同才合并，countInZone
+        /// 即「呈现这一行的物理卡张数」。排序保证同内容键相邻，故合并只在同键段内查找
+        ///（特征行相等必同内容键——[27][28] 由内容哈希派生——不会跨段漏并）。
+        /// track 非 null 时 out trackGroup=它落入的组序（不在列表=-1）。
+        /// 代价=整库逐卡算一遍特征行（≤牌库张数次 WriteCardRow；仅牌库块写入与牌库卡反查走这里）。</summary>
+        private static List<DeckGroup> GroupDeckForEncoding(GameCore core, Player me, List<Card> cards,
+            Card track, out int trackGroup)
+        {
+            var layer = core.LayerEngine;
+            var groups = new List<DeckGroup>();
+            var probe = new float[NCard]; // 逐卡特征行探针（每次先清零：下标类特征只写存在的槽）
+            int runStart = 0;
+            ulong runStructure = 0UL, runComposition = 0UL;
+            bool hasRun = false;
+            trackGroup = -1;
+            foreach (var c in SortDeckForEncoding(cards))
+            {
+                if (c == null) continue;
+                var data = c is CardWrapper w ? w.GetData() : null;
+                ulong structure = data != null ? data.StructureContentHash : 0UL;
+                ulong composition = data != null ? data.CompositionContentHash : 0UL;
+                if (!hasRun || structure != runStructure || composition != runComposition)
+                {
+                    hasRun = true; // 新内容键段（排序保证同键相邻）——可合并组只在本段内
+                    runStart = groups.Count;
+                    runStructure = structure;
+                    runComposition = composition;
+                }
+                Array.Clear(probe, 0, NCard);
+                WriteCardRow(probe, 0, me, layer, c, false, -1f, -1f, 6, 0f, 1);
+                int hit = -1;
+                for (int i = runStart; i < groups.Count; i++)
+                    if (RowEquals(groups[i].Row, probe)) { hit = i; break; }
+                if (hit < 0)
+                {
+                    hit = groups.Count;
+                    groups.Add(new DeckGroup { Rep = c, Row = (float[])probe.Clone() });
+                }
+                groups[hit].Count++;
+                if (ReferenceEquals(c, track)) trackGroup = hit;
+            }
+            return groups;
+        }
+
+        /// <summary>两条卡特征行逐位相等（观测特征均为有限值，无 NaN）。</summary>
+        private static bool RowEquals(float[] a, float[] b)
+        {
+            for (int i = 0; i < NCard; i++)
+                if (a[i] != b[i]) return false;
+            return true;
         }
 
         /// <summary>牌库顶虚拟手牌槽 [DeckTopSlot]（v10）：TopDeckAsHandAura 光环命中座次方且
@@ -462,7 +576,9 @@ namespace CardCore.AI.NeuralEnv
 
         /// <summary>牌库编码序（单源）：StructureContentHash → CompositionContentHash → RuntimeId。
         /// 位置无关的确定性全序——编码槽序与区内序（洗牌序）解耦；WriteOwnDeck 写入与
-        /// TryDeckSlot 反查同享此序。token/未装载卡哈希 0 排最前（确定即可，无语义）。</summary>
+        /// TryDeckSlot 反查同享此序。token/未装载卡哈希 0 排最前（确定即可，无语义）。
+        /// v21：前两键=内容键，同键必相邻——分组合并只在同键段内进行；RuntimeId 只定段内次序
+        ///（=组代表卡的选取），副本特征行全同时合并结果与段内次序无关。</summary>
         private static List<Card> SortDeckForEncoding(List<Card> cards)
         {
             var sorted = new List<Card>(cards);
@@ -483,7 +599,7 @@ namespace CardCore.AI.NeuralEnv
             return a.RuntimeId.CompareTo(b.RuntimeId);
         }
 
-        /// <summary>区域 → zoneKind 下标值（[115]；显式映射不依 Zone 枚举序，防重排）。
+        /// <summary>区域 → zoneKind 下标值（[151]；显式映射不依 Zone 枚举序，防重排）。
         /// 己方牌库块=6 / 牌库顶=7 / 对方牌库被展示=8 由专用写入方法直传；
         /// 对方隐藏手牌=2 由 WriteConcealedCard 直传。</summary>
         private static int ZoneKindOf(Zone zone)
@@ -501,7 +617,7 @@ namespace CardCore.AI.NeuralEnv
             }
         }
 
-        /// <summary>对方牌库开局标签 8 维（v9 牌库双通道·对侧；g[50..57]）：
+        /// <summary>牌库开局标签 8 维（v9 牌库双通道·对侧 g[50..57]；v21 起己方 g[88..95] 同函数同口径）：
         /// [0..3] 四色张数（灰/红/蓝/绿=ManaType 0..3 序；逐色多计 Cost[色]&gt;0——与
         /// CardSorter.HasCostColor 同口径，多色卡在构成色各计一次）、[4..6] 费用三档张数
         ///（档值=Clamp(Round(TotalCost),1,9)：0 费并入 1 档、&gt;9 并入 9+——与 DeckBuilder
@@ -547,35 +663,48 @@ namespace CardCore.AI.NeuralEnv
             Cards[b + ZoneKindSlot] = 2f; // zoneKind=手牌
             Cards[b + PosXSlot] = -1f; // 未落格（手牌不在棋盘上）
             Cards[b + PosZSlot] = -1f;
+            Cards[b + CountSlot] = 1f; // v21：一槽一卡（不变量 valid=1 ⇔ countInZone≥1）
         }
 
+        /// <summary>写一张卡的全特征到观测槽（countInZone 缺省 1=一槽一卡；v21 己方牌库块由
+        /// WriteOwnDeck 传组内张数）。实际写入在 WriteCardRow——静态、缓冲区无关，牌库分组
+        ///（GroupDeckForEncoding）用同一函数复算特征行，写入与合并判据不会两套。</summary>
         private void WriteCard(LayerEngine layer, Card c, int slot, bool tappedOverride, float posX, float posZ,
-            int zoneKind, float adjacencyOwn = 0f)
+            int zoneKind, float adjacencyOwn = 0f, int countInZone = 1)
+            => WriteCardRow(Cards, slot * NCard, _me, layer, c, tappedOverride, posX, posZ, zoneKind, adjacencyOwn,
+                countInZone);
+
+        /// <summary>卡特征行写入（v21 自 WriteCard 抽出）：buf[b..b+NCard) = 卡 c 的全特征。
+        /// **不清行**——调用方保证目标行已是零（新观测数组，或 GroupDeckForEncoding 的已清探针）；
+        /// 下标类特征（原子哈希/类型/参数块）只写实际存在的槽。</summary>
+        private static void WriteCardRow(float[] buf, int b, Player me, LayerEngine layer, Card c,
+            bool tappedOverride, float posX, float posZ, int zoneKind, float adjacencyOwn, int countInZone)
         {
-            int b = slot * NCard;
             int power = layer.CalculatePower(c);
             int life = layer.CalculateToughness(c);
             float cost = GameActions.GetCardCost(c).Total;
 
-            Cards[b + 0] = 1f; // valid
-            Cards[b + 1] = ReferenceEquals(c.GetController(), _me) ? 0f : 1f; // controller
-            Cards[b + 2] = c is IHasSupertype s ? (int)s.Supertype : 0f;       // supertype
-            Cards[b + 3] = Clamp(power, -99f, 999f);                          // 结算力量
-            Cards[b + 4] = Clamp(life, -99f, 999f);                           // 结算防御/生命
-            Cards[b + 5] = Clamp(cost, 0f, 99f);                              // 声明费用和
-            Cards[b + 6] = (c.IsTapped() || tappedOverride) ? 1f : 0f;       // 横置（地牌读包装）
-            Cards[b + 7] = (!c.IsTapped() && power > 0) ? 1f : 0f;           // 可攻击粗判
-            Cards[b + 8] = KeywordRules.HasRushSickness(c) ? 1f : 0f;        // 召唤失调
-            Cards[b + 9] = c.GetCounterCount(CounterRules.ToxinCounter);   // 毒素层数
-            Cards[b + 10] = c.GetCounterCount(CounterRules.SilenceCounter) > 0 ? 1f : 0f;
-            Cards[b + 11] = c.GetCounterCount(CounterRules.CostUpCounter)
+            buf[b + 0] = 1f; // valid
+            buf[b + 1] = ReferenceEquals(c.GetController(), me) ? 0f : 1f; // controller
+            buf[b + 2] = c is IHasSupertype s ? (int)s.Supertype : 0f;       // supertype
+            buf[b + 3] = Clamp(power, -99f, 999f);                          // 结算力量
+            buf[b + 4] = Clamp(life, -99f, 999f);                           // 结算防御/生命
+            buf[b + 5] = Clamp(cost, 0f, 99f);                              // 声明费用和
+            buf[b + 6] = (c.IsTapped() || tappedOverride) ? 1f : 0f;       // 横置（地牌读包装）
+            // 可攻击粗判（v21：加攻资格闸——此前只看「未横置且力量>0」，守卫专用生物如火灵·守被误标
+            // 为可攻击；口径同 CombatSystem.DeclareAttack 的 HasAttackAbility 资格闸）
+            buf[b + 7] = (!c.IsTapped() && power > 0 && c.HasAttackAbility()) ? 1f : 0f;
+            buf[b + 8] = KeywordRules.HasRushSickness(c) ? 1f : 0f;        // 召唤失调
+            buf[b + 9] = c.GetCounterCount(CounterRules.ToxinCounter);   // 毒素层数
+            buf[b + 10] = c.GetCounterCount(CounterRules.SilenceCounter) > 0 ? 1f : 0f;
+            buf[b + 11] = c.GetCounterCount(CounterRules.CostUpCounter)
                           - (c.GetCounterCount(CounterRules.CostDownGrayCounter)   // 2026-10-31 P12 四色
                           + c.GetCounterCount(CounterRules.CostDownRedCounter)    // 费用降低指示物投放，逐色只减对应费
                           + c.GetCounterCount(CounterRules.CostDownBlueCounter)
                           + c.GetCounterCount(CounterRules.CostDownGreenCounter)); // 费用层净量（合计）
-            Cards[b + 12] = c.HasKeyword(KeywordRules.Taunt) ? 1f : 0f;
-            Cards[b + 13] = (c.GetCounterCount(CounterRules.StealthCounter) > 0 || c.HasKeyword(KeywordRules.Concealed)) ? 1f : 0f; // 潜行
-            Cards[b + 14] = c.HasKeyword(KeywordRules.LandTrait) ? 1f : 0f; // 地牌特性（v3：TapCreature 资格）
+            buf[b + 12] = c.HasKeyword(KeywordRules.Taunt) ? 1f : 0f;
+            buf[b + 13] = (c.GetCounterCount(CounterRules.StealthCounter) > 0 || c.HasKeyword(KeywordRules.Concealed)) ? 1f : 0f; // 潜行
+            buf[b + 14] = c.HasKeyword(KeywordRules.LandTrait) ? 1f : 0f; // 地牌特性（v3：TapCreature 资格）
             // 内容身份（原子级拆散，CardIdentityService 与费用同管线推导），三通路：
             // 1) 精确哈希 [15..26] 原子 + [27] 结构 + [28] 组合——内容寻址查表，同单元跨卡共享行；
             // 2) 类型下标 [29..40]（参数无关，同 EffectType 共享行）；
@@ -587,37 +716,40 @@ namespace CardCore.AI.NeuralEnv
                 int idx = TideCardIndex.IndexOf(atomHashes[e]);
                 // P-1 §0.4.4：写入值域断言（Release 零开销——Debug.Assert 按 DEBUG 条件编译剥除）
                 System.Diagnostics.Debug.Assert(idx >= 0 && idx < TideCardIndex.Capacity, $"hash 下标越池 {idx}");
-                Cards[b + HashIdStart + e] = idx;
+                buf[b + HashIdStart + e] = idx;
             }
-            Cards[b + StructureSlot] = TideCardIndex.IndexOf(data != null ? data.StructureContentHash : 0UL);
-            Cards[b + CompositionSlot] = TideCardIndex.IndexOf(data != null ? data.CompositionContentHash : 0UL);
+            buf[b + StructureSlot] = TideCardIndex.IndexOf(data != null ? data.StructureContentHash : 0UL);
+            buf[b + CompositionSlot] = TideCardIndex.IndexOf(data != null ? data.CompositionContentHash : 0UL);
             var typeIdx = data?.AtomTypeIndexes;
             for (int e = 0; e < AtomIdSlots && e < (typeIdx?.Length ?? 0); e++)
             {
                 int t = typeIdx[e];
                 System.Diagnostics.Debug.Assert(t >= 0 && t <= CardIdentityService.MaxTypeIndex, $"type 下标越池 {t}");
-                Cards[b + TypeIdStart + e] = t;
+                buf[b + TypeIdStart + e] = t;
             }
             var atomParams = data?.AtomParams;
             int dim = CardIdentityService.AtomParamDim;
             int nParams = Math.Min(AtomIdSlots, (atomParams?.Length ?? 0) / dim);
             for (int e = 0; e < nParams; e++)
                 for (int p = 0; p < dim; p++)
-                    Cards[b + ParamStart + e * dim + p] = atomParams[e * dim + p];
-            Cards[b + PosXSlot] = posX;
-            Cards[b + PosZSlot] = posZ;
-            Cards[b + ZoneKindSlot] = zoneKind; // v9 区域种类（契约 §4）
-            // 死亡计数维（2026-11-20 原子属性化补 1 维）：手牌累计的 DeathTollCounter /9（关/无=0；
-            // 进战场冻结后保持读数——增幅幅度由此可读，配原子 deathToll 哈希段/卡特征可见）
-            Cards[b + DeathTollSlot] = c.GetCounterCount(CounterRules.DeathTollCounter) / 9f;
+                    buf[b + ParamStart + e * dim + p] = atomParams[e * dim + p];
+            buf[b + PosXSlot] = posX;
+            buf[b + PosZSlot] = posZ;
+            buf[b + ZoneKindSlot] = zoneKind; // v9 区域种类（契约 §4）
+            // 死亡计数维：DeathTollCounter 原始层数（2026-11-24：累计无上限、去 /9 归一化——
+            // 指示物 state 口径；进战场冻结后保持读数，配原子 deathToll 哈希段可见增幅资格）
+            buf[b + DeathTollSlot] = c.GetCounterCount(CounterRules.DeathTollCounter);
             // v20 团结观测 [153]：邻接己方生物数/6（战场卡由 WriteZoneCards 计入；其余区恒 0）
-            Cards[b + AdjacencySlot] = adjacencyOwn;
+            buf[b + AdjacencySlot] = adjacencyOwn;
             // v20 引擎奖励摘要 [154..156]（EngineRewardOf 只读——不进身份哈希）：
             // 引擎分支卡「达标后给什么」首次可见（团结/倒计时/充盈通用）。
             CardIdentityService.EngineRewardOf(data, out int rwCount, out int rwType0, out float rwValue0);
-            Cards[b + EngineRewardCountSlot] = rwCount;
-            Cards[b + EngineRewardType0Slot] = rwType0;
-            Cards[b + EngineRewardValue0Slot] = rwValue0;
+            buf[b + EngineRewardCountSlot] = rwCount;
+            buf[b + EngineRewardType0Slot] = rwType0;
+            buf[b + EngineRewardValue0Slot] = rwValue0;
+            // v21 同区张数 [157]：己方牌库块=该唯一卡组内张数（WriteOwnDeck 传入），其余区恒 1
+            //（WriteConcealedCard 直写）；原始计数不归一化、钳 99（与费用 [5] 同族）。
+            buf[b + CountSlot] = Clamp(countInZone, 0f, 99f);
         }
 
         private void WriteGlobals(GameCore core, Player me, Player opp, bool responseContext,
@@ -686,6 +818,12 @@ namespace CardCore.AI.NeuralEnv
             var deckTags = DeckTagsOf(core.OriginalDeckOf(opp));
             for (int i = 0; i < deckTags.Length; i++)
                 g[DeckTagStart + i] = deckTags[i];
+            // v21 己方牌库开局标签（g[88..95]，卡组分布与策略分界）：与对方块同函数同口径
+            //（DeckTagsOf 单源、入局快照、整局恒定）——「我是哪套」显式可见（此前只有对方有，
+            // 己方只能从牌库块反推）。g[96] deckTruncated 由 WriteOwnDeck 写（牌库块截断标记）。
+            var ownDeckTags = DeckTagsOf(core.OriginalDeckOf(me));
+            for (int i = 0; i < ownDeckTags.Length; i++)
+                g[OwnDeckTagStart + i] = ownDeckTags[i];
 
             // v19 剩余可用元素块（g[58..63]=me / g[64..69]=opp，绿套补盲）：
             // 逐色「钱包余额 + 未横置地牌张数」+ Any 单独成维 + 总量——「还差几点出大哥」
@@ -774,7 +912,7 @@ namespace CardCore.AI.NeuralEnv
     /// 碰撞=共享 embedding 行可接受，报告出 CollisionReport；不做按插入序探测）。
     /// 动作 effectIdentity：FNV1a64(def.Id)+盐 → StableIndex(1024)（与卡身份哈希族隔离）。
     /// 旧「追加式登记簿 + card_identity_manifest.json 持久化」已废弃（2026-11-19）——
-    /// manifest 文件仅存档，不参与训练/导出；旧 1024/256 模型作废（当前 LayoutVersion=18 拒载，
+    /// manifest 文件仅存档，不参与训练/导出；旧 1024/256 模型作废（当前 LayoutVersion 拒载，
     /// v16 起另按 cardPool/typePool 尺寸校验）。
     /// </summary>
     public static class TideCardIndex

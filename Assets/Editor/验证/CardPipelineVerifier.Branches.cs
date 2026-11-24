@@ -377,13 +377,14 @@ namespace CardCore.Editor
             PadDeck(core, p1, 15, "VERIFY_0922_P1_");
             PadDeck(core, p2, 15, "VERIFY_0922_P2_");
 
-            // ---- 5. 死亡计数增幅（2026-11-10 改版定案）：**只在手牌中累计**——双方生物每死 1 只 +1
-            //      （增幅档 engineParam=9 → 满值 9；普通档 0 → 满值 6）；**奖励引擎退役**——不再有
-            //      门槛→Then 奖励（死亡零抽牌）；进战场**冻结**（手牌→战场换区保留计数，场上死亡
-            //      不再累计）；离场**清零**（战场→任何区清，含回手）；计数留作该卡 {value} 原子的增幅：
-            //      执行期 bonus = min(9, floor(计数 / 每 +1 value 的费))（1死亡=1费，单价随原子行），
-            //      经 EffectHandlerRegistry 临时加到 value、结算后还原；计价侧增幅标记（engineParam≥9）
-            //      原子费 ×4（DeathTollAmplificationMultiplier）。----
+            // ---- 5. 死亡计数增幅（2026-11-20 原子属性化；2026-11-24 口径更新）：**只在手牌中累计**
+            //      ——双方生物每死 1 只 +1，**无满值**（旧「增幅档满 9 / 普通档满 6」随用户 2026-11-24
+            //      定案取消）；**奖励引擎退役**——不再有门槛→Then 奖励（死亡零抽牌）；进战场**冻结**
+            //      （手牌→战场换区保留计数，场上死亡不再累计）；离场**清零**（战场→任何区清，含回手）；
+            //      计数留作该卡 {value} 原子的增幅：执行期 bonus = floor(计数 / 每 +1 value 的费)
+            //      （1死亡=1费，单价随原子行，不封顶），经 EffectHandlerRegistry 临时加到 value、
+            //      结算后还原；计价侧开启标记（原子属性 deathToll）= 基价 +2 平费
+            //      （CostDerivationService.DeathTollEnableFee——旧 ×4 总费口径退役）。----
             var tollData = new CardData
             {
                 ID = "VERIFY_ENGINE_TOLL", CardName = "验证死亡计数增幅", Supertype = Cardtype.Creature, Power = 3, Life = 3,
@@ -394,16 +395,13 @@ namespace CardCore.Editor
                 TriggerTiming = (int)CardCore.TriggerTiming.Activate_Active, // 宿主惰性化（同倒计时段注）——增幅标记不随施放/入场自动结算
                 AtomicEffects = new List<AtomicEffectEntry>
                 {
-                    AmpAtom(CardCore.AtomicEffectType.DealDamage, 2, 9), // 增幅档：2 伤 + engineParam=9
+                    AmpAtom(CardCore.AtomicEffectType.DealDamage, 2), // 2 伤 + deathToll 开启（+2 平费计价）
                 },
             });
             var tollDef = CardEffectConverter.ConvertOne(tollData.Effects[0], tollData.ID);
-            Assert(tollDef.Effects.Count == 1 && tollDef.Effects[0].Branch != null
-                   && tollDef.Effects[0].Branch.Settle == CardCore.BranchSettleKind.Engine
-                   && tollDef.Effects[0].Branch.EngineKind == CardCore.BranchEngineKind.DeathToll
-                   && tollDef.Effects[0].Branch.EngineParam == 9
-                   && tollDef.Effects[0].Branch.Then.Count == 0,
-                   "死亡计数增幅：效果原子 branch 载荷（Engine/DeathToll/engineParam=9）——Then 空（奖励引擎退役）");
+            Assert(tollDef.Effects.Count == 1 && tollDef.Effects[0].DeathToll
+                   && tollDef.Effects[0].Branch == null,
+                   "死亡计数增幅：原子属性 DeathToll 直通、无分支载荷（旧 engine=DeathToll 分支装载期剥离——奖励引擎退役）");
             var tollAtom = tollDef.Effects[0];
             // 计价（2026-11-10 定案）：增幅标记原子费 = 基准 ×4；增幅费口 AmplificationFeeOf = +3×正常总费
             var plainTollDef = CardEffectConverter.ConvertOne(new CardEffectData
@@ -419,20 +417,20 @@ namespace CardCore.Editor
                 plainTollDef.Effects[0], plainTollDef, null,
                 CardCore.Attribute.AtomicEffectTable.GetByHashId(plainTollDef.Effects[0].RowHashId)).Values.Sum();
             Assert(tollPlainFee > 0f
-                   && System.Math.Abs(tollAmpFee - tollPlainFee * CardCore.CostDerivationService.DeathTollAmplificationMultiplier) < 0.01f,
-                   $"死亡计数计价：增幅标记原子费 = 基准 ×4（实际 amp={tollAmpFee:0.##} plain={tollPlainFee:0.##}）——旧「引擎零计价」随奖励引擎退役");
+                   && System.Math.Abs(tollAmpFee - tollPlainFee - CardCore.CostDerivationService.DeathTollEnableFee) < 0.01f,
+                   $"死亡计数计价：开启费=基价+2（实际 amp={tollAmpFee:0.##} plain={tollPlainFee:0.##}）——旧「×4 总费 / 引擎零计价」口径均退役");
             Assert(System.Math.Abs(CardCore.CostDerivationService.AmplificationFeeOf(tollAtom, tollDef, null)
-                       - (tollAmpFee - tollPlainFee)) < 0.01f,
-                   "死亡计数计价：增幅费 AmplificationFeeOf = +3×正常总费（与 ×4 口径同源）");
+                       - CardCore.CostDerivationService.DeathTollEnableFee) < 0.01f,
+                   "死亡计数计价：开启费口 AmplificationFeeOf = +2（与基价+2 口径同源）");
 
-            // 运行时：A=增幅档宿主（满 9）；B=普通档宿主（满 6）——双双入手（改版后计数载体=手牌）
+            // 运行时：A=DealDamage 宿主；B=Heal 宿主（同为 deathToll 开启——属性化后无档位之分）——双双入手（计数载体=手牌）
             var tollCard = new CardWrapper(tollData);
             tollCard.SetController(p1);
-            Assert(core.ZoneManager.TryAddToBattlefield(tollCard, p1), "死亡计数：增幅宿主占位入场（转手前置）");
+            Assert(core.ZoneManager.TryAddToBattlefield(tollCard, p1), "死亡计数：宿主 A 占位入场（转手前置）");
             core.ZoneManager.MoveCard(tollCard, p1, Zone.Battlefield, Zone.Hand); // 载体进手牌
             var toll6Data = new CardData
             {
-                ID = "VERIFY_ENGINE_TOLL6", CardName = "验证死亡计数普通档", Supertype = Cardtype.Creature, Power = 3, Life = 3,
+                ID = "VERIFY_ENGINE_TOLL6", CardName = "验证死亡计数第二宿主", Supertype = Cardtype.Creature, Power = 3, Life = 3,
             };
             toll6Data.Effects.Add(new CardEffectData
             {
@@ -440,13 +438,13 @@ namespace CardCore.Editor
                 TriggerTiming = (int)CardCore.TriggerTiming.Activate_Active,
                 AtomicEffects = new List<AtomicEffectEntry>
                 {
-                    AmpAtom(CardCore.AtomicEffectType.Heal, 1, 0), // 普通档：engineParam=0 → 满值 6、无 ×4 计价标记
+                    AmpAtom(CardCore.AtomicEffectType.Heal, 1), // 第二宿主：Heal 1 + deathToll（旧「普通档 engineParam=0」档位退役）
                 },
             });
             var toll6Card = new CardWrapper(toll6Data);
             toll6Card.SetController(p1);
-            Assert(CardEffectConverter.ConvertOne(toll6Data.Effects[0], toll6Data.ID).Effects[0].Branch.EngineParam == 0,
-                   "死亡计数：普通档载荷 engineParam=0（<9 不吃 ×4 计价、满值 6）");
+            Assert(CardEffectConverter.ConvertOne(toll6Data.Effects[0], toll6Data.ID).Effects[0].DeathToll,
+                   "死亡计数：第二宿主原子属性 DeathToll 直通（无档位——旧 engineParam=0/9 双档退役）");
             core.ZoneManager.TryAddToBattlefield(toll6Card, p1);
             core.ZoneManager.MoveCard(toll6Card, p1, Zone.Battlefield, Zone.Hand);
 
@@ -470,21 +468,21 @@ namespace CardCore.Editor
             Assert(tollCount() == 2 && toll6Count() == 2
                    && core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckAtToll,
                    "死亡计数：手牌累计双方生物死亡（对手/己方各 +1 → A=2 B=2）——死亡零抽牌（奖励引擎退役）");
-            for (int i = 0; i < 8; i++) TollKill(); // 累计 10 死：A 封顶 9、B 封顶 6
-            Assert(tollCount() == 9 && toll6Count() == 6
+            for (int i = 0; i < 8; i++) TollKill(); // 累计 10 死：无满值（2026-11-24 取消上限）
+            Assert(tollCount() == 10 && toll6Count() == 10
                    && core.ZoneManager.GetCards(p1, Zone.Deck).Count == deckAtToll,
-                   $"死亡计数：满值封顶不再计数（增幅档 engineParam=9 → 9；普通档 0 → 6）——实际 {tollState()}");
+                   $"死亡计数：累计无上限（10 死后 A=10 B=10——旧「满 9/满 6」封顶口径退役）——实际 {tollState()}");
             core.ZoneManager.MoveCard(tollCard, p1, Zone.Hand, Zone.Battlefield); // 进战场
-            Assert(tollCount() == 9, "死亡计数：手牌→战场换区**保留**计数（冻结载体——ClearAll(Hand,Battlefield) 豁免口）");
-            TollKill(); // 场上死亡：A 已冻结不加、B 满值不加
-            Assert(tollCount() == 9 && toll6Count() == 6,
-                   "死亡计数：进战场后冻结——场上死亡不再累计（EvaluateDeathTollEngines 只扫手牌）");
+            Assert(tollCount() == 10, "死亡计数：手牌→战场换区**保留**计数（冻结载体——ClearAll(Hand,Battlefield) 豁免口）");
+            TollKill(); // 场上死亡：A 已冻结不加；B 仍在手牌继续累计
+            Assert(tollCount() == 10 && toll6Count() == 11,
+                   "死亡计数：进战场后冻结——场上死亡不再累计（EvaluateDeathTollCounters 只扫手牌；B 无满值继续 +1）");
 
-            // 增幅消费：执行 A 的 {value} 原子（DealDamage 2）——bonus=min(9,floor(计数/每+1费)) 临时加值
-            var bigVictim = SpawnTier(core, p2, 0, 50); // 大血靶（不会死于本段伤害）
+            // 增幅消费：执行 A 的 {value} 原子（DealDamage 2）——bonus=floor(计数/每+1费) 临时加值（不封顶）
+            var bigVictim = SpawnTier(core, p2, 0, 99); // 大血靶（不会死于本段伤害；无封顶后 bonus 可超 20）
             float tollStep = CardCore.CostDerivationService.ValueStepFee(tollAtom, tollDef);
-            int tollBonus9 = tollStep > 0.0001f ? System.Math.Min(9, (int)System.Math.Floor(9f / tollStep)) : 0;
-            Crumb($"toll amplification: step={tollStep:0.###} deaths=9 → bonus={tollBonus9}");
+            int tollBonus = tollStep > 0.0001f ? (int)System.Math.Floor(10f / tollStep) : 0; // A 计数=10（冻结在读数上）
+            Crumb($"toll amplification: step={tollStep:0.###} deaths=10 → bonus={tollBonus}");
             System.Func<int> AmpDeal = () =>
             {
                 int before = bigVictim.GetLife();
@@ -497,9 +495,9 @@ namespace CardCore.Editor
                 return before - bigVictim.GetLife();
             };
             int ampDamage = AmpDeal();
-            Assert(ampDamage == 2 + tollBonus9 && tollBonus9 > 0
+            Assert(ampDamage == 2 + tollBonus && tollBonus > 0
                    && tollAtom.Value == 2,
-                   $"死亡计数增幅：执行期 value 2+{tollBonus9}（bonus=min(9,floor(9/step={tollStep:0.##})) 实际伤害 {ampDamage}）——结算后原子 value 还原 2");
+                   $"死亡计数增幅：执行期 value 2+{tollBonus}（bonus=floor(10/step={tollStep:0.##}) 不封顶——旧 min(9) 随满值退役；实际伤害 {ampDamage}）——结算后原子 value 还原 2");
             core.ZoneManager.MoveCard(tollCard, p1, Zone.Battlefield, Zone.Hand); // 离场 → 清零
             Assert(tollCount() == 0, "死亡计数：离场清零（战场→手：ClearAll 无豁免——增幅随计数消失）");
             Assert(AmpDeal() == 2,

@@ -267,7 +267,8 @@ namespace CardCore.AI.NeuralEnv
         // 续跑内联在本线程——探针实证无 player loop 依赖，见 2026-11-22 tcs_continuation_probe）。
         private Cysharp.Threading.Tasks.UniTaskCompletionSource<ResponseOption> _parkTcs;
         private List<ResponseOption> _parkOptions;
-        private bool _discardStop; // P3（2026-11-19 §4.1）：手牌上限弃牌停靠（legal=DiscardChoice 行）
+        private bool _discardStop; // P3（2026-11-19 §4.1 建；A0 2026-11-24 逐张弃）：手牌上限弃牌停靠
+                                   //（legal=DiscardChoice 行，每张手牌一行；仍超限会连续多步）
 
         // vs 脚本对手位：_modelPlayer != null 时，非模型回合由 SimpleAI 整回合自动打
         // （策略每局按 Reset 注入重建——主题评估用 AutoMatch，缺省 General）
@@ -519,7 +520,8 @@ namespace CardCore.AI.NeuralEnv
             _mBloodThisTurn = _mBombThisTurn = false;
             // 2026-11-23 考察项：攻击目标分类（safe/risky/face）每局清零
             _mAtkSafe = _mAtkRisky = _mAtkFace = _mAtkAny = 0;
-            // P3（2026-11-19 §4.1）：模型座手牌上限弃牌改停靠决策（DiscardChoice 行）——
+            // P3（2026-11-19 §4.1 建·A0 2026-11-24 逐张弃）：模型座手牌上限弃牌改停靠决策
+            //（DiscardChoice 行=每张手牌一行，引擎有界循环逐张推进）——
             // 自对弈（_modelPlayer=null）双座皆模型；vs 模式仅模型座
             HandLimitDiscardGate.Reset();
             HandLimitDiscardGate.Bind(p => _modelPlayer == null || ReferenceEquals(p, _modelPlayer));
@@ -706,14 +708,16 @@ namespace CardCore.AI.NeuralEnv
             }
             else if (a.Type == TideActionType.DiscardChoice)
             {
-                // P3（2026-11-19 §4.1）手牌上限弃牌：交选择释放门——EnforceHandLimitAsync
-                // 余段（入墓+CardDiscardEvent）在 Complete 调用线程内联继续；钳到 over 张防多弃
+                // P3（2026-11-19 §4.1 建·A0 2026-11-24 逐张弃）：本步只交 1 张——
+                // EnforceHandLimitAsync 余段（单卡入墓+CardDiscardEvent）在 Complete 调用线程
+                // 内联继续，随后重取手牌/重算上限，仍超限会再挂起（AdvanceToDecision 循环顶
+                // 再停靠 → 连续弃牌步，9 张/上限 7 恰 2 步）；钳到 1 张防多弃
                 var snap = HandLimitDiscardGate.Snapshot();
                 var picked = new List<Card>();
                 if (a.Targets != null)
                     foreach (var e2 in a.Targets)
                         if (e2 is Card dc && snap.cards != null && snap.cards.Contains(dc)
-                            && picked.Count < Math.Max(1, snap.over))
+                            && picked.Count < 1)
                             picked.Add(dc);
                 HandLimitDiscardGate.Complete(picked);
                 _discardStop = false;
@@ -822,8 +826,9 @@ namespace CardCore.AI.NeuralEnv
         {
             for (int i = 0; i < PhaseAdvanceGuard && !_gameOver; i++)
             {
-                // P3（2026-11-19 §4.1）手牌上限弃牌停靠：模型座挂起请求先于一切推进停靠
-                //（回合末事件在 EndTurn/相位泵内已同步 Park；停靠步由 Step 应用 DiscardChoice 释放）
+                // P3（2026-11-19 §4.1 建·A0 2026-11-24 逐张弃）手牌上限弃牌停靠：模型座挂起请求
+                // 先于一切推进停靠（回合末事件在 EndTurn/相位泵内已同步 Park；停靠步由 Step 应用
+                // DiscardChoice 释放——释放后仍超限会再次 Park，本循环自然形成连续弃牌步）
                 if (HandLimitDiscardGate.HasPending)
                 {
                     var snap = HandLimitDiscardGate.Snapshot();
@@ -1074,7 +1079,8 @@ namespace CardCore.AI.NeuralEnv
             if (!_gameOver && _core.TurnEngine.CurrentPhase?.Phase == PhaseType.Main
                 && _core.StackEngine.IsEmpty)
                 GameActions.EndTurn(_core, _core.TurnEngine.TurnPlayer);
-            // P3 §4.1：强收路径释放挂起弃牌（默认组）——防门泄漏卡死后续停靠
+            // P3 §4.1 建·A0 2026-11-24 逐张弃：强收路径释放挂起弃牌（CompleteDefault 内部循环
+            // 放行快照首卡直到不再挂起）——防门泄漏卡死后续停靠
             if (HandLimitDiscardGate.HasPending)
             {
                 HandLimitDiscardGate.CompleteDefault();
@@ -1229,11 +1235,12 @@ namespace CardCore.AI.NeuralEnv
             _legal = new LegalActionEnumerator();
             if (_discardStop)
             {
-                // P3 §4.1：弃牌停靠步——legal=DiscardChoice 组合行（独立枚举口；
-                // 默认组保底恒 ≥1 行，不补 PassPriority/EndTurn 兜底防误用）
+                // P3 §4.1 建·A0 2026-11-24 逐张弃：弃牌停靠步——legal=DiscardChoice 行
+                //（每张手牌一行，独立枚举口；空手防御行保底恒 ≥1 行，不补
+                // PassPriority/EndTurn 兜底防误用）
                 var snap = HandLimitDiscardGate.Snapshot();
                 if (snap.cards != null)
-                    _legal = LegalActionEnumerator.EnumerateDiscardChoices(_core, _decider, snap.cards, snap.over);
+                    _legal = LegalActionEnumerator.EnumerateDiscardChoices(_core, _decider, snap.cards);
             }
             else if (_responseStop)
             {

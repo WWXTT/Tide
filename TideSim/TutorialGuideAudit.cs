@@ -17,8 +17,8 @@ namespace TideSim
     ///   cell:{x}:{z}/unit:{卡id}/tmp:{宿主token}；ui:*/card:*/hand/all 报红（UI 不参与遮罩高亮）；
     ///   cell 越界、unit 卡 id 不在卡表（#N 剥壳后查）报红；mask.target 必须单 token（逗号=多窗写法，
     ///   v0.3 定案每步一窗）；mask 块存在但 target 空=报红；
-    /// · highlight：style outline/pool（pool=元素池行动态环，仅 zone:p1-land）、color #RRGGBB、
-    ///   width 1..8、hdr&gt;0.8（bloom 阈值）、pulse none/slow/fast；
+    /// · highlight：style 仅 outline（元素池行环已常驻化——LandsHeroes 对账落地，不再走教学
+    ///   高亮）、color #RRGGBB、width 1..8、hdr&gt;0.8（bloom 阈值）、pulse none/slow/fast；
     /// · pause：resumeBy confirm/window/windowOrConfirm；自由步（fieldclear/luckuse/deathtoll）与
     ///   aiTurnOnConfirm=true 步 on=true 报红（锁住=死锁，计划 §5.3-1/2 强制无效）。
     /// 旧档缺三块=零报红零变化（缺字段=不启用）。
@@ -158,10 +158,7 @@ namespace TideSim
                         else if (!TokenOk(target, out var why))
                             Fail($"{tag} highlight.target「{target}」{why}");
                         string style = entry.Value<string>("style") ?? "outline";
-                        if (style != "outline" && style != "pool")
-                            Fail($"{tag} highlight.style 仅支持 outline/pool（现值 {style}）");
-                        if (style == "pool" && entry.Value<string>("target") != "zone:p1-land")
-                            Fail($"{tag} highlight.style=pool 仅支持 zone:p1-land 词（现值 {entry.Value<string>("target")}）");
+                        if (style != "outline") Fail($"{tag} highlight.style 仅支持 outline（现值 {style}）");
                         // color 缺省=C# 默认 #FFD75A（运行时同口径）——只在显式给出时验格式
                         string color = entry.Value<string>("color");
                         if (!string.IsNullOrEmpty(color)

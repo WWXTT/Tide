@@ -108,8 +108,8 @@ namespace SynergyUI
         /// Toggle（2026-11-23 重排改版：无 Button——onValueChanged → SetMute，isOn 回填同步勾选态）。
         /// 账号区四钮（slot-login/slot-logout/up-cloud/down-cloud）由 Tide.TapTap 侧
         /// CloudSaveMenuController 按名接线（TapModule.OnMainMenuBuilt）；单机风味 Module=null
-        /// 时此处整体隐藏账号区（缺席即正确态——节点常驻烘焙后必须主动藏；隐藏名单与 TapTap 侧
-        /// CloudSaveMenuController.HideAccountArea 一致，两程序集不互相引用各自维护）。</summary>
+        /// 时此处整体隐藏账号区（缺席即正确态——节点常驻烘焙后必须主动藏；2026-11-24 定案：
+        /// 有 Tide.TapTap 时账号区默认显示（登录钮未登录态常驻），TapTap 侧按平台隐藏链已退役）。</summary>
         private void BindSettingsPanel()
         {
             BindButton("btn-settings", () => ShowSettingsPanel(true));

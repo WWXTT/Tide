@@ -13,9 +13,10 @@ namespace CloudSave
     ///（slot-login/slot-logout/up-cloud/down-cloud）烘焙在 MainUI.prefab panel-settings，
     /// 本类只按名绑定与填数（UI 只绑定不生成）；TapLoginBadge/CloudSaveEntry/CloudSavePanel
     /// 三件注入预制体退役。显隐门禁（2026-11-23 用户定案）=**登录后才显示退出登录与两个存档钮**，
-    /// 登录钮常驻（未登录=「登录」可点，登录成功原地换用户名）；编辑器/不支持平台整体缺席
-    ///（实现住 Tide.TapTap，本类不编译或 IsSupported=false 都不绑——HotUpdate 侧 Module=null
-    /// 时由 MainMenuScreen.BindSettingsPanel 同步隐藏账号区）。
+    /// 登录钮默认显示（未登录=「登录」可点，登录成功原地换用户名；2026-11-24 用户定案：编辑器/
+    /// 不支持平台不再整体隐藏——登录钮照常显示，点击经 toast 提示「未配置或平台不支持」）。
+    /// 唯一整体缺席=本地单机风味（Tide.TapTap 程序集不编译、TapBridge.Module=null，由
+    /// HotUpdate 侧 MainMenuScreen.BindSettingsPanel 隐藏账号区）。
     /// 云恢复完成=**原地刷新**（数据已由 GameDataReload 全量失效，重订教学事件+刷门槛即读新
     /// 数据——2026-11-22 用户定案，旧清栈回启动页链退役）。上传/下载/登录失败结果经
     /// TipPromptHost toast 反馈（旧 CloudSavePanel 面板与状态行一并退役）。
@@ -35,25 +36,15 @@ namespace CloudSave
         private bool _loggingIn;
         private TipPromptHost _tips;     // 上传/下载结果与游客闸提示
 
-        /// <summary>账号区节点名单（与 HotUpdate 侧 MainMenuScreen.BindSettingsPanel 的单机
-        /// 风味隐藏名单一致——两程序集不互相引用，名单各自维护）。</summary>
-        private static readonly string[] AccountAreaNodes =
-            { "lbl-account", "slot-login", "slot-logout", "up-cloud", "down-cloud" };
-
-        /// <summary>主菜单 Build 期：账号区四钮按名绑定+登录态刷新。不支持平台（编辑器/未配置）
-        /// 账号区整体隐藏；缺节点 LogError 不静默。</summary>
+        /// <summary>主菜单 Build 期：账号区四钮按名绑定+登录态刷新。登录钮默认显示（2026-11-24
+        /// 用户定案：不按 IsSupported 隐藏——未登录态只显示登录钮，编辑器/不支持平台点击经
+        /// toast 提示不可用）；缺节点 LogError 不静默。</summary>
         public void Build(MainMenuScreen menu)
         {
             _menu = menu;
             _root = menu.Root;
             _tips = new TipPromptHost(() => _root);
             _loggingIn = false; // 上一任主菜单登录中途退屏的残留——防新屏登录钮永久禁用
-
-            if (!SynergyUI.Online.TapAccountService.IsSupported)
-            {
-                HideAccountArea(); // SDK 不可用——缺席即正确态（HotUpdate 侧 Module!=null 时由本类兜藏）
-                return;
-            }
 
             _loginButton = BindAccountButton("slot-login", OnLoginClicked);
             _loginLabel = _loginButton != null ? _loginButton.GetComponentInChildren<TMP_Text>(true) : null;
@@ -117,17 +108,6 @@ namespace CloudSave
         {
             var profile = SynergyUI.Online.TapAccountService.Current;
             return profile != null && !string.IsNullOrEmpty(profile.Name) ? profile.Name : "TapTap玩家";
-        }
-
-        /// <summary>不支持平台账号区整体隐藏（节点常驻烘焙后的缺席即正确态；隐藏名单与 HotUpdate
-        /// 侧 MainMenuScreen.BindSettingsPanel 的 Module=null 分支一致）。</summary>
-        private void HideAccountArea()
-        {
-            foreach (var nodeName in AccountAreaNodes)
-            {
-                var node = UiKit.FindDeep(_root, nodeName);
-                if (node != null) node.gameObject.SetActive(false);
-            }
         }
 
         /// <summary>账号区按钮绑定：panel-settings 烘焙节点按名查找→挂回调；缺节点 LogError（不静默）。</summary>

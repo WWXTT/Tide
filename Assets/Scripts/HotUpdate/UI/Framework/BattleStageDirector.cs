@@ -170,6 +170,11 @@ namespace SynergyUI
                         var existing = GameObject.Find("Map");
                         _mapOwned = existing == null;
                         _mapRoot = (existing != null ? existing : new GameObject("Map")).transform;
+                        if (_worldCam != null)
+                            Tide.RenderFX.BattlePostFx.Ensure(_worldCam, _mapRoot); // 战场后处理装配
+                            //（2026-11-23 验收：相机 renderPostProcessing + 全局 Bloom——教学描边
+                            // HDR 边此前不出光晕：相机后处理从未开、场景无 Volume，配置空转）。
+                            // 挂 Map 总根=随战场拆台销毁，重进重挂。
                     }
                     // v3 预制体化（2026-10-23 13:00）：Build 返回战场总根——prefab 态=BattleStage
                     //（Board/Env/Stairs 子节点），回落态=运行时拼装的棋盘根。总根挂 Map；

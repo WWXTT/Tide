@@ -23,11 +23,11 @@ namespace CardCore
         ///   应对方恒弃最高费拦截），两选收齐后**同时公示**落墓——按**己方舍弃费用−对手舍弃费用**
         ///   （封顶 6；抉择卡费用取最高分支）**≥ 门槛**（Then 锚价推导）执行奖励；
         ///   **无限次**（每次攻击宣言独立判定；交互异步经串行队列，无头同步完成）。
-        /// - **死亡计数**（2026-09-22 定案；2026-10-09 自平衡统一；2026-11-08 阶段3 收窄）：**此卡在场
-        ///   上时**计数双方生物死亡（手牌不计数）——每次生物死亡 +1 死亡计数指示物（系统层，换区清=
-        ///   使用后清零）；**满值 6**，达满不再计数；计数 ≥ 门槛（Then 锚价推导）即触发奖励——[x,6] 区间
-        ///   **每次递增都触发**（满值 6 天然封顶总次数；触发**不清零**，仅使用/换区清零重计）。
-        ///   旧「场上·本回合合计·每回合一发」口径与 2026-10-19 手牌/场上双区口径均退役。
+        /// - **死亡计数**（2026-09-22 定案；**2026-11-20 原子属性化**；2026-11-24 口径更新）：不再是
+        ///   引擎——卡面 deathToll 原子属性（与 rand/defer 同级）开启：**手牌中**计数双方生物死亡，
+        ///   每次死亡 +1 死亡计数指示物（**无满值**——旧满 6/满 9 口径 2026-11-24 退役）；计数是该卡
+        ///   {value} 原子的执行期增幅（EffectHandlerRegistry.DeathTollBonusOf），无门槛无奖励；
+        ///   进战场冻结（手牌→战场保留计数），离场清零。旧「场上·门槛触发奖励」三代口径均退役。
     /// - **元素充盈**（2026-09-22 定案；2026-11-06 判据七·充盈改造：**恰等于**——推翻 2026-10-20
     ///     判据六「大于等于」，双方触发面让恰等重新可玩；**2026-11-13 再开放为 ≥ 门槛即触发**）：
     ///     **只能是自动效果**——2026-11-18 第三版定案：**施放者本人释放法术后**（`FlushCardCastSettled`
@@ -584,8 +584,8 @@ namespace CardCore
         // ======================================== 死亡计数 / 元素充盈（2026-09-22 定案） ========================================
 
         /// <summary>死亡事件计数：双方每次生物死亡，给**手牌中**携带死亡计数原子（deathToll=true）的卡
-        /// +1 死亡计数指示物（系统层，进战场冻结/离场清零——CounterRules 换区口径）；满值
-        /// <see cref="DeathTollCap"/> 达满不再计数。计数是该卡 {value} 原子的增幅
+        /// +1 死亡计数指示物（系统层，进战场冻结/离场清零——CounterRules 换区口径）；**累计无上限**
+        ///（2026-11-24 用户定案：取消手牌积累满值——旧满 6/满 9 口径退役）。计数是该卡 {value} 原子的增幅
         ///（EffectHandlerRegistry.DeathTollBonusOf 消费，2026-11-10 改版后无门槛奖励）。
         /// MatchStats 订阅序依赖已全解除（手牌序位引擎 2026-10-19 退役后无读序消费方）。</summary>
         private static void OnCreatureDestroyed(CardDestroyEvent e)
@@ -604,31 +604,28 @@ namespace CardCore
             EvaluateDeathTollCounters(anchor.Opponent, zm);
         }
 
-        /// <summary>死亡计数满值（2026-10-19 定案；2026-11-20 原子属性化后恒 6）：计数上限 6，
-        /// 达满不再计数。原「普通6/增幅9」双档（engineParam=9 走 9）随分支挂载退役。</summary>
-        private const int DeathTollCap = 6;
+        // 死亡计数满值（DeathTollCap）：2026-11-24 用户定案**取消**——手牌累计无上限
+        //（旧「普通 6 / 增幅 9 → 属性化后恒 6」两代满值口径均退役；常量已删，勿再引用）。
 
         /// <summary>元素充盈差额满值（2026-10-20 判据六）：剩余元素差读数封顶 6——门槛 x&gt;6 的奖励
-        /// 天然不可达（与死亡计数满值 6 / 运势 x∈[1,6] 同族）。</summary>
+        /// 天然不可达（与运势 x∈[1,6] 同族；死亡计数满值已随 2026-11-24 取消上限退役）。</summary>
         private const int SurplusCap = 6;
 
         /// <summary>死亡计数累计（2026-11-20 原子属性化定案）：扫**手牌**卡的效果原子——任一原子开
         /// <see cref="AtomicEffectInstance.DeathToll"/> 即该卡计数（不再走 EnginePayloadsOf/DeathToll
-        /// 分支载荷）；满值恒 <see cref="DeathTollCap"/>。每卡每次死亡事件至多 +1。</summary>
+        /// 分支载荷）；**无满值**（2026-11-24 定案）。每卡每次死亡事件至多 +1。</summary>
         private static void EvaluateDeathTollCounters(Player player, ZoneManager zm)
         {
             foreach (var card in zm.GetCards(player, Zone.Hand).ToList())
             {
                 if (card == null || !card.IsAlive) continue;
                 if (!CardHasDeathTollAtom(card)) continue;
+                card.AddCounters(Attribute.CounterRules.DeathTollCounter, 1); // 无满值（2026-11-24 定案）
                 int count = card.GetCounterCount(Attribute.CounterRules.DeathTollCounter);
-                if (count >= DeathTollCap) continue; // 满值不再计数
-                card.AddCounters(Attribute.CounterRules.DeathTollCounter, 1);
-                count++;
                 EventManager.Instance.Publish(new KeywordAppliedEvent
                 {
                     Target = card, Keyword = "死亡计数",
-                    Detail = $"手牌计数 +1 → {count}（满值 {DeathTollCap}；进战场冻结，离场清零，增幅 value）",
+                    Detail = $"手牌计数 +1 → {count}（无上限；进战场冻结，离场清零，增幅 value）",
                 });
             }
         }

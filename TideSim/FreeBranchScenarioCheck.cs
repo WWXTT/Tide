@@ -151,8 +151,9 @@ namespace TideSim
         /// · 前 6 引擎（倒计时/运势/拼抢/死亡计数/元素充盈/团结）：then=单个原子、effectId 空；
         /// · 附加诅咒/祝福：then（≤1）与主动·并列效果引用至少一个，effectId 可解析。
         /// 合并库（主∪教∪训）全扫。</summary>
-        /// <summary>amplification 端到端（2026-11-10）：效果原子 → CardEffectData JSON → Converter，
-        /// 守 branch{settle:Engine,engine:DeathToll,engineParam:9}、Then 空、无 effectId。
+        /// <summary>amplification 端到端（2026-11-20 原子属性化；2026-11-24 口径更新）：效果原子 →
+        /// CardEffectData JSON → Converter，守原子属性 deathToll=true 直通、无分支载荷。
+        /// 计价=基价 +2 开启费（DeathTollEnableFee）、手牌累计无上限（旧 ×4/满值口径退役）。
         /// 卡保存链路（CardEffectData 落盘/回读）与运行时转换共用同一 AtomicEffectEntry DTO。</summary>
         private static void VerifyAmplificationRoundTrip()
         {
@@ -169,12 +170,7 @@ namespace TideSim
                 refId = damage.HashId,
                 value = 2,
                 kinds = new List<int> { 2 },
-                branch = new BranchEntryData
-                {
-                    settle = (int)BranchSettleKind.Engine,
-                    engine = (int)BranchEngineKind.DeathToll,
-                    engineParam = 9,
-                },
+                deathToll = true, // 2026-11-20 原子属性化：开关与 rand/defer 同级
             };
             var fx = new CardEffectData
             {
@@ -189,17 +185,12 @@ namespace TideSim
             };
             string json = JsonConvert.SerializeObject(fx);
             var back = JsonConvert.DeserializeObject<CardEffectData>(json);
-            Assert(back?.Steps != null && back.Steps.Count == 1 && back.Steps[0].atomic?.branch != null,
-                "amplification：CardEffectData 落盘回读保留 branch");
+            Assert(back?.Steps != null && back.Steps.Count == 1 && back.Steps[0].atomic?.deathToll == true,
+                "amplification：CardEffectData 落盘回读保留 deathToll");
             var def = CardEffectConverter.ConvertOne(back, "AMP_TEST");
             var a = def?.Effects != null && def.Effects.Count > 0 ? def.Effects[0] : null;
-            Assert(a?.Branch != null
-                   && a.Branch.Settle == BranchSettleKind.Engine
-                   && a.Branch.EngineKind == BranchEngineKind.DeathToll
-                   && a.Branch.EngineParam == 9,
-                "amplification：Converter 保留 engineParam=9");
-            Assert(a?.Branch.Then.Count == 0 && string.IsNullOrEmpty(a.Branch.EffectId),
-                "amplification：增幅标记不得带 Then/effectId");
+            Assert(a != null && a.DeathToll && a.Branch == null,
+                "amplification：Converter 原子属性 DeathToll 直通、无分支载荷（旧 engine=DeathToll 分支装载期剥离）");
 
             // 卡保存链路：CardConfigCompact 发射 → CardLoader 回读 → Converter
             var entry = new CardConfigEntry
@@ -225,7 +216,7 @@ namespace TideSim
                 Power = 1, Life = 1, Effects = new List<CardEffectData> { fx },
             };
             var normalFx = JsonConvert.DeserializeObject<CardEffectData>(JsonConvert.SerializeObject(fx));
-            normalFx.Steps[0].atomic.branch = null;
+            normalFx.Steps[0].atomic.deathToll = false;
             var normalCard = new CardData
             {
                 ID = "C_AMP_NORMAL", CardName = "常规费用测试", Supertype = Cardtype.Creature,
@@ -245,8 +236,7 @@ namespace TideSim
                 var healAtom = new AtomicEffectEntry
                 {
                     refId = heal.HashId, value = 1,
-                    branch = new BranchEntryData { settle = (int)BranchSettleKind.Engine,
-                        engine = (int)BranchEngineKind.DeathToll, engineParam = 9 },
+                    deathToll = true,
                 };
                 var healFx = new CardEffectData
                 {
@@ -259,18 +249,14 @@ namespace TideSim
                 if (healDef?.Effects == null || healDef.Effects.Count == 0) return;
                 float healCost = CostDerivationService.ComputeAtomCostByColor(
                     healDef.Effects[0], healDef, null, heal).Values.Sum();
-                Assert(Math.Abs(healCost - 2f) < 0.01f,
-                    $"amplification：回复1 基准0.5+增幅1.5=2（实际 {healCost:0.##}）");
+                Assert(Math.Abs(healCost - 2.5f) < 0.01f,
+                    $"amplification：回复1 基准0.5+开启2=2.5（实际 {healCost:0.##}）");
 
             }
-            Assert(Math.Abs(ampCost - normalCost * CostDerivationService.DeathTollAmplificationMultiplier) < 0.01f,
-                $"amplification：费用=基准×4（实际 {ampCost:0.##} vs {normalCost:0.##}）");
-            Assert(ac?.Branch != null
-                   && ac.Branch.Settle == BranchSettleKind.Engine
-                   && ac.Branch.EngineKind == BranchEngineKind.DeathToll
-                   && ac.Branch.EngineParam == 9
-                   && ac.Branch.Then.Count == 0,
-                "amplification：卡保存链路保留 engineParam=9 且无奖励");
+            Assert(Math.Abs(ampCost - normalCost - CostDerivationService.DeathTollEnableFee) < 0.01f,
+                $"amplification：费用=基价+2 开启费（实际 {ampCost:0.##} vs {normalCost:0.##}）");
+            Assert(ac != null && ac.DeathToll && ac.Branch == null,
+                "amplification：卡保存链路原子属性直通、无分支载荷");
         }
         private static void VerifyEngineRewardFxMigrated()
         {

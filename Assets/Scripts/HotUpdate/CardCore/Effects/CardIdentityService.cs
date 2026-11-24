@@ -15,6 +15,10 @@ namespace CardCore
     ///   - 组合结构哈希：各效果时点/发动字段 + 条件 + 代价 + Steps 骨架（原子为占位符，只留
     ///     kind 0 原子/1 分支/2 抉择、分支条件、各支原子数）——「怎么组合」独立成行。
     ///   - 关键词 + 卡 tag + 连接光环 一条组合哈希（关键词即原子 Grant*，与原子表同源）。
+    ///   - 战斗底盘（v21 2026-11-24）：生物卡面声明的攻击/守卫资格是「带发动条件的主动效果」——
+    ///     按效果行同构合成进原子哈希/类型下标/参数块与结构哈希（固定占原子槽 [10]/[11]，
+    ///     见 <see cref="ChassisAttackSlot"/>）。此前只遍历 card.Effects，仅攻守资格不同的两张卡
+    ///     （火灵·攻/火灵·守）身份逐位相同。
         ///   - 哈希直接锚定冻结 ID（2026-11-05 ID 冻结收口：拆除原子表指纹全局盐）——原子表内容
         ///     编辑/新增行不再换血训练身份；行为语义大改按冻结纪律走「新建行（新 ID）、旧行退役」，
         ///     与原子表 ID 台账同口径。内容漂移检测归 TextHash/hash 指纹列（工具链），不进身份。
@@ -57,6 +61,15 @@ namespace CardCore
         /// public：编辑器验证器（StableIndexVerifier/SpecMaster A2）跨程序集对账取用。</summary>
         public const int MaxTypeIndex = 4095;
 
+        /// <summary>战斗底盘预留原子槽（v21 2026-11-24，docs/观测_卡组分布与策略分界_实施方案.md）：
+        /// 生物的效果原子占 [0..9]（超 10 个截断——存量卡最多 3 个、正式卡满配 9），[10]=攻击资格
+        /// 原子、[11]=守卫资格原子（未声明该资格=0）——位置固定，不随效果原子数漂移，效果原子的
+        /// 槽位也与 v20 及以前完全一致。非生物不占这两槽（数组长度=效果原子数，口径不变）。
+        /// 观测 TideObservation.AtomIdSlots = ChassisGuardSlot + 1（=12）经本常量派生，Python
+        /// N_TYPE_SLOTS=12 同步。</summary>
+        public const int ChassisAttackSlot = 10;
+        public const int ChassisGuardSlot = ChassisAttackSlot + 1;
+
         /// <summary>表侧缓存失效（P-1 后恒 no-op）：稳定派生无注册表/缓存可清——
         /// 保留方法给既有调用点（SpecMasterVerifier / EffectComposerScreen.SwitchTable）。幂等。</summary>
         public static void InvalidateTableCache()
@@ -77,8 +90,72 @@ namespace CardCore
             if (card.Effects != null)
                 foreach (var e in card.Effects)
                     CollectAtoms(e, atoms, types, parms);
+            AppendChassisAtoms(card, atoms, types, parms); // v21：生物的攻/守资格（非生物 no-op）
             card.SetIdentity(atoms.ToArray(), StructureHash(card), CompositionHash(card),
                 types.ToArray(), parms.ToArray());
+        }
+
+        /// <summary>战斗底盘原子入身份（v21 2026-11-24）：卡面声明的攻击/守卫资格是「带发动条件的
+        /// 主动效果」（AtomicEffects 战斗底盘段——攻击=主要阶段主动、守卫=对手攻击宣言时的响应拦截；
+        /// 计价侧 CardCompositionCost.ChassisItems 早已与效果槽同计结构项），但它们靠卡面
+        /// AttackAbility/GuardAbility 声明、不是效果表行，此前身份推导只遍历 card.Effects → 三条
+        /// 通路全盲：火灵·攻/火灵·守（仅攻守资格不同）原子哈希/结构哈希/类型下标逐位相同，模型在
+        /// 手牌/战场/牌库都无法分辨（牌库块按「特征行全同」分组时还会并成一种卡）。
+        /// 补法：按效果行同构合成（<see cref="ChassisEffect"/>）走同一套 CollectAtoms——原子哈希=
+        /// 冻结表行（攻击 cc6d592f / 守卫 23a06182，原子表_系统）+ 实例参数，类型下标=
+        /// AtomTypeIndex("Attack"/"Guard")：有攻击资格的生物共享同一 embedding 行。
+        /// 槽位：效果原子先截到 ChassisAttackSlot 个、补零对齐，攻/守固定落 [10]/[11]；生物恒 12 长。</summary>
+        private static void AppendChassisAtoms(CardData card, List<ulong> atoms, List<int> types, List<float> parms)
+        {
+            if (card.Supertype != Cardtype.Creature) return;
+            if (atoms.Count > ChassisAttackSlot)
+            {
+                atoms.RemoveRange(ChassisAttackSlot, atoms.Count - ChassisAttackSlot);
+                types.RemoveRange(ChassisAttackSlot, types.Count - ChassisAttackSlot);
+                parms.RemoveRange(ChassisAttackSlot * AtomParamDim, parms.Count - ChassisAttackSlot * AtomParamDim);
+            }
+            while (atoms.Count < ChassisAttackSlot) AppendAtomSlot(null, atoms, types, parms);
+            AppendAtomSlot(card.AttackAbility ? ChassisAtom(AtomicEffectType.Attack) : null, atoms, types, parms);
+            AppendAtomSlot(card.GuardAbility ? ChassisAtom(AtomicEffectType.Guard) : null, atoms, types, parms);
+        }
+
+        /// <summary>战斗底盘原子条目（<see cref="ChassisEffect"/> 的唯一原子）。</summary>
+        private static AtomicEffectEntry ChassisAtom(AtomicEffectType chassis)
+            => ChassisEffect(chassis)?.AtomicEffects?[0];
+
+        /// <summary>追加一个原子槽（哈希 / 类型下标 / 参数块三路平行）。null=空槽：哈希 0、类型 0、
+        /// 参数全 0——与观测「0 = 无该成分」同义（注意不是 <see cref="AtomHash"/> 的 null 哨兵：
+        /// 那是效果行里「有槽位但原子为 null」的标记，底盘空槽不沿用它）。</summary>
+        private static void AppendAtomSlot(AtomicEffectEntry a, List<ulong> atoms, List<int> types, List<float> parms)
+        {
+            atoms.Add(a != null ? AtomHash(a) : 0UL);
+            types.Add(AtomTypeIndex(AtomicEffectTable.GetByHashId(a?.refId)?.EnumName));
+            AppendAtomParams(parms, a, 0f);
+        }
+
+        /// <summary>战斗底盘合成效果（v21）：与效果表行同构，字段取值照存量主动效果的书写惯例——
+        /// 攻击=Activate_Active（主要阶段主动）单体目标（对方战场生物/对方角色）；守卫=Activate_Response
+        ///（响应）无目标（把攻击目标转移到自身）。发动类型=主动（玩家选择是否发动：守卫原为可选的
+        /// 自动效果，自动效果全部强制连锁化后改列「带发动条件的主动效果」）。横置是结算期支付
+        ///（CombatSystem），不是 Costs 条目；无可调参数（value=0）。表缺行时返回 null（编辑器断言）。</summary>
+        private static CardEffectData ChassisEffect(AtomicEffectType chassis)
+        {
+            bool attack = chassis == AtomicEffectType.Attack;
+            var row = AtomicEffectTable.GetByType(chassis);
+            System.Diagnostics.Debug.Assert(row != null && !string.IsNullOrEmpty(row.HashId),
+                $"[CardIdentity] 原子表缺战斗底盘行 {chassis}——攻/守资格无法入身份");
+            if (row == null || string.IsNullOrEmpty(row.HashId)) return null;
+            return new CardEffectData
+            {
+                TriggerTiming = (int)(attack ? TriggerTiming.Activate_Active : TriggerTiming.Activate_Response),
+                ActivationType = 2, // 主动（CardEffectData.ActivationType：0=强制 1=自动 2=主动）
+                BaseSpeed = 0,      // 存量主动/响应效果 BaseSpeed 恒 0——快慢由时点类型表达
+                Duration = 0,
+                SelectionMode = attack ? 0 : -1, // 攻击=单体；守卫=None 无目标哨兵
+                TargetCount = attack ? 1 : -2,   // -2=未声明回落表级（守卫无目标）
+                RandomTarget = 0,
+                AtomicEffects = new List<AtomicEffectEntry> { new AtomicEffectEntry { refId = row.HashId, value = 0 } },
+            };
         }
 
         // ===================================================== 参数数值通路（EffectType 下标 + 参数块） =====================================================
@@ -366,27 +443,37 @@ namespace CardCore
             var sb = new StringBuilder();
             if (card.Effects != null)
                 foreach (var e in card.Effects)
-                {
-                    if (e == null) { sb.Append("e;\n"); continue; }
-                    sb.Append("T").Append(e.TriggerTiming).Append('|')
-                      .Append(e.ActivationType).Append('|')
-                      .Append(e.BaseSpeed).Append('|')
-                      .Append(e.IsOptional ? 1 : 0).Append('|')
-                      .Append(e.Duration).Append('|').Append(e.SummonDropZone).Append('|').Append(e.SelectionMode).Append('|').Append(e.TargetCount).Append('|').Append(e.RandomTarget).Append('\n');
-                    AppendConditions(sb, "AC", e.ActivationConditions);
-                    AppendConditions(sb, "TC", e.TriggerConditions);
-                    AppendCosts(sb, e.Costs);
-                    if (e.Steps != null && e.Steps.Count > 0)
-                    {
-                        sb.Append("S").Append(e.Steps.Count).Append('\n'); // Steps 顺序 = 执行序，保留
-                        foreach (var s in e.Steps) AppendStepSkeleton(sb, s);
-                    }
-                    else
-                    {
-                        sb.Append("F").Append(e.AtomicEffects?.Count ?? 0).Append('\n'); // 扁平退化
-                    }
-                }
+                    AppendEffectSkeleton(sb, e);
+            // v21 战斗底盘：攻/守资格的合成效果骨架（与效果行同格式——时点/发动类型/目标形态）
+            if (card.Supertype == Cardtype.Creature)
+            {
+                if (card.AttackAbility) AppendEffectSkeleton(sb, ChassisEffect(AtomicEffectType.Attack));
+                if (card.GuardAbility) AppendEffectSkeleton(sb, ChassisEffect(AtomicEffectType.Guard));
+            }
             return Fnv1a(sb.ToString()); // 2026-11-05 ID 冻结收口：拆整表盐（结构身份锚定冻结编排）
+        }
+
+        /// <summary>单条效果的结构骨架行（StructureHash 内核；v21 抽出——战斗底盘合成效果复用）。</summary>
+        private static void AppendEffectSkeleton(StringBuilder sb, CardEffectData e)
+        {
+            if (e == null) { sb.Append("e;\n"); return; }
+            sb.Append("T").Append(e.TriggerTiming).Append('|')
+              .Append(e.ActivationType).Append('|')
+              .Append(e.BaseSpeed).Append('|')
+              .Append(e.IsOptional ? 1 : 0).Append('|')
+              .Append(e.Duration).Append('|').Append(e.SummonDropZone).Append('|').Append(e.SelectionMode).Append('|').Append(e.TargetCount).Append('|').Append(e.RandomTarget).Append('\n');
+            AppendConditions(sb, "AC", e.ActivationConditions);
+            AppendConditions(sb, "TC", e.TriggerConditions);
+            AppendCosts(sb, e.Costs);
+            if (e.Steps != null && e.Steps.Count > 0)
+            {
+                sb.Append("S").Append(e.Steps.Count).Append('\n'); // Steps 顺序 = 执行序，保留
+                foreach (var s in e.Steps) AppendStepSkeleton(sb, s);
+            }
+            else
+            {
+                sb.Append("F").Append(e.AtomicEffects?.Count ?? 0).Append('\n'); // 扁平退化
+            }
         }
 
         /// <summary>Steps 骨架（组合方式的枚举）：kind 0=原子占位 / 1=分支（条件+两支原子数）/ 2=抉择（模式数+各模式骨架递归）。</summary>

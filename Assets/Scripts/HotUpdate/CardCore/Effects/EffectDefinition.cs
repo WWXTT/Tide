@@ -652,9 +652,10 @@ namespace CardCore
         public int DeferSelect;
 
         /// <summary>死亡计数增幅开关（2026-11-20 原子属性化定案）：entry.deathToll 直通——与
-        /// RandomTarget/DeferSelect 同级的原子属性。开=宿主卡手牌累计 DeathTollCounter（满 6，
-        /// 进战场冻结/离场清零），该卡 {value} 原子结算吃增幅（EffectHandlerRegistry.DeathTollBonusOf）。
-        /// 原 settle=3 engine=DeathToll 分支挂载同日退役（枚举位保留为 dead）。</summary>
+        /// RandomTarget/DeferSelect 同级的原子属性。开=宿主卡手牌累计 DeathTollCounter（无上限
+        /// （2026-11-24 取消满值），进战场冻结/离场清零），该卡 {value} 原子结算吃增幅
+        /// （EffectHandlerRegistry.DeathTollBonusOf）。原 settle=3 engine=DeathToll 分支挂载同日退役
+        /// （枚举位保留为 dead）。</summary>
         public bool DeathToll;
 
         /// <summary>声明数量（含动态哨兵 -3；不解析已选值）：声明期收集器用它区分「动态=任意数量窗」。</summary>

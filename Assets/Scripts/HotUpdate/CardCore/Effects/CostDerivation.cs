@@ -596,23 +596,23 @@ namespace CardCore
         public static bool IsMultiPerTurnTiming(TriggerTiming t)
             => TimingWeights.TierOf(t) == TimingTier.Multi;
 
-        /// <summary>死亡计数 amplification：+3×原子基准费=总费×4（用户定案）。</summary>
-        public const float DeathTollAmplificationMultiplier = 4f;
+        /// <summary>死亡计数开启费（2026-11-24 用户定案）：在原子固定 value 基价之上 **+2 平费**——
+        /// 「开启死亡计数」这个开关本身的价格，不随目标数/时机系数缩放（平费加在系数链之后）。
+        /// 旧「×4 总费」（<c>DeathTollAmplificationMultiplier</c>，2026-11-10）与更早的「引擎零计价」
+        /// 均已退役；同批手牌累计上限取消（BranchEngines 无满值）。</summary>
+        public const float DeathTollEnableFee = 2f;
 
+        /// <summary>死亡计数增幅标记（2026-11-20 原子属性化）：原子属性 <see cref="AtomicEffectInstance.DeathToll"/>
+        /// 即计价标记。旧判据（settle=Engine ∧ engine=DeathToll ∧ engineParam≥9 分支载荷）随分支挂载退役
+        /// ——计价侧 2026-11-24 迁到属性口径（此前漏迁：属性化后所有死亡计数原子都没吃到加价）。</summary>
         private static bool IsAmplifiedDeathToll(AtomicEffectInstance atom)
-            => atom?.Branch != null
-               && atom.Branch.Settle == BranchSettleKind.Engine
-               && atom.Branch.EngineKind == BranchEngineKind.DeathToll
-               && atom.Branch.EngineParam >= 9;
+            => atom != null && atom.DeathToll;
         private static float ComputeAtomCost(AtomicEffectInstance atom, EffectDefinition def, List<int> domain, AtomicEffectConfig cfg)
         {
             // 系数链全程不取整（2026-10-12 起）——效果出口逐色取整见 DeriveElementCosts 头注（2026-10-18）。
             float amount = ComputeAtomBaseAmount(atom, def, cfg);
-            // 2026-11-10 死亡计数 amplification（用户定案）：+3×**原子基准费**——
-            // 基准0.5绿 → +1.5；总费=基准×4，后续数量/时机系数照乘。
             bool amp = IsAmplifiedDeathToll(atom);
             if (amount <= 0f) return 0f;
-            if (amp) amount *= DeathTollAmplificationMultiplier;
 
             // 错边拆分已删（2026-10-28 P1 定案）：黑白获得经济退役——极性不再参与计价拆分，
             // 有害原子锁己方域照常全价计费（自缚设计的代价语义由代价栏抵扣承担）。
@@ -637,25 +637,19 @@ namespace CardCore
 
             // 发动速度计价已退役（2026-10-19：速度特化法术专属=类特性非溢价——旧 ×1.5/×2 档随拆）。
 
+            // 死亡计数开启费（2026-11-24 用户定案）：固定 value 基价之上 +2 平费——开关本身的价格，
+            // 放在系数链末端（不随目标数/时机缩放）；旧 ×4 总费口径退役。
+            if (amp) amount += DeathTollEnableFee;
+
             return amount;
         }
 
-        /// <summary>amplification 的增幅费（用户定案）：+3×该原子正常总费（基准×系数链后的费）。
-        /// UI 费用构成/测试共用；实现=临时摘 branch 求正常费，再乘 3。</summary>
+        /// <summary>死亡计数的开启费（2026-11-24 用户定案）：+2 平费（=同原子开/关 deathToll 的总费差）。
+        /// UI 费用构成/测试共用。旧「+3×正常总费」口径退役。</summary>
         public static float AmplificationFeeOf(AtomicEffectInstance atom, EffectDefinition def, List<int> domain)
         {
             if (!IsAmplifiedDeathToll(atom) || def == null) return 0f;
-            var b = atom.Branch;
-            atom.Branch = null;
-            try
-            {
-                var cfg = ResolvePricingConfig(atom);
-                return 3f * ComputeAtomCost(atom, def, domain, cfg);
-            }
-            finally
-            {
-                atom.Branch = b;
-            }
+            return DeathTollEnableFee;
         }
         /// <summary>遗忘行（GrantTemporary·极性−1·白2）——衍生物召唤「负面指示物补偿」的表驱动真源
         ///（2026-10-12 裁决：补偿=该行**单层基准费用**/只，原写死 −1灰 退役；后续遗忘改价自动跟随；

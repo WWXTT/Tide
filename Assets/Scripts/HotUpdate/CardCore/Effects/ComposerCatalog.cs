@@ -57,9 +57,10 @@ namespace CardCore
             => kind == BranchEngineKind.CurseOnDraw || kind == BranchEngineKind.BlessingOnDraw;
 
         /// <summary>引擎奖励门槛 x 的机制上限（2026-11-10 用户定案：计算引擎自身的限制）：
-        /// 元素充盈差值封顶 6、拼抢差额封顶 6、死亡计数满值 6——奖励费×时机系数推导出的 x 超过此值即
+        /// 元素充盈差值封顶 6、拼抢差额封顶 6——奖励费×时机系数推导出的 x 超过此值即
         /// 条件永远不可达（死档），UI 禁存/装载期点名；其余引擎 -1=无固定上限（倒计时回合、
-        /// 运势/团结手填参数）。2026-11-18 拼抢改比费后差额封顶 6，旧「拼抢无上限」作废。</summary>
+        /// 运势/团结手填参数；死亡计数已随 2026-11-20 原子属性化不再是门槛引擎，满值口径一并退役）。
+        /// 2026-11-18 拼抢改比费后差额封顶 6，旧「拼抢无上限」作废。</summary>
         public static int EngineThresholdCap(BranchEngineKind kind)
             => kind == BranchEngineKind.ManaSurplus || kind == BranchEngineKind.Clash ? 6 : -1;
 

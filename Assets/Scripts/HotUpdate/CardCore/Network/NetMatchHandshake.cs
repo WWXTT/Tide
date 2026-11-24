@@ -359,8 +359,10 @@ namespace CardCore.Network
                 return;
             }
 
-            // 引用卡ID 闭环（2026-10-13 定案）：召唤衍生物（须生物/结界）/变形赋予（须生物或结界）的
-            // atom.str 须能解析到服务器端真实卡且类型合规——与 CardLoader 构筑校验同口径。
+            // 引用卡ID 闭环（2026-10-13 定案；2026-11-18 用户定案模板放宽）：召唤衍生物/变形赋予的
+            // atom.str 须能解析到服务器端真实卡且类型合规——**生物或非场地结界**（潮痕碑等结界衍生物
+            // 合法），与 CardLoader 构筑校验、DeckTokenSupport.ValidateDeck 同口径。本口原写「须生物」
+            // 是 2026-11-18 放宽前的过时口径（注释与代码同批过时——2026-11-24 回环验证两条红由此而来）。
             // P9b（2026-10-29）：空 str = 卡组期绑定槽——不再是闭环错误，绑定完整性走
             // DeckTokenSupport.ValidateDeck（ValidateDeckSubmit 上方同批校验）。
             if (!System.Enum.TryParse<AtomicEffectType>(row.EnumName, out var type)) return;
@@ -374,11 +376,11 @@ namespace CardCore.Network
                 return;
             }
             var super = referenced is IHasSupertype ht ? ht.Supertype : referenced.Supertype;
-            bool typeOk = isMorphRef
-                ? super == Cardtype.Creature || super == Cardtype.Enchantment
-                : super == Cardtype.Creature;
+            bool typeOk = !referenced.IsField
+                          && (super == Cardtype.Creature || super == Cardtype.Enchantment);
             if (!typeOk)
-                missing.Add($"引用卡 {atom.str} 类型不符（须{(isMorphRef ? "生物/结界" : "生物")}）");
+                missing.Add($"引用卡 {atom.str} 类型不符（须{(referenced.IsField ? "非场地" : "")}生物/结界"
+                            + $"{(isMorphRef ? "（变形赋予）" : "")}）");
         }
 
         // ======================================== 下发/客户端侧 ========================================

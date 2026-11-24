@@ -158,6 +158,23 @@ namespace SynergyUI
 
         /// <summary>逐格提示环（2026-10-30 起逐格提示统一载体）：单位空格候选蓝环、
         /// B5 自动取目标脉冲（阵营色环）均走本口；放地候选锁色环仍走 SetLandGlow。</summary>
+        /// <summary>池环配色单源（2026-11-23 验收：fx-ring 常驻化——元素池行各格环=各自元素色，
+        /// 有可用元素亮、无暗灰；LandsHeroes.ReconcileLands 每次对账落地，双方同规则）。</summary>
+        public static readonly Color PoolUnlitGray = new Color(0.27f, 0.27f, 0.27f); // 无可用元素=暗灰
+        public static readonly Color PoolAnyColor = new Color(0.95f, 0.95f, 0.88f);  // 彩池环=米白
+
+        public static Color PoolRingColor(CardCore.ManaType type)
+        {
+            switch (type)
+            {
+                case CardCore.ManaType.Red: return new Color(0.92f, 0.28f, 0.20f);
+                case CardCore.ManaType.Blue: return new Color(0.25f, 0.50f, 1.00f);
+                case CardCore.ManaType.Green: return new Color(0.30f, 0.78f, 0.40f);
+                case CardCore.ManaType.Gray: return new Color(0.62f, 0.64f, 0.70f);
+                default: return PoolAnyColor;
+            }
+        }
+
         public static void SetCellRing(int x, int z, Color c)
         {
             var r = EnsureRing(x, z);

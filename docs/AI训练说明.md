@@ -409,7 +409,7 @@ FSP 口径；开启后日志/config 标注 `fsp=true`，`info.fsp=True`。
 
 ### 4.3 动作特征 / 布局版本 / 冻结面
 
-- 现行：**v19 / 卡特征 153 / 卡槽 191 / globals 70 / 动作 18 维 / 14 动作类型**。版本链：
+- 现行：**v21 / 卡特征 158 / 卡槽 191 / globals 97 / 动作 20 维 / 14 动作类型**。版本链：
   - **v16（P-1）**：身份下标改 **SplitMix64 纯派生**（`index = 1 + SplitMix64(hash) % (pool-1)`，hash 0→0）；
     卡身份池 **1024→16384**、EffectType 池 **256→4096**、效果 Id 池 1024 不变；维度不变（116/191/14/58），
     下标取值分布与 embedding 表变化。manifest 追加式分配**退役**（`card_identity_manifest.json` 仅存档），
@@ -433,10 +433,34 @@ FSP 口径；开启后日志/config 标注 `fsp=true`，`info.fsp=True`。
   满值固定 6 + `BranchEngineKind.DeathToll` 退役；观测删掉参数块 `[2]` 的死亡计数特判，
   改**卡特征 +1 维 `[152] = DeathTollCounter 层数 / 9`** → **卡特征 152→153**（层数才是「该不该打这张卡」的依据）。
   **v18 权重 / ONNX / fixture 全废**（原子身份哈希构成也变）、游戏内 AI 回落 SimpleAI 直到重训重导出。
-- 动作特征 `[0..17]`：`[0]valid [1]type [2]sourceIndex [3]targetIndex [4]modeIndex [5]actionCost
+- **v20（2026-11-20 已实施 · 召唤落位 + 团结观测，见 [AI召唤落位与团结观测_修改计划](AI召唤落位与团结观测_修改计划.md)）**：
+  动作 18→**20** 维——`[17]placementCell` 扩义兼召唤计划行首格、`+[18]summonPlan`、`+[19]summonUnityHits`；
+  卡特征 153→**157**（`+[153]` 邻接己方生物数/6、`+[154..156]` 引擎奖励摘要）；globals 70→**88**
+  （`+g[70..78]` 己方 9 单位格占用码、`+g[79..87]` 各格 6 邻己方生物数/6）。v19 权重全废。
+- **v21（2026-11-24 已实施 · 待验收 · 卡组分布与策略分界，见 [观测_卡组分布与策略分界_实施方案](观测_卡组分布与策略分界_实施方案.md)）**：
+  ① 己方牌库块 [154..183] 由「每张物理卡一槽」改「**每种唯一卡一槽 + 张数**」：合并判据=内容键相同且
+  **编码特征行逐位相等**（实例态不同的同种卡不并），组内张数写卡特征 `+[157] countInZone`（其余区恒 1）
+  → **卡特征 157→158**；30 槽=唯一卡种类上限（绿 60 张 4 种=4 槽完整表达，此前 30 槽截断只见 2 种），
+  >30 种按排序键截断并置 g[96]；`IndexOfCard` 同组任一张映射同一槽。
+  ② globals 88→**97**：`+g[88..95]` **己方牌库开局标签**（`DeckTagsOf(OriginalDeckOf(me))`，与对方
+  g[50..57] 同函数同口径、整局恒定）`+g[96] deckTruncated`。
+  ③ **攻/守资格入内容身份**（维度不变、身份换血；用户定案：攻/守=带发动条件的主动效果）：此前
+  `CardIdentityService` 只遍历效果表行，仅攻守资格不同的火灵·攻/火灵·守身份逐位相同（模型在手牌/战场/
+  牌库都分不清，红·快攻只见 4 种卡）。现按效果行同构合成进身份——原子槽 **[10]=攻击（Activate_Active）/
+  [11]=守卫（Activate_Response）**（冻结表行 cc6d592f / 23a06182，效果原子占 [0..9]）、结构哈希含其骨架、
+  卡特征 `[7]` 可攻击粗判加攻资格闸（守卫专用生物不再误标可攻击）。
+  验证：`TideObservationDeckVerifier` 36/38（余 2 条=牌库顶行被 `FoldEquivalentRows` 折叠的既有红，见 §8）、
+  `IdentityStabilityVerifier` 2/2、`StableIndexVerifier` 10/10、Python `test_identity_encoder` 过。
+  **v20 权重 / ONNX / fixture 全废**；库内已部署的 v20 `tide_policy.onnx` 加载期按 dims 拒载回落 SimpleAI——
+  重训重导出前难度 2 的模型 AI 不可用。
+- 同批**非观测**变更（2026-11-24，不属 v21 观测验收——[实施方案](观测_卡组分布与策略分界_实施方案.md) §9.2/§9.3）：
+  死亡计数规则/计价改版——手牌累计**无上限**（`DeathTollCap`/满值口径退役）、计价改**基价 +2 开启费**（旧 ×4 退役、
+  属性化漏迁补上）、卡特征 `[152]` 改**原始层数**（去 /9）。单独登记于[计价与塑形_统一口径](计价与塑形_统一口径.md) §6，单独验收。
+- 动作特征 `[0..19]`：`[0]valid [1]type [2]sourceIndex [3]targetIndex [4]modeIndex [5]actionCost
   [6]effectIdentity [7]targetKind [8]target2Index [9]target3Index [10]nTargets [11]referenceIndex
   [12]targetZoneRank [13]targetSideRank`（v13 加 `[11]`，v14 加 `[12]/[13]`）；
-  `[14]moveCellX [15]moveCellZ [16]declaredNameIndex [17]placementCell`（v17 加 `[14..16]`，v18 加 `[17]`）。
+  `[14]moveCellX [15]moveCellZ [16]declaredNameIndex [17]placementCell`（v17 加 `[14..16]`，v18 加 `[17]`）；
+  `[18]summonPlan（0=默认/1..9=锚点/-1=非召唤）[19]summonUnityHits（0..6/-1）`（v20 加）。
   `[14]/[15]` 仅移动行有值（其余 -1）；`[16]` 0..15 为宣言/预言候选序号（其余 -1）；`[17]` 0..8 为落格格下标（其余 -1）。
 - **只编码前 3 个目标 + 目标数**；第 4 个以后对模型不可见。现行 `[10]nTargets` 钳 **0..16**
   （2026-11-19 P0 落地：由 0..8 提升，维度不变——牺牲/蛰伏 prefix-k 行 k=9..16 须可分）。
@@ -610,6 +634,13 @@ FSP 口径；开启后日志/config 标注 `fsp=true`，`info.fsp=True`。
 
 ## 8. 已知断链（待修）
 
+- **牌库顶虚拟手牌行被等价折叠吞掉（2026-11-24 发现，自 11-18 起既有，未修）**：
+  `LegalActionEnumerator.FoldEquivalentRows`（循环治理 L3-B）的等价键 = 动作特征行**去掉 `[2]sourceIndex`**；
+  牌库顶虚拟手牌的 PlayCard 行与同名手牌行其余特征全同，于是只保留先枚举的手牌行——`TopDeckAsHandAura`
+  命中时模型仍选不到「打牌库顶那张」（实测同一局面：折叠开 20 行 / `sourceIndex=184` 0 行；折叠关 74 行 / 9 行）。
+  `TideObservationDeckVerifier` ⑨「牌库顶 LAE 行 / Apply」两条红由此而来。修法待定：来源区不同的行
+  （zoneKind 7 牌库顶 vs 2 手牌）不应并进同一等价键。
+
 - **ONNX 导出 → manifest stamp → 游戏内接线**：新权重必须重跑 `tide_rl/export_onnx.py` 重导出（同时写
   layoutVersion/dims 与卡表指纹进 onnx metadata），再经热更收集器进 `AIModel` 组。
   旧代模型（2026-10-14）已于 2026-11-18 归档至 `Assets/Art/AIModels_Retired/tide_policy.onnx`
@@ -617,6 +648,9 @@ FSP 口径；开启后日志/config 标注 `fsp=true`，`info.fsp=True`。
   当前卡表是 `a533bf8c…`（2026-11-18 费用重推导后；2026-11-17 曾为 `07b55a17`）——两者不匹配，
   加载侧 `OnnxTidePolicy.ValidateModelLayout`（dims 硬校验）或卡身份清单会拒，
   `NeuralAiDriver` 响亮回落 SimpleAI（`Assets/Scripts/HotUpdate/AI/NeuralAI/NeuralAiDriver.cs:97`）。
+  **（2026-11-24 更新：「AIModels 为空」是 11-18 的口径；其后部署过过渡模型，现目录内是 11-23 导出的
+  v20 模型〔fixture 头 `layout_version 20 / nCard 157 / nGlobal 88`〕。布局升 v21〔158/97〕后它同样被
+  `ValidateModelLayout` 拒载回落 SimpleAI——重训 + 重导出前难度 2 的模型 AI 不可用。）**
   **入口已接、缺的是"训练完 → 重导出 → 换模型"这一步**：木桩测试难度 2 = `NeuralAiDriver`（模型）；
   联机空椅 `btn-add-ai` = `NetAiFiller` 回环客户端（决策层 `NetClientBrain` 启发式，是否接模型见
   [表现侧待完成项.md](表现侧待完成项.md) §6 M2）。不阻断开训。
@@ -664,6 +698,7 @@ FSP 口径；开启后日志/config 标注 `fsp=true`，`info.fsp=True`。
 | 2026-11-22 | **对手回合响应停靠 D2d**（§3.1）：引擎加 `ResponseWindowService.AiAsyncResponder`（异步 AI 响应口，泵 `await` 优先于同步链，未注册逐位不变——脚本局 20 组与 D2a 基线仍逐位一致）+ `GameActions.DecideAiResponse` 同步决策单源；驱动脚本回合改 `TakeTurnAsync` 异步链不阻塞，模型座停靠 TCS（`EnumerateParkedResponses` 给定候选 1:1 建行 + `ParkedOptionOfRow` 映射回选），Step `TrySetResult` 续跑**内联在本线程**（TCS 内联性 batchmode 探针实证）；布局/动作空间/g[49] 语义零改动 | D2c 遗留边界「模型在脚本回合不获停靠」收口；验收：脚本局零回归 ✓、蓝|红 20 局真响应停靠 88→169（含脚本回合 94 次停靠全恢复、模型选 HandCard 实响应）、2k smoke 蓝 35.9%/P50/P95=12/32 绿 6.3%/9/18 全自然终局 0 触顶 0 EnvTimeout、合法 seed 两遍 20 局**逐步观测哈希逐位一致**；附带发现并修工具坑：**reset seed 超 int32 被 JsonUtility 静默损坏成 0**（echo=0——官方 `tide_env_tcp` 有回显断言会拦，自写冒烟须校验；`d2c_vs_smoke.py` 已加断言+换合法基） |
 
 | 2026-11-22 晚 | **达标门改稳健口径**：18 格矩阵早停门由「全格 margin≥0」改为「覆盖齐前提下 Δ 中位数 ≥+5pp 且 Δ≥−5pp 格数 ≥16/18」；best 排序不变（min Δ） | 旧门被 16 局/格 ±12pp 单格噪声绑架（一格翻车即永不达标）；门控分量（delta_median/robust_cells/gate）随 selector 行落 eval.jsonl，控制台每次评估打印；`train_tide_complete.py` 双仓同批改，改后 D2d 环境首轮重训启动 |
+| 2026-11-24 | **布局升 v21（卡组分布与策略分界，§4.3）**：己方牌库块改「每种唯一卡一槽 + [157] 张数」、+g[88..95] 己方牌库开局标签、+g[96] 截断标记；同批攻/守资格入内容身份（原子槽 [10]/[11]、结构哈希、卡特征 [7] 加攻资格闸）。卡特征 157→158 / globals 88→97 / 动作 20 不变 | 绿 60 张此前被 30 槽截断只见 2 种卡、己方无牌库标签（红蓝费档几乎重合只能靠颜色分）；实施中发现火灵·攻/守仅攻守资格不同却观测逐位相同（红·快攻只见 4 种）——用户定案攻/守=带发动条件的主动效果，按效果行同构补进身份。旧 checkpoint/ONNX/fixture 全废（库内 v20 ONNX 加载期拒载回落 SimpleAI）；验证器 36/38（余 2 条=牌库顶行折叠既有红）；**待验收**，见 [实施方案](观测_卡组分布与策略分界_实施方案.md) §9 |
 
 ## 10. 未来拓展：人类对局日志（模仿学习）
 

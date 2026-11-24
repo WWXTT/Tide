@@ -288,10 +288,11 @@ namespace CardCore.Attribute
         /// 仅由引擎投放（BranchEngines.ArmCountdownOnEnter——真实入场与静默播种共用），无玩家表行；
         /// 换区清（引擎重挂兜底）。</summary>
         public const string CountdownCounter = "Countdown";
-        /// <summary>死亡计数（2026-10-19 手牌/场上改案）：引擎主干·死亡计数的计数层——挂**手牌中或场上**的
-        /// 引擎卡上，每次双方生物死亡 +1；满值 6 达满不再计数；计数≥门槛（Then 锚价推导）即触发奖励
-        /// （每次递增都触发，触发不清零），使用（换区）后清零重计。
-        /// 仅由引擎投放（BranchEngines.OnCreatureDestroyed），无玩家表行；换区清。</summary>
+        /// <summary>死亡计数（2026-11-20 原子属性化；2026-11-24 口径更新）：**手牌中**携带 deathToll
+        /// 原子的卡，每次双方生物死亡 +1（**无满值**——旧满 6/满 9 口径退役）；计数是该卡 {value}
+        /// 原子的执行期增幅（EffectHandlerRegistry.DeathTollBonusOf，无门槛触发）；进战场**冻结**
+        /// （手牌→战场换区保留），离场清零。
+        /// 仅由引擎投放（BranchEngines.OnCreatureDestroyed），无玩家表行。</summary>
         public const string DeathTollCounter = "DeathToll";
         /// <summary>诅咒（2026-10-08 引擎主干化；生效自减类）：由引擎主干·附加诅咒施放时投放到对手牌库的卡上——
         /// 跨区存活（须活过牌库→手牌的换区清除），对手抽到该卡时 CurseSystem 自动执行诅咒分支效果
@@ -471,8 +472,8 @@ namespace CardCore.Attribute
 
             // ---- 系统（System：引擎主干投放/消耗，不给玩家用；换区清——引擎重挂/重计兜底）----
             Register(new CounterSpec { Id = CountdownCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.System, LayerRole = CounterLayerRole.Clock, TickPolicy = CounterTickPolicy.External, DisplayName = "倒计时" });
-            // 死亡计数（2026-10-19 手牌/场上改案）：手牌/场上引擎卡的死亡累计层——满值 6 达满不再计，
-            // 达标触发不清零，使用（换区）后清零
+            // 死亡计数（2026-11-20 原子属性化）：手牌累计层——无满值（2026-11-24 取消），进战场冻结
+            //（手牌→战场保留），离场清零；{value} 原子增幅消费
             Register(new CounterSpec { Id = DeathTollCounter, Polarity = CounterPolarity.Positive, Class = CounterClass.System, LayerRole = CounterLayerRole.Clock, TickPolicy = CounterTickPolicy.External, DisplayName = "死亡计数" });
             // 触发计数（2026-11-10 时机系数规格 §4）：结界被动触发累计层，Reading=全 UI 隐藏
             //（不入可见面）、换区清、随卡快照进网络同步——见 DurabilityTriggerCounter 头注

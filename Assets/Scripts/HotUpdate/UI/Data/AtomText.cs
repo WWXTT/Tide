@@ -289,10 +289,9 @@ namespace SynergyUI
             if (atom == null || string.IsNullOrEmpty(atom.refId)) return "原子效果";
             string tpl = cfg != null && !string.IsNullOrEmpty(cfg.Description) ? cfg.Description : atom.refId;
             // 2026-11-10 amplification：{value} 处标注死亡计数增幅（不把层数烘进基础值）。
-            if (atom.branch != null
-                && (BranchSettleKind)atom.branch.settle == BranchSettleKind.Engine
-                && (BranchEngineKind)atom.branch.engine == BranchEngineKind.DeathToll
-                && atom.branch.engineParam >= 9)
+            // 2026-11-20 原子属性化：判据=原子属性 deathToll（旧 engineParam≥9 分支判据随分支挂载退役；
+            // 2026-11-24 起无档位之分——开启即标注）。
+            if (atom.deathToll)
                 tpl = tpl.Replace("{value}", "{value}（+死亡计数增幅）");
 
             int v = atom.value;
@@ -642,8 +641,9 @@ namespace SynergyUI
                 // 派生门槛引擎（IsDerivedThresholdEngine 单源：拼抢/死亡计数/元素充盈）
                 // ——2026-10-09 自平衡统一：x=Then 奖励锚价推导，随奖励计费实时变
                 case BranchEngineKind.DeathToll:
-                    // 2026-11-10 改版：只在手牌累计双方生物死亡（满6）；进战场冻结，离场清零。
-                    return "手牌累计双方生物死亡（满6/增幅9）；此卡 {value} 增幅（1死亡=1费，离场清零）";
+                    // 2026-11-10 改版：只在手牌累计双方生物死亡；进战场冻结，离场清零（防御位——
+                    // 正常数据分支已被 converter 剥离，文案随 2026-11-24 口径去满值）。
+                    return "手牌累计双方生物死亡（无上限）；此卡 {value} 增幅（1死亡=1费，离场清零）";
                 case BranchEngineKind.ManaSurplus:
                     // 2026-11-13：条件开放为「≥ 门槛」——完整句同步（旧「恰==x」退役）
                     return $"任一方使用卡牌、整条连锁结算完成后，双方剩余元素的差达到或超过{CostDerivationService.EngineRewardThreshold(ToInstances(then), timing)}时触发奖励（仅自动，差额封顶6）";

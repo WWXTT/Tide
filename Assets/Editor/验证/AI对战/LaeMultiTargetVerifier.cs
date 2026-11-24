@@ -32,9 +32,10 @@ namespace CardCore.Editor.Tests
     ///    合法空格、[14]/[15]=格坐标、满盘 0 行；训练·强夺/窃取/检索行=候选名、[16] 序号互异、
     ///    命中迁移、无展示 0 行、手牌/牌库候选不混区；SimpleAI 端 PickMoveCell/PickDeclaration/空集不发动。
     /// ⑦ P2 落格专项（2026-11-19 反馈）——空场生物行=9（[17]=0..8 互异）、应用 cell8 实际落格、
-    ///    占格递减、满区 0 行、法术行 -1。⑧ P3.1 弃牌专项——EnumerateDiscardChoices over=2/3 组合行、
-    ///    特征 [10]、停靠门 Park/Snapshot/Complete/非模型座回落。⑨ P3.2 预言专项——合成预言卡 3 行
-    ///    （Type:*）、[16]=0/1/2、Signature 互异（反馈回归）、应用直通。
+    ///    占格递减、满区 0 行、法术行 -1。⑧ 弃牌专项（P3 2026-11-19 §4.1 建·A0 2026-11-24 逐张弃
+    ///    改版）——EnumerateDiscardChoices 每张手牌一行、特征 [10]=1、停靠门 Park/Snapshot/Complete
+    ///    单卡链、引擎真实 EndTurn 链 9 张/上限 7 → 恰 2 个连续弃牌步、非模型座回落。⑨ P3.2 预言专项——
+    ///    合成预言卡 3 行（Type:*）、[16]=0/1/2、Signature 互异（反馈回归）、应用直通。
     /// 入口：菜单 验证/LAE多目标组合枚举；Run() 返回报告文本（全过=PASS 结尾）。
     /// 夹具定位按**卡名**解析+动作行按**卡实例**过滤（教学池 ID 随内容重推漂移——2026-11-02
     /// 火炬即被并行改版换号，硬编码 ID 会假阴）。
@@ -1143,9 +1144,11 @@ namespace CardCore.Editor.Tests
             }
         }
 
-        /// <summary>⑧ P3.1 弃牌专项：EnumerateDiscardChoices 组合行（over=2 → C(5,2)=10；
-        /// over=3 → C(5,3)=10 含默认组；特征 [10]=over）；停靠门 Park→Snapshot→Complete 全链
-        /// + 非模型座回落；Complete 后镜像余段入墓。</summary>
+        /// <summary>⑧ 弃牌专项（P3 2026-11-19 §4.1 建·A0 2026-11-24 逐张弃改版）：
+        /// EnumerateDiscardChoices 每张手牌一行（Targets=1、特征 [10]=1）；停靠门
+        /// Park→Snapshot→Complete 单卡链；**引擎真实 EndTurn 链**——9 张/上限 7 → 恰 2 个
+        /// 连续弃牌步、每步只弃 1 张、终态 7 张（EnforceHandLimitAsync 有界循环的端到端验收）；
+        /// 非模型座回落 RequestAsync 旧行为。</summary>
         private static void RunDiscardChoiceScenario(StringBuilder log, List<Check> checks)
         {
             var catalog = CardCatalog.LoadAll().ToList();
@@ -1179,24 +1182,18 @@ namespace CardCore.Editor.Tests
                     checks.Add(new Check(hand5.Count == 5, $"⑧夹具：恰 5 张手牌（{hand5.Count}）"));
                     if (hand5.Count < 5) return;
 
-                    var lae2 = LegalActionEnumerator.EnumerateDiscardChoices(core, p1, hand5, 2);
-                    log.AppendLine($"[⑧弃牌] over=2 行={lae2.Actions.Count}（C(5,2)=10）");
-                    checks.Add(new Check(lae2.Actions.Count == 10
-                            && lae2.Actions.All(r => r.Type == TideActionType.DiscardChoice && r.Targets.Count == 2)
-                            && lae2.Actions.Select(r => string.Join("|", r.Targets.Select(x => x.GetHashCode().ToString()).OrderBy(x => x)))
-                                .Distinct().Count() == 10,
-                        "⑧over=2：10 行组合两两不同、行 Targets=2"));
-                    checks.Add(new Check(lae2.Actions.All(r => FeatureOf(lae2, r, 10) == 2f),
-                        "⑧over=2 特征 [10]=2"));
+                    // ── 1) 枚举器（A0 逐张弃）：每张手牌一行 ──
+                    var lae = LegalActionEnumerator.EnumerateDiscardChoices(core, p1, hand5);
+                    log.AppendLine($"[⑧弃牌] 5 张手牌 → 行={lae.Actions.Count}（每张一行）");
+                    checks.Add(new Check(lae.Actions.Count == 5
+                            && lae.Actions.All(r => r.Type == TideActionType.DiscardChoice && r.Targets.Count == 1)
+                            && lae.Actions.Select(r => r.Targets[0]).Distinct().Count() == 5,
+                        "⑧枚举：每张手牌一行（5 行/Targets=1/两两不同）"));
+                    checks.Add(new Check(lae.Actions.All(r => FeatureOf(lae, r, 10) == 1f),
+                        "⑧枚举：特征 [10]=1（单卡行）"));
 
-                    var lae3 = LegalActionEnumerator.EnumerateDiscardChoices(core, p1, hand5, 3);
-                    log.AppendLine($"[⑧弃牌] over=3 行={lae3.Actions.Count}");
-                    checks.Add(new Check(lae3.Actions.Count == 10
-                            && lae3.Actions.All(r => r.Targets.Count == 3)
-                            && lae3.Actions.Count(r => r.Targets.Contains(hand5[0]) && r.Targets.Contains(hand5[1]) && r.Targets.Contains(hand5[2])) >= 1,
-                        "⑧over=3：C(5,3)=10 行、含默认组（前 3 张）"));
-
-                    // 停靠门全链
+                    // ── 2) 停靠门全链（逐张）：Park（剩余 over=2）→ Snapshot → 每张一行 →
+                    //       Complete 单卡 → 手动镜像引擎余段入墓 ──
                     HandLimitDiscardGate.Reset();
                     HandLimitDiscardGate.Bind(p2 => ReferenceEquals(p2, p1));
                     var hand4 = hand5.Take(4).ToList();
@@ -1204,20 +1201,54 @@ namespace CardCore.Editor.Tests
                     checks.Add(new Check(HandLimitDiscardGate.TryPark(p1, hand4, 2) && HandLimitDiscardGate.HasPending,
                         "⑧停靠门 TryPark（模型座）→ HasPending"));
                     var snap = HandLimitDiscardGate.Snapshot();
-                    var laeD = LegalActionEnumerator.EnumerateDiscardChoices(core, p1, snap.cards, snap.over);
-                    var pickRow = laeD.Actions.FirstOrDefault(r => r.Targets.Contains(hand4[3]) && r.Targets.Contains(hand4[2]));
-                    checks.Add(new Check(snap.player == p1 && snap.over == 2 && laeD.Actions.Count == 6,
-                        $"⑧Snapshot（player/over=2）→ 驱动侧枚举 C(4,2)={laeD.Actions.Count} 行"));
+                    var laeD = LegalActionEnumerator.EnumerateDiscardChoices(core, p1, snap.cards);
+                    var pickRow = laeD.Actions.FirstOrDefault(r => r.Targets.Contains(hand4[3]));
+                    checks.Add(new Check(snap.player == p1 && snap.over == 2 && laeD.Actions.Count == 4,
+                        $"⑧Snapshot（player/剩余over=2）→ 驱动侧枚举每张一行 4 行"));
                     var picked = pickRow.Targets.Cast<Card>().ToList();
                     HandLimitDiscardGate.Complete(picked);
                     foreach (var c2 in picked)
                         if (zm.IsCardInZone(c2, p1, Zone.Hand)) zm.MoveCard(c2, p1, Zone.Hand, Zone.Graveyard);
-                    log.AppendLine($"[⑧弃牌] Complete→释放={!HandLimitDiscardGate.HasPending} 入墓={picked.Count}");
+                    log.AppendLine($"[⑧弃牌] Complete(单卡)→释放={!HandLimitDiscardGate.HasPending} 入墓={picked.Count}");
                     checks.Add(new Check(!HandLimitDiscardGate.HasPending
                             && picked.All(c2 => zm.IsCardInZone(c2, p1, Zone.Graveyard)),
-                        "⑧Complete 释放门 + 选中 2 张入墓（镜像余段）"));
+                        "⑧Complete 释放门 + 选中 1 张入墓（镜像余段）"));
+
+                    // ── 3) 引擎真实链路（A0 核心验收）：手牌摆到 9 张（上限 7）→ EndTurn 回合末
+                    //       EnforceHandLimitAsync 有界循环——每 Complete 1 张后仍超限会再挂起，
+                    //       恰 2 个连续弃牌步、共弃 2 张、终态 7 张 ──
+                    var hand9 = new List<Card>(zm.GetCards(p1, Zone.Hand));
+                    while (hand9.Count < 9)
+                    {
+                        var c = TakeByName(zm, p1, "教学·2", Zone.Deck);
+                        if (c == null) break;
+                        zm.MoveCard(c, p1, Zone.Deck, Zone.Hand);
+                        hand9.Add(c);
+                    }
+                    checks.Add(new Check(hand9.Count == 9, $"⑧引擎链夹具：恰 9 张手牌（{hand9.Count}）"));
+                    int graveBefore = zm.GetCards(p1, Zone.Graveyard).Count;
+                    int parks = 0;
+                    if (hand9.Count == 9)
+                    {
+                        GameActions.EndTurn(core, p1); // 回合末事件链内同步 Park（模型座已绑定）
+                        while (HandLimitDiscardGate.HasPending && parks < 8)
+                        {
+                            parks++;
+                            var s2 = HandLimitDiscardGate.Snapshot();
+                            var first = s2.cards[0]; // 模拟模型选第一行
+                            HandLimitDiscardGate.Complete(new List<Card> { first }); // 内联余段：入墓+重算+必要时再挂
+                        }
+                    }
+                    var handAfter = zm.GetCards(p1, Zone.Hand).Count;
+                    var graveAfter = zm.GetCards(p1, Zone.Graveyard).Count;
+                    log.AppendLine($"[⑧弃牌] EndTurn 链：parks={parks} 手牌 9→{handAfter} 墓地 +{graveAfter - graveBefore} 挂起余={HandLimitDiscardGate.HasPending}");
+                    checks.Add(new Check(parks == 2 && handAfter == 7 && graveAfter - graveBefore == 2
+                            && !HandLimitDiscardGate.HasPending,
+                        $"⑧引擎逐张弃：9→7 恰 2 个连续弃牌步（parks={parks} 手牌={handAfter} 入墓={graveAfter - graveBefore}）"));
+
+                    // ── 4) 非模型座回落 ──
                     HandLimitDiscardGate.Bind(null);
-                    checks.Add(new Check(!HandLimitDiscardGate.TryPark(p1, hand4, 2),
+                    checks.Add(new Check(!HandLimitDiscardGate.TryPark(p1, zm.GetCards(p1, Zone.Hand), 1),
                         "⑧非模型座（未绑定）TryPark=false → 回落 RequestAsync 旧行为"));
                 }
                 finally { HandLimitDiscardGate.Reset(); HandLimitDiscardGate.Bind(null); }

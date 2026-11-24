@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Linq;
-using GameBoard;
 using Tide.RenderFX;
 using UnityEngine;
 
@@ -28,48 +27,6 @@ namespace SynergyUI
     /// <summary>本步点亮的格环（Clear 时逐格熄——ClearGlow 只熄本格不动对账态）。</summary>
     private static readonly List<(int x, int z)> _cellRings = new List<(int, int)>();
 
-    /// <summary>池环动态模式（2026-11-23 验收：basics_07 highlight style="pool"）——元素池行
-    /// 每格环=各自元素色，有可用元素（未横置地牌+临时余额）亮原色、无=暗灰；Tick 每帧刷新。</summary>
-    private static readonly List<(int x, int z, int element)> _poolRingCells = new List<(int, int, int)>();
-
-    private static readonly Color PoolUnlitGray = new Color(0.27f, 0.27f, 0.27f); // 无可用元素=暗灰
-    private static readonly Color PoolAnyColor = new Color(0.95f, 0.95f, 0.88f);  // 彩池环=米白（区别四主色）
-
-    private static Color PoolRingColor(int element)
-    {
-        switch ((CardCore.ManaType)element)
-        {
-            case CardCore.ManaType.Red: return new Color(0.92f, 0.28f, 0.20f);
-            case CardCore.ManaType.Blue: return new Color(0.25f, 0.50f, 1.00f);
-            case CardCore.ManaType.Green: return new Color(0.30f, 0.78f, 0.40f);
-            case CardCore.ManaType.Gray: return new Color(0.62f, 0.64f, 0.70f);
-            default: return PoolAnyColor; // Any/彩
-        }
-    }
-
-    /// <summary>该色可用元素（未横置地牌+临时余额——与地牌行「可用/上限」分子同口径；
-    /// 地牌真源=ElementPool 池卡列表 PooledCard，Zone.ElementPool 卡对象不带横置/锁色态）。</summary>
-    private static int AvailableElements(CardCore.ManaType type)
-    {
-        var core = CardCore.GameCore.Instance;
-        if (core?.ElementPool == null || core.Player1 == null) return 0;
-        int remaining = 0;
-        foreach (var pc in core.ElementPool.GetPooledCards(core.Player1))
-            if (pc != null && (int)pc.LockedColor == (int)type && !pc.IsTapped) remaining++;
-        remaining += core.ElementPool.TempWalletOf(core.Player1, type);
-        return remaining;
-    }
-
-    /// <summary>池环每帧刷新（Tick 驱动；模式外零成本直返）。</summary>
-    private static void RefreshPoolRings()
-    {
-        if (_poolRingCells.Count == 0) return;
-        foreach (var (x, z, element) in _poolRingCells)
-        {
-            bool lit = AvailableElements((CardCore.ManaType)element) > 0;
-            BattleTileFx.SetCellRing(x, z, lit ? PoolRingColor(element) : PoolUnlitGray);
-        }
-    }
 
         /// <summary>应用一步的表现三块（step=null/无块=清空上一部残留）。</summary>
         public static void ApplyStep(RectTransform root, TutorialGuideStepSpec step)
@@ -96,15 +53,10 @@ namespace SynergyUI
         {
             foreach (var (x, z) in _cellRings) BattleTileFx.ClearGlow(x, z); // 只熄本格环不动对账态
             _cellRings.Clear();
-            _poolRingCells.Clear(); // 池环动态模式随步清（2026-11-23）
         }
 
-        /// <summary>遮罩逐帧（窗跟新/模糊链/点窗恢复）+池环亮灰刷新——BattleScreen 更新器驱动。</summary>
-        public static void Tick()
-        {
-            TutorialMaskController.Tick();
-            RefreshPoolRings();
-        }
+        /// <summary>遮罩逐帧（窗跟新/模糊链/点窗恢复）——BattleScreen 更新器驱动。</summary>
+        public static void Tick() => TutorialMaskController.Tick();
 
         // ======================================== 高亮 ========================================
 
@@ -126,22 +78,8 @@ namespace SynergyUI
                 var cells = TutorialTargetResolver.CellsOf(h.target);
                 if (cells != null)
                 {
-                    // 池环动态模式（2026-11-23 验收 basics_07）：style="pool"=元素池行各格环随
-                    // 各自元素色亮/灰（有可用元素才亮）；其余=静态色环（原口径）
-                    if (h.style == "pool")
-                    {
-                        _poolRingCells.Clear();
-                        var landCells = BoardLayout.LandCells(0);
-                        int n = Mathf.Min(landCells.Count, BoardLayout.LandCellElementOrder.Length);
-                        for (int i = 0; i < n; i++)
-                            _poolRingCells.Add((landCells[i].x, landCells[i].z,
-                                (int)BoardLayout.LandCellElementOrder[i]));
-                        var any = BoardLayout.AnyElementCell(0);
-                        _poolRingCells.Add((any.x, any.z, (int)CardCore.ManaType.Any));
-                        foreach (var (x, z, _) in _poolRingCells) _cellRings.Add((x, z)); // Clear 统一熄
-                        RefreshPoolRings(); // 首帧即按当前可用量落色
-                        continue;
-                    }
+                    // 元素池行环已常驻化（2026-11-23 验收：fx-ring 各池色亮/灰由 LandsHeroes 对账
+                    // 落地、双方同规则）——教学高亮不再碰池环；其余格群=静态色环（原口径）
                     ColorUtility.TryParseHtmlString(
                         string.IsNullOrEmpty(h.color) ? "#FFD75A" : h.color, out var ringColor);
                     foreach (var (x, z) in cells)

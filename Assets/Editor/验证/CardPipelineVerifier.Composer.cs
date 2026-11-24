@@ -507,25 +507,25 @@ namespace CardCore.Editor
                     Atom("DrawCard", 1)));
             Assert(engineSuffix.StartsWith("，【奖励】") && engineSuffix.Contains("抽") && !engineSuffix.Contains("["),
                    $"载荷后缀（引擎短式）：「{engineSuffix}」——只接奖励（条件在正文）");
-            Assert(SynergyUI.AtomText.BranchSuffix(AmpAtom(CardCore.AtomicEffectType.DealDamage, 2, 9)) == "",
+            Assert(SynergyUI.AtomText.BranchSuffix(AmpAtom(CardCore.AtomicEffectType.DealDamage, 2)) == "",
                    "载荷后缀（死亡计数增幅）：BranchSuffix 恒空串——增幅标记不是自由分支奖励（2026-11-10 改版）");
             Assert(CardCore.Attribute.AtomicEffectTable.GetByType(CardCore.AtomicEffectType.EngineDeathToll) == null,
                    "死亡计数：EngineDeathToll 引擎主干表行已退役（2026-11-10 改版——枚举墓碑，表行删除防复活）");
             Assert(SynergyUI.AtomText.EngineShortBodyFor(
                        EngineAtom(CardCore.AtomicEffectType.EngineDeathToll, 1, CardCore.BranchEngineKind.DeathToll, 2,
                            Atom("DrawCard", 1))) == null
-                   && SynergyUI.AtomText.EngineShortBodyFor(AmpAtom(CardCore.AtomicEffectType.DealDamage, 2, 9)) == null,
+                   && SynergyUI.AtomText.EngineShortBodyFor(AmpAtom(CardCore.AtomicEffectType.DealDamage, 2)) == null,
                    "引擎短文案：死亡计数主干行已删/增幅挂非主干行 → null（增幅说明走 Render 的 {value} 标注，不走引擎短式）");
             var ampRender = SynergyUI.AtomText.Render(
                 CardCore.Attribute.AtomicEffectTable.GetByType(CardCore.AtomicEffectType.DealDamage),
-                AmpAtom(CardCore.AtomicEffectType.DealDamage, 3, 9), null);
+                AmpAtom(CardCore.AtomicEffectType.DealDamage, 3), null);
             Assert(ampRender.Contains("（+死亡计数增幅）") && ampRender.Contains("3"),
-                   $"描述渲染（死亡计数增幅）：「{ampRender}」——engineParam≥9 时 {{value}} 处标注增幅（不烘进基础值）");
+                   $"描述渲染（死亡计数增幅）：「{ampRender}」——deathToll 开启时 {{value}} 处标注增幅（不烘进基础值；2026-11-24 起无档位之分）");
             var ampRenderPlain = SynergyUI.AtomText.Render(
                 CardCore.Attribute.AtomicEffectTable.GetByType(CardCore.AtomicEffectType.DealDamage),
-                AmpAtom(CardCore.AtomicEffectType.DealDamage, 3, 0), null);
+                Atom("DealDamage", 3), null);
             Assert(!ampRenderPlain.Contains("死亡计数增幅"),
-                   $"描述渲染（普通档计数）：「{ampRenderPlain}」——engineParam<9 不标增幅（纯计数无 ×4 计价）");
+                   $"描述渲染（未开启计数）：「{ampRenderPlain}」——未开 deathToll 不标增幅（旧「普通档 engineParam<9」档位语义退役）");
             var outcomeSuffix = SynergyUI.AtomText.BranchSuffix(
                 OutcomeAtom(CardCore.AtomicEffectType.DealDamage, 3, "DmgKillsTarget", Atom("DrawCard", 1)));
             Assert(outcomeSuffix.Contains("如果消灭了目标") && outcomeSuffix.Contains("，") && outcomeSuffix.Contains("抽"),
