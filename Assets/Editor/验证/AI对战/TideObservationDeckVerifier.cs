@@ -24,7 +24,10 @@ namespace CardCore.Editor.Tests
     /// ⑤ 超量与截断——skipOpeningDraw+deferStart 双闸满库：同种第 31 张入库**不再截断**（并组、张数
     ///   合计 31、g[13]=31）；座次切换 Build(p2)——牌库块换 p2 分组、标签换 OriginalDeckOf(p1)。
     /// v21（2026-11-24 观测·卡组分布与策略分界，docs/观测_卡组分布与策略分界_实施方案.md §6.1）：
-    /// ⓪ 维度握手 21/158/97/20/191（CountSlot=157/OwnDeckTagStart=88/DeckTruncatedSlot=96）；
+    /// ⓪ 维度握手 21/158/100/20/191（CountSlot=157/OwnDeckTagStart=88/DeckTruncatedSlot=96/
+    /// HandLimitSelfSlot=97/HandLimitOppSlot=98/PendingDiscardSlot=99——v21 定稿 2026-11-24 拍板
+    /// globals 100，不再讨论 v22）；① 尾接手牌上限三槽断言（起手 8 张>7 → g[99]=1、对手座次=0）、
+    /// ⑪ 三套预组 g[97]/g[98]==7（回到一期训练目标 B0.3）；
     /// ⑪ 三套预组实测：绿 60 张=**4 组 19/19/11/11**（v21 前 30 槽按物理卡截断只见 2 种）、红 30=5 组、
     ///   蓝 30=4 组；⑫ 己方标签 g[88..95] == 手工口径且抽牌后恒定（对方块回归不变）；⑬ 实例态不同
     ///   的同种卡**不并组**（合并判据=特征行全同）；⑭ 唯一卡 &gt;30 种 → 截断到 30 组 + g[96]=1 +
@@ -93,22 +96,26 @@ namespace CardCore.Editor.Tests
             var deck2Data = Mix(catalog, (CardD, 10), (CardA, 10), (CardB, 10)); // 30（红+绿混色，标签口径覆盖）
 
             // ================= ⓪ 维度握手（v21 卡组分布与策略分界 2026-11-24：+countInZone [157]/
-            //     己方牌库标签 g[88..95]/牌库截断标记 g[96]；场地块 [189]/[190] 自 v15 不变） =================
+            //     己方牌库标签 g[88..95]/牌库截断标记 g[96]；场地块 [189]/[190] 自 v15 不变；
+            //     v21 定稿（2026-11-24 回到一期目标 B0.3）：+手牌上限三槽 g[97..99]，globals 100） =================
             checks.Add(new Check(TideObservation.LayoutVersion == 21 && TideObservation.NCard == 158
-                && TideObservation.NGlobal == 97 && TideObservation.NAction == 20
+                && TideObservation.NGlobal == 100 && TideObservation.NAction == 20
                 && TideObservation.MaxCardsTotal == 191
                 && TideObservation.MaxCardsPerPlayer == 77 && TideObservation.DeckBase == 154
                 && TideObservation.DeckSlots == 30 && TideObservation.DeckTopSlot == 184
                 && TideObservation.OppDeckExposedBase == 185 && TideObservation.OppDeckExposedSlots == 4
                 && TideObservation.FieldBase == 189 && TideObservation.FieldSlots == 2
                 && TideObservation.CountSlot == 157 && TideObservation.OwnDeckTagStart == 88
-                && TideObservation.DeckTruncatedSlot == 96,
-                $"布局常量期望 v21：21/158/97/20/191/77/154/30/184/185/4/189/2/157/88/96，实际 "
+                && TideObservation.DeckTruncatedSlot == 96
+                && TideObservation.HandLimitSelfSlot == 97 && TideObservation.HandLimitOppSlot == 98
+                && TideObservation.PendingDiscardSlot == 99,
+                $"布局常量期望 v21 定稿：21/158/100/20/191/77/154/30/184/185/4/189/2/157/88/96/97/98/99，实际 "
                 + $"{TideObservation.LayoutVersion}/{TideObservation.NCard}/{TideObservation.NGlobal}/{TideObservation.NAction}"
                 + $"/{TideObservation.MaxCardsTotal}/{TideObservation.MaxCardsPerPlayer}/{TideObservation.DeckBase}"
                 + $"/{TideObservation.DeckSlots}/{TideObservation.DeckTopSlot}/{TideObservation.OppDeckExposedBase}"
                 + $"/{TideObservation.OppDeckExposedSlots}/{TideObservation.FieldBase}/{TideObservation.FieldSlots}"
-                + $"/{TideObservation.CountSlot}/{TideObservation.OwnDeckTagStart}/{TideObservation.DeckTruncatedSlot}"));
+                + $"/{TideObservation.CountSlot}/{TideObservation.OwnDeckTagStart}/{TideObservation.DeckTruncatedSlot}"
+                + $"/{TideObservation.HandLimitSelfSlot}/{TideObservation.HandLimitOppSlot}/{TideObservation.PendingDiscardSlot}"));
 
             // ================= ① 构成对账 + 标签静态（seed 12345·含开抽） =================
             core.InitGame(CardLoader.BuildDeck(deck1Data, 1), CardLoader.BuildDeck(deck2Data, 1), rngSeed: 12345);
@@ -120,6 +127,24 @@ namespace CardCore.Editor.Tests
                 && obs.Globals.Length == TideObservation.NGlobal,
                 $"数组长度 cards={obs.Cards.Length}（期望 {TideObservation.MaxCardsTotal * TideObservation.NCard}）"
                 + $" globals={obs.Globals.Length}（期望 {TideObservation.NGlobal}）"));
+
+            // ================= ①b 手牌上限三槽（v21 定稿 2026-11-24 回到一期目标 B0.3）：
+            //     g[97]/g[98]=双方上限（RuleHooks 单源线性计数，三套预组基值 7）；起手 8 张>7 且
+            //     己方回合 → g[99]=1；对手座次（非回合方）g[99]=0（对手回合超限走入手闸改投除外区） =================
+            int limitP1 = RuleHooks.GetHandLimit(p1);
+            int limitP2 = RuleHooks.GetHandLimit(p2);
+            int expectedOver = ReferenceEquals(core.TurnEngine.TurnPlayer, p1)
+                ? Math.Max(0, (int)obs.Globals[5] - limitP1) : 0;
+            var obsOppSeat = TideObservation.Build(core, p2, false, null); // 对手座次视角
+            checks.Add(new Check(obs.Globals[TideObservation.HandLimitSelfSlot] == limitP1
+                    && obs.Globals[TideObservation.HandLimitOppSlot] == limitP2
+                    && obs.Globals[TideObservation.PendingDiscardSlot] == expectedOver
+                    && limitP1 == 7 && limitP2 == 7,
+                $"g[97]/g[98] 双方上限=7（实际 {obs.Globals[TideObservation.HandLimitSelfSlot]}/{obs.Globals[TideObservation.HandLimitOppSlot]}）"
+                + $"；起手 {obs.Globals[5]} 张（己方回合）→ g[99]={obs.Globals[TideObservation.PendingDiscardSlot]}（期望 {expectedOver}）"));
+            checks.Add(new Check(obsOppSeat.Globals[TideObservation.PendingDiscardSlot] == 0f
+                    && obsOppSeat.Globals[TideObservation.HandLimitSelfSlot] == limitP2,
+                $"对手座次 g[99]=0（非回合方恒 0，实际 {obsOppSeat.Globals[TideObservation.PendingDiscardSlot]}）"));
 
             int deckCount1 = zm.GetCards(p1, Zone.Deck).Count;
             var deckBlock = ReadDeckBlock(obs); // v21：牌库块=唯一卡分组（身份下标, 张数）
@@ -349,13 +374,18 @@ namespace CardCore.Editor.Tests
                     tagsOk &= Mathf.Abs(obs.Globals[TideObservation.OwnDeckTagStart + i] - tags[i]) < 1e-4f;
                 var (groups, total) = pinned.TryGetValue(key, out var pin) ? pin : (-1, -1);
                 bool ok = block.Count == groups && block.Sum(g => g.count) == total && live.Count == total
-                    && DeckBlockMatches(block, live) && obs.Globals[TideObservation.DeckTruncatedSlot] == 0f && tagsOk;
+                    && DeckBlockMatches(block, live) && obs.Globals[TideObservation.DeckTruncatedSlot] == 0f && tagsOk
+                    // v21 定稿（2026-11-24 B0.3）：三套预组手牌上限基值 7（满库双闸=手牌 0，g[99] 恒 0）
+                    && obs.Globals[TideObservation.HandLimitSelfSlot] == 7f
+                    && obs.Globals[TideObservation.HandLimitOppSlot] == 7f
+                    && obs.Globals[TideObservation.PendingDiscardSlot] == 0f;
                 if (key == "green") // 方案 §6.1：绿 4 组 19/19/11/11（v20 截断后只见 2 种）
                     ok &= block.Select(g => g.count).OrderBy(x => x).SequenceEqual(new[] { 11, 11, 19, 19 });
                 log.AppendLine($"[预组 {key}] {deck.GroupBy(d => d.ID).Count()} 个卡 ID → 牌库块 {block.Count} 组 {Describe(block)}；己方标签 "
-                    + $"[{string.Join(",", tags.Select(t => t.ToString("0")))}]");
+                    + $"[{string.Join(",", tags.Select(t => t.ToString("0")))}]；手牌上限槽 "
+                    + $"{obs.Globals[TideObservation.HandLimitSelfSlot]}/{obs.Globals[TideObservation.HandLimitOppSlot]} g99={obs.Globals[TideObservation.PendingDiscardSlot]}");
                 checks.Add(new Check(ok,
-                    $"预组 {key}：牌库块应 {groups} 组/张数合计 {total}、展开=卡表与当前牌库、g[96]=0、g[88..95]=手工口径，实际 {Describe(block)}"));
+                    $"预组 {key}：牌库块应 {groups} 组/张数合计 {total}、展开=卡表与当前牌库、g[96]=0、g[88..95]=手工口径、g[97]/g[98]=7/g[99]=0，实际 {Describe(block)}"));
             }
 
             // ---- ⑫ 实例态不同的同种卡不并组：满库 30 张（三种各 10）里给 1 张火灵·攻挂潜行指示物

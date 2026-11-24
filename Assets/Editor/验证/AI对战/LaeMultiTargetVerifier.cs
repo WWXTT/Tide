@@ -1230,7 +1230,10 @@ namespace CardCore.Editor.Tests
                     int parks = 0;
                     if (hand9.Count == 9)
                     {
-                        GameActions.EndTurn(core, p1); // 回合末事件链内同步 Park（模型座已绑定）
+                        // 直接发 TurnEndEvent 走同一 OnTurnEnded 入口（EnforceHandLimitAsync 挂起点）：
+                        // 不走 GameActions.EndTurn——窗①（End 相位响应窗）会**延发** TurnEndEvent 到
+                        // 相位泵排干之后，同步验证器里永远等不到（驱动器由 AdvanceToDecision 泵，不受影响）
+                        EventManager.Instance.Publish(new TurnEndEvent { TurnPlayer = p1 });
                         while (HandLimitDiscardGate.HasPending && parks < 8)
                         {
                             parks++;

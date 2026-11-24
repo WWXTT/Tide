@@ -137,8 +137,14 @@ reward = 终局 ±1（actor-centric：归属「刚行动的一方」）
        + λ · (Φ(s') − Φ(s))        λ = 0.005（势能塑形）
 ```
 
-- 势能 Φ = `FieldValueReward.ComputePotential(includeHand:false)`：**战场 + 资源价值，剔除手牌**。
-- **历史坑（必须记住）**：旧口径 λ=0.05 且势能含手牌 → 双方整局塑形累计 ≈ +3.1，**淹没终局 ±1** → 自对弈收敛到拖局（局长 90→267、对脚本胜率 0.35→0.10）。现在降 10 倍且剔手牌。
+- 势能 Φ = `FieldValueReward.ComputePotential(includeHand:true)`：**战场 + 资源价值，含手牌**
+  （2026-11-23 起与定价体系对齐；旧「剔除手牌」2026-09-22 口径已废弃，回滚点 =
+  `TideHeadlessDriver` 两处 `includeHand`）。**A4（2026-11-24 回到一期训练目标）单价**：
+  手牌 **3/张固定**（不乘卡面费）、地 **2/块**、横置净 **+1**、生命/护甲/元素 1.0、
+  战斗伤害 0.5——详见[计价与塑形_统一口径](计价与塑形_统一口径.md) §1/§2/§3。
+- **历史坑（必须记住）**：旧口径 λ=0.05 且势能含手牌（每张 0.6）→ 双方整局塑形累计 ≈ +3.1，
+  **淹没终局 ±1** → 自对弈收敛到拖局（局长 90→267、对脚本胜率 0.35→0.10）。现在 λ 小 10 倍，
+  且囤牌收益被手牌 7 上限封顶（第 8 张回合末先 +3 后 −3，不赚不亏）。
 - λ=0 是基线开关（`--shaping-lambda 0`）：非终局奖励恒 0，纯终局 ±1。
 - 势能塑形理论上不改变最优策略，**前提是塑形累计量 ≪ 1**。这条是设计红线。
 
@@ -369,7 +375,7 @@ FSP 口径；开启后日志/config 标注 `fsp=true`，`info.fsp=True`。
 | 15 | 抉择模式 | 弹窗 | 行内 `ModeIndex` | ✅ |
 | 16 | 目标选择（单/多/任意/动态/参照） | 目标窗 | 行内 `Targets/Counts`；特征只编码前 3 目标 | ✅ 有域；⚠️ 无域/结算期反问不覆盖 |
 | 17 | 卡名宣言（检索/强夺/窃取） | `RequestTextAsync` 文本窗 | `Interaction.DeclaredName` + `[16]` | ✅ P1（v17） |
-| 18 | 手牌上限弃牌 | `RequestAsync` 选 over 张 | `DiscardChoice=13`（`Targets=选中张`） | ✅ P3.1（v18） |
+| 18 | 手牌上限弃牌 | `RequestAsync` 选 over 张 | `DiscardChoice=13`（**A0 逐张弃 2026-11-24**：每步 `Targets=选中 1 张`、引擎有界循环连续多步弃到上限） | ✅ P3.1（v18）· A0 改版 |
 | 19 | 预言类别宣言（3 选 1） | 选择窗 | `Interaction.DeclaredName=Type:*` + `[16]` | ✅ P3.2（v18） |
 | 20 | 占卜/看顶排列 | 选择/排序窗 | **无**（自动） | ❌ C-1 不排期 |
 | 21 | 检索/发现选牌 | 目标/文本窗 | 检索=宣言行已覆盖；发现/其他无 | ⚠️ 部分 |
@@ -397,8 +403,10 @@ FSP 口径；开启后日志/config 标注 `fsp=true`，`info.fsp=True`。
    下标 0..8，-1=无）；LAE 永久物（生物/结界）PlayCard/RespondPlay 行×空格逐格展开（MaxPlaceRows=9）；
    特征 `[17]`；Apply 声明成功即 PinCard（取 `MoveUnitRules.Current`，无棋盘自然跳过，竞态占格走引擎
    first-free 兜底）；SimpleAI 行为不变。
-4. ~~**结算期选择**~~ **（2026-11-19 晚 P3 部分落地）**：**手牌上限弃牌**=DiscardChoice=13 动作行
-   （HandLimitDiscardGate 停靠决策，模型座专用；非模型座旧行为）+ **预言类别**=三选一行
+4. ~~**结算期选择**~~ **（2026-11-19 晚 P3 部分落地；2026-11-24 A0 弃牌改逐张）**：
+   **手牌上限弃牌**=DiscardChoice=13 动作行（HandLimitDiscardGate 停靠决策，模型座专用；
+   非模型座旧行为；**A0 逐张弃**：每步一行一卡、引擎有界循环弃完重算直到不超上限——
+   9 张/上限 7 恰 2 个连续弃牌步）+ **预言类别**=三选一行
    （Type:Creature/Spell/Enchantment，特征 [16]=0/1/2）；占卜排列（C-1）不做；检索/发现选牌见第 5 条。
 5. **handler 内反问**（2026-11-19 晚核查）：Sacrifice→第 1 条（P0）；MoveUnit→P1；DiscardCard
    原子行**有域**（双方手牌:卡）主序列已由既有 spec 机制覆盖（代价栏弃牌属代价目标轴，维持 AI 代选）；
@@ -409,7 +417,7 @@ FSP 口径；开启后日志/config 标注 `fsp=true`，`info.fsp=True`。
 
 ### 4.3 动作特征 / 布局版本 / 冻结面
 
-- 现行：**v21 / 卡特征 158 / 卡槽 191 / globals 97 / 动作 20 维 / 14 动作类型**。版本链：
+- 现行：**v21 定稿（2026-11-24 拍板，不再讨论 v22）/ 卡特征 158 / 卡槽 191 / globals 100 / 动作 20 维 / 14 动作类型**。版本链：
   - **v16（P-1）**：身份下标改 **SplitMix64 纯派生**（`index = 1 + SplitMix64(hash) % (pool-1)`，hash 0→0）；
     卡身份池 **1024→16384**、EffectType 池 **256→4096**、效果 Id 池 1024 不变；维度不变（116/191/14/58），
     下标取值分布与 embedding 表变化。manifest 追加式分配**退役**（`card_identity_manifest.json` 仅存档），
@@ -437,23 +445,28 @@ FSP 口径；开启后日志/config 标注 `fsp=true`，`info.fsp=True`。
   动作 18→**20** 维——`[17]placementCell` 扩义兼召唤计划行首格、`+[18]summonPlan`、`+[19]summonUnityHits`；
   卡特征 153→**157**（`+[153]` 邻接己方生物数/6、`+[154..156]` 引擎奖励摘要）；globals 70→**88**
   （`+g[70..78]` 己方 9 单位格占用码、`+g[79..87]` 各格 6 邻己方生物数/6）。v19 权重全废。
-- **v21（2026-11-24 已实施 · 待验收 · 卡组分布与策略分界，见 [观测_卡组分布与策略分界_实施方案](观测_卡组分布与策略分界_实施方案.md)）**：
+- **v21（2026-11-24 已实施 · 待验收 · 卡组分布与策略分界）**：原《观测_卡组分布与策略分界_实施方案》已按用户决定删除（2026-11-24，改动面小、不单开文档），落点并入 [回到一期训练目标](回到一期训练目标.md) 附录 A。
   ① 己方牌库块 [154..183] 由「每张物理卡一槽」改「**每种唯一卡一槽 + 张数**」：合并判据=内容键相同且
   **编码特征行逐位相等**（实例态不同的同种卡不并），组内张数写卡特征 `+[157] countInZone`（其余区恒 1）
   → **卡特征 157→158**；30 槽=唯一卡种类上限（绿 60 张 4 种=4 槽完整表达，此前 30 槽截断只见 2 种），
   >30 种按排序键截断并置 g[96]；`IndexOfCard` 同组任一张映射同一槽。
   ② globals 88→**97**：`+g[88..95]` **己方牌库开局标签**（`DeckTagsOf(OriginalDeckOf(me))`，与对方
   g[50..57] 同函数同口径、整局恒定）`+g[96] deckTruncated`。
+  **v21 定稿（2026-11-24 回到一期训练目标 B0.3 拍板：globals 100，不再讨论 v22）97→100**：
+  `+g[97]/g[98]` 双方手牌上限（`RuleHooks.GetHandLimit` 单源线性计数——修改链如纳川仪典的
+  额外上限直接可见）`+g[99]` 己方超上限剩余待弃张数（弃牌进行中=`HandLimitDiscardGate` 快照
+  剩余；否则己方回合 max(0, 有效手牌−上限)；对手回合恒 0——对手回合超限走入手闸改投除外区）。
+  A0 逐张弃配套：弃到几时停、要不要打牌腾手可算。
   ③ **攻/守资格入内容身份**（维度不变、身份换血；用户定案：攻/守=带发动条件的主动效果）：此前
   `CardIdentityService` 只遍历效果表行，仅攻守资格不同的火灵·攻/火灵·守身份逐位相同（模型在手牌/战场/
   牌库都分不清，红·快攻只见 4 种卡）。现按效果行同构合成进身份——原子槽 **[10]=攻击（Activate_Active）/
   [11]=守卫（Activate_Response）**（冻结表行 cc6d592f / 23a06182，效果原子占 [0..9]）、结构哈希含其骨架、
   卡特征 `[7]` 可攻击粗判加攻资格闸（守卫专用生物不再误标可攻击）。
-  验证：`TideObservationDeckVerifier` 36/38（余 2 条=牌库顶行被 `FoldEquivalentRows` 折叠的既有红，见 §8）、
+  验证：`TideObservationDeckVerifier` **2/40**（2026-11-24 B0.3 后；余 2 条=牌库顶行被 `FoldEquivalentRows` 折叠的既有红，见 §8；产物 `Logs/DeckVerifier_20261124_164904.log`）、
   `IdentityStabilityVerifier` 2/2、`StableIndexVerifier` 10/10、Python `test_identity_encoder` 过。
   **v20 权重 / ONNX / fixture 全废**；库内已部署的 v20 `tide_policy.onnx` 加载期按 dims 拒载回落 SimpleAI——
   重训重导出前难度 2 的模型 AI 不可用。
-- 同批**非观测**变更（2026-11-24，不属 v21 观测验收——[实施方案](观测_卡组分布与策略分界_实施方案.md) §9.2/§9.3）：
+- 同批**非观测**变更（2026-11-24，不属 v21 观测验收——见[回到一期训练目标](回到一期训练目标.md) 附录 A.2/A.3；已单列于[计价与塑形_统一口径](计价与塑形_统一口径.md) §6）：
   死亡计数规则/计价改版——手牌累计**无上限**（`DeathTollCap`/满值口径退役）、计价改**基价 +2 开启费**（旧 ×4 退役、
   属性化漏迁补上）、卡特征 `[152]` 改**原始层数**（去 /9）。单独登记于[计价与塑形_统一口径](计价与塑形_统一口径.md) §6，单独验收。
 - 动作特征 `[0..19]`：`[0]valid [1]type [2]sourceIndex [3]targetIndex [4]modeIndex [5]actionCost
@@ -462,16 +475,23 @@ FSP 口径；开启后日志/config 标注 `fsp=true`，`info.fsp=True`。
   `[14]moveCellX [15]moveCellZ [16]declaredNameIndex [17]placementCell`（v17 加 `[14..16]`，v18 加 `[17]`）；
   `[18]summonPlan（0=默认/1..9=锚点/-1=非召唤）[19]summonUnityHits（0..6/-1）`（v20 加）。
   `[14]/[15]` 仅移动行有值（其余 -1）；`[16]` 0..15 为宣言/预言候选序号（其余 -1）；`[17]` 0..8 为落格格下标（其余 -1）。
+- **`[10]` 语义定稿（2026-11-24 用户拍板·方案 A，A6 未实现）**：A6 落地后 `[10]` 由 `nTargets` 改为「**剩余待选数（含本步）**」——
+  0=非目标选择行、1=单目标或最后一步、N=本步选完还差 N 个（如 4 目标步依次 4/3/2/1）；`[8]/[9]` 恒 -1（每行 1 目标）。
+  **动作维仍 20、不升 `LAYOUT_VERSION`**，但属**语义变更**：旧 ONNX / checkpoint / 回放夹具即使维度相同也不得复用。落地前现行语义不变。
 - **只编码前 3 个目标 + 目标数**；第 4 个以后对模型不可见。现行 `[10]nTargets` 钳 **0..16**
   （2026-11-19 P0 落地：由 0..8 提升，维度不变——牺牲/蛰伏 prefix-k 行 k=9..16 须可分）。
   任意数量/动态数量的子集行上限 `MaxSubsetRows=64`（`k` 升序、字典序截断），大候选集时 `k≥3` 只剩“全取”行；
   无域牺牲/蛰伏走 prefix-k 前缀行（`MaxPrefixRows=24`，N 超上限时 1..23+全取）——不枚举 2^N。
-  移动行上限 `MaxMoveRows=18`，宣言行 `MaxDeclareRows=16`，落格行 `MaxPlaceRows=9`，弃牌组合 `MaxDiscardRows` 截断+默认组。
+  > **2026-11-24 拍板：本段整体退役**——目标选择改「AI 逐目标单选」（每行 1 目标、`[10]`=剩余待选数、
+  > 组合/prefix-k 行不再枚举），见[回到一期训练目标](回到一期训练目标.md) 阶段 A6。落地前现状仍是本段。
+  移动行上限 `MaxMoveRows=18`，宣言行 `MaxDeclareRows=16`，落格行 `MaxPlaceRows=9`，弃牌组合 `MaxDiscardRows` 截断+默认组（**已废弃 2026-11-24 A0 逐张弃**：改每张手牌一行、无截断，24 转用为引擎逐张轮次硬上限）。
 - **P2 落格**：永久物（生物/结界）PlayCard/RespondPlay 行×空格逐格展开；`[17]=0..8`，法术/场地恒 -1；
   Apply 声明成功即 PinCard（`MoveUnitRules.Current` 单源，无棋盘跳过）。旧 checkpoint/ONNX/fixture 全部作废
   （A2 对账 v18/18、export 冒烟 512x18、SpecMaster 16/0）。
 - **P3.1 弃牌**：`DiscardChoice=13` 独立枚举口（`HandLimitDiscardGate` 停靠模型座；非模型座旧行为），
-  `Targets=选中张`、`[10]=张数`、`[3]=首卡槽`、`[14..17]=-1`；`over=2/≥3` 组合截断+默认组。
+  `Targets=选中张`、`[10]=张数`、`[3]=首卡槽`、`[14..17]=-1`；`over=2/≥3` 组合截断+默认组
+  （**已废弃 2026-11-24 A0 逐张弃**：现行=每张手牌一行、`[10]=1`、`Targets=单卡`；
+  引擎 `EnforceHandLimitAsync` 模型座有界循环逐张推进，`over` 退役为「剩余张数」引擎侧元数据）。
 - **P3.2 预言**：`Interaction.DeclaredName=Type:Creature/Spell/Enchantment`，`[16]=0/1/2`。
 - 冻结面（四项）：卡表+原子表（ID 变=训练数据作废） / 布局版本（C# `LayoutVersion` 与 Python
   `LAYOUT_VERSION` 必须一致） / AI 决策代码（`AiStrategy`/`SimpleAI`/`LegalActionEnumerator`） /
@@ -488,7 +508,7 @@ FSP 口径；开启后日志/config 标注 `fsp=true`，`info.fsp=True`。
 | 移动选格 | [AI动作空间_移动与宣言_规格_v0.3 §3](AI动作空间_移动与宣言_规格_v0.3.md) | **2026-11-19 已执行**（P1：InteractionParams.MoveX/Z + LAE 移动行 + PickMoveCell） |
 | 宣言卡名 | [v0.3 §4](AI动作空间_移动与宣言_规格_v0.3.md) | **2026-11-19 已执行**（P1：DeclaredName + DeclarationCandidates 只读已读到的 + PickDeclaration） |
 | 永久物落格 | [AI动作空间补全_修改计划 §3](AI动作空间补全_修改计划.md) | **已实现 + 专项通过**（P2：`[17]placementCell` + v18；LaeMultiTargetVerifier ⑩ 行数/`[17]`/Apply/满区全过） |
-| 手牌上限弃牌 | [AI动作空间补全_修改计划 §4.1](AI动作空间补全_修改计划.md) | **已实现 + 专项通过**（P3.1：`DiscardChoice=13`；over=2/3、Complete 入墓/释放全过；100 局 audit 3,005 行） |
+| 手牌上限弃牌 | [AI动作空间补全_修改计划 §4.1](AI动作空间补全_修改计划.md) | **已实现 + 专项通过**（P3.1：`DiscardChoice=13`；over=2/3、Complete 入墓/释放全过；100 局 audit 3,005 行；**2026-11-24 A0 改逐张弃**——⑧ 断言重写+脚本局对拍见《[回到一期训练目标](回到一期训练目标.md)》A0） |
 | 预言类别 | [AI动作空间补全_修改计划 §4.2](AI动作空间补全_修改计划.md) | **已实现 + 专项通过**（P3.2：`Type:*` 三选一行/`[16]=0..2`/Apply 全过） |
 | 响应主动 B-5 | [AI与脚本执行修复_修改计划 §0.3/§8](AI与脚本执行修复_修改计划.md) | **不在本轮**（LAE 有行，样本 0，无信号） |
 | 占卜 C-1 / 虚拟手牌 C-2 | [同上 §8](AI与脚本执行修复_修改计划.md) | **不在本轮**（C-2 模型有行、SimpleAI 无） |
@@ -517,8 +537,8 @@ FSP 口径；开启后日志/config 标注 `fsp=true`，`info.fsp=True`。
   预组零漂移。SpecMaster PASS 16/FAIL 0（A2 v18/18 对账）；LaeMultiTargetVerifier 88/92（⑦⑧⑨
   P2/P3 专项全过，4 红=③④ 既有漂移）。反馈修复批：TideAction.Signature 纳入 Interaction/PlacementCell
   （同目标集不同宣言/落格行不再同键）、多目标移动不再拖死同卡宣言/预言、响应发动 Interaction 改走
-  ActivateEffectInResponse 正口、弃牌枚举三防御（手牌卡 IsAlive=false 不滤/默认组与组合[0]去重/
-  EmitCombinations k>n 越界——audit 第 10 局崩点）。
+  ActivateEffectInResponse 正口、弃牌枚举三防御（手牌卡 IsAlive=false 不滤/默认组与组合[0]去重——
+  该防御随 2026-11-24 A0 逐张弃退役/EmitCombinations k>n 越界——audit 第 10 局崩点）。
 - **2026-11-19 P0 落地实测（本机编辑器 TCP，seed 20261119）**：`audit_action_space --episodes 100` 通过——
   15,342 决策步 / 截断 0 / HeroSkill 5,217 个决策点出现（34.0% 点覆盖、11,901 行）/ 带目标行占比 11.8%→**36.6%**；
   四个零类型（VoluntaryTrigger/RespondActivate/TapCreature/Charge）与 2026-11-17 基线同因（§4.5 既有归因，非 P0 项）。
@@ -649,7 +669,7 @@ FSP 口径；开启后日志/config 标注 `fsp=true`，`info.fsp=True`。
   加载侧 `OnnxTidePolicy.ValidateModelLayout`（dims 硬校验）或卡身份清单会拒，
   `NeuralAiDriver` 响亮回落 SimpleAI（`Assets/Scripts/HotUpdate/AI/NeuralAI/NeuralAiDriver.cs:97`）。
   **（2026-11-24 更新：「AIModels 为空」是 11-18 的口径；其后部署过过渡模型，现目录内是 11-23 导出的
-  v20 模型〔fixture 头 `layout_version 20 / nCard 157 / nGlobal 88`〕。布局升 v21〔158/97〕后它同样被
+  v20 模型〔fixture 头 `layout_version 20 / nCard 157 / nGlobal 88`〕。布局升 v21 定稿〔158/100〕后它同样被
   `ValidateModelLayout` 拒载回落 SimpleAI——重训 + 重导出前难度 2 的模型 AI 不可用。）**
   **入口已接、缺的是"训练完 → 重导出 → 换模型"这一步**：木桩测试难度 2 = `NeuralAiDriver`（模型）；
   联机空椅 `btn-add-ai` = `NetAiFiller` 回环客户端（决策层 `NetClientBrain` 启发式，是否接模型见
@@ -698,7 +718,8 @@ FSP 口径；开启后日志/config 标注 `fsp=true`，`info.fsp=True`。
 | 2026-11-22 | **对手回合响应停靠 D2d**（§3.1）：引擎加 `ResponseWindowService.AiAsyncResponder`（异步 AI 响应口，泵 `await` 优先于同步链，未注册逐位不变——脚本局 20 组与 D2a 基线仍逐位一致）+ `GameActions.DecideAiResponse` 同步决策单源；驱动脚本回合改 `TakeTurnAsync` 异步链不阻塞，模型座停靠 TCS（`EnumerateParkedResponses` 给定候选 1:1 建行 + `ParkedOptionOfRow` 映射回选），Step `TrySetResult` 续跑**内联在本线程**（TCS 内联性 batchmode 探针实证）；布局/动作空间/g[49] 语义零改动 | D2c 遗留边界「模型在脚本回合不获停靠」收口；验收：脚本局零回归 ✓、蓝|红 20 局真响应停靠 88→169（含脚本回合 94 次停靠全恢复、模型选 HandCard 实响应）、2k smoke 蓝 35.9%/P50/P95=12/32 绿 6.3%/9/18 全自然终局 0 触顶 0 EnvTimeout、合法 seed 两遍 20 局**逐步观测哈希逐位一致**；附带发现并修工具坑：**reset seed 超 int32 被 JsonUtility 静默损坏成 0**（echo=0——官方 `tide_env_tcp` 有回显断言会拦，自写冒烟须校验；`d2c_vs_smoke.py` 已加断言+换合法基） |
 
 | 2026-11-22 晚 | **达标门改稳健口径**：18 格矩阵早停门由「全格 margin≥0」改为「覆盖齐前提下 Δ 中位数 ≥+5pp 且 Δ≥−5pp 格数 ≥16/18」；best 排序不变（min Δ） | 旧门被 16 局/格 ±12pp 单格噪声绑架（一格翻车即永不达标）；门控分量（delta_median/robust_cells/gate）随 selector 行落 eval.jsonl，控制台每次评估打印；`train_tide_complete.py` 双仓同批改，改后 D2d 环境首轮重训启动 |
-| 2026-11-24 | **布局升 v21（卡组分布与策略分界，§4.3）**：己方牌库块改「每种唯一卡一槽 + [157] 张数」、+g[88..95] 己方牌库开局标签、+g[96] 截断标记；同批攻/守资格入内容身份（原子槽 [10]/[11]、结构哈希、卡特征 [7] 加攻资格闸）。卡特征 157→158 / globals 88→97 / 动作 20 不变 | 绿 60 张此前被 30 槽截断只见 2 种卡、己方无牌库标签（红蓝费档几乎重合只能靠颜色分）；实施中发现火灵·攻/守仅攻守资格不同却观测逐位相同（红·快攻只见 4 种）——用户定案攻/守=带发动条件的主动效果，按效果行同构补进身份。旧 checkpoint/ONNX/fixture 全废（库内 v20 ONNX 加载期拒载回落 SimpleAI）；验证器 36/38（余 2 条=牌库顶行折叠既有红）；**待验收**，见 [实施方案](观测_卡组分布与策略分界_实施方案.md) §9 |
+| 2026-11-24 | **布局升 v21（卡组分布与策略分界，§4.3）**：己方牌库块改「每种唯一卡一槽 + [157] 张数」、+g[88..95] 己方牌库开局标签、+g[96] 截断标记；同批攻/守资格入内容身份（原子槽 [10]/[11]、结构哈希、卡特征 [7] 加攻资格闸）。卡特征 157→158 / globals 88→97 / 动作 20 不变 | 绿 60 张此前被 30 槽截断只见 2 种卡、己方无牌库标签（红蓝费档几乎重合只能靠颜色分）；实施中发现火灵·攻/守仅攻守资格不同却观测逐位相同（红·快攻只见 4 种）——用户定案攻/守=带发动条件的主动效果，按效果行同构补进身份。旧 checkpoint/ONNX/fixture 全废（库内 v20 ONNX 加载期拒载回落 SimpleAI）；验证器 2/40（余 2 条=牌库顶行折叠既有红）；**待验收**，见 [回到一期训练目标](回到一期训练目标.md) 附录 A |
+| 2026-11-24 晚 | **v21 定稿=100（回到一期训练目标 B0.3，用户拍板不再讨论 v22）**：+g[97]/g[98] 双方手牌上限（RuleHooks 单源）+g[99] 己方超上限剩余待弃（A0 逐张弃配套）。globals 97→100 / 其余三维不变 | 手牌上限三特征（契约 §2·II）；DeckVerifier ⓪/①b/⑪ 断言（起手 8 张>7→g[99]=1、对手座次 0、三套预组 7/7）；旧口径 grep 归零（`NGlobal = 97`/`N_GLOBAL_FEATURES = 97`/`158/97` 代码 0 行）；**待验收** |
 
 ## 10. 未来拓展：人类对局日志（模仿学习）
 

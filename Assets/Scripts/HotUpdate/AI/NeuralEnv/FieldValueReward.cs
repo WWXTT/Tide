@@ -17,12 +17,14 @@ namespace CardCore.AI.NeuralEnv
     ///
     /// 势能塑形（potential-based reward shaping）理论上不改变最优策略——前提是塑形累计量 ≪ 终局 ±1。
     ///
-    /// 【2026-09-22 训练定案】：
-    ///  - λ 0.05 → 0.005：λ=0.05 时双方各自整局塑形累计 ≈ +3.1，是终局 ±1 的 3 倍，
-    ///    且 Φ 含手牌（HandWeight 0.6）让「每回合摸牌」成为白拿的正奖励流——自对弈双方
-    ///    联合收敛到拖局刷塑形（局长 90→267，对脚本胜率 0.35→0.1）。
-    ///  - 奖励势能剔除手牌：ComputePotential(includeHand:false)，只用于驱动器塑形；
-    ///    TideObservation 的 g[28]/g[29] 仍走 includeHand=true（默认），观测口径不变。
+        /// 【2026-09-22 训练定案】：
+        ///  - λ 0.05 → 0.005：λ=0.05 时双方各自整局塑形累计 ≈ +3.1，是终局 ±1 的 3 倍，
+        ///    且 Φ 含手牌（HandWeight 0.6）让「每回合摸牌」成为白拿的正奖励流——自对弈双方
+        ///    联合收敛到拖局刷塑形（局长 90→267，对脚本胜率 0.35→0.1）。
+        ///  - ~~奖励势能剔除手牌：ComputePotential(includeHand:false)~~ **已废弃（2026-11-23 起）**：
+        ///    驱动器塑形改回 includeHand=true（与定价体系对齐，一张卡 ≈ 手牌权重；拖局风险改由
+        ///    「手牌 7 上限封顶 + 超出部分回合末先 +3 后 −3」与停训线兜底；回滚点 =
+        ///    TideHeadlessDriver 两处 includeHand）。历史 λ 教训仍有效——λ 与累计量级须盯住。
     ///
     /// 【2026-09-08 重写理由】：
     /// v1 只算战场卡静态 DerivedTotal，不含动态指示物/状态，也不含资源（生命/法力/地牌/手牌）；
@@ -43,13 +45,17 @@ namespace CardCore.AI.NeuralEnv
         public static float ManaWeight = 1.0f;
         /// <summary>万用元素（Any）权重（= 1 费，不溢价）</summary>
         public static float WildManaWeight = 1.0f;
-        /// <summary>地牌权重（2026-11-23 用户定案：1.0 → **3.0** = 复利资本化：一块地 ≈ 3 费，
-        /// 相当于"未来 3 回合的产出"折现。横置不打折 → 横置仍净 +1（地不变 + 元素 1.0）。
-        /// 由此：沃土（实际费 9，铺 3 地）= −9 + 3×3 = 0 打平，第 4 块起净赚；
-        /// 归根（8 费，回 3 张手牌）= −8 + 3×3 = +1 小赚，4 张 +4）</summary>
-        public static float LandTokenWeight = 3.0f;
-        /// <summary>手牌权重（2026-11-23：改为「卡面标价 × 1.0」语义——3 费卡在手 = 3）</summary>
-        public static float HandWeight = 1.0f;
+        /// <summary>地牌权重（2026-11-24 A4 定案：3.0 → **2.0**——塑形口径「手牌 3 / 地牌 2 / 横置净 +1」，
+        /// 不对关键牌做特殊约束。横置不打折 → 横置仍净 +1（地不变 2 + 元素 1.0）。
+        /// 斜率示例：沃土（实际费 9，铺 3 地）= −9 + 3×2 = −3——成长仍为正斜率、第 5 块起净赚
+        ///（回本点后移，不再「打平即赚」）；归根（8 费回 3 手牌）= −8 + 3×3 = +1，4 张 +4。
+        /// 旧 3.0 复利资本化口径（2026-11-23）废弃——3.0 时囤地刷塑形收益过高）</summary>
+        public static float LandTokenWeight = 2.0f;
+        /// <summary>手牌权重（2026-11-24 A4 定案：1.0 → **3.0**，**每张固定 +3**、不乘卡面费
+        ///（实装从来是 ResourceValue 里 value += HandWeight；2026-11-23 注释写的
+        /// 「卡面标价 × 1.0」语义从未落地，废弃）。与「超出上限部分回合末先 +3 后 −3」自洽：
+        /// 第 8 张抽进来 +3、回合末弃掉 −3，囤牌不赚不亏、白占一步）</summary>
+        public static float HandWeight = 3.0f;
         /// <summary>护甲权重（2026-11-23 新增：1 层护甲 = 1 费，此前护甲完全不在 Φ 里）</summary>
         public static float ArmorWeight = 1.0f;
         /// <summary>场面生物属性权重：价值 = (攻 + 血) × BioStatWeight；1/1 → 1（2026-11-23 新增，
@@ -65,8 +71,8 @@ namespace CardCore.AI.NeuralEnv
         // ======================================== 公开 API ========================================
 
         /// <summary>己方净势能（me − opponent）。
-        /// includeHand=false 为 2026-09-22 奖励口径：塑形势能剔除手牌（摸牌不再是白拿的奖励流）；
-        /// 默认 true 保持 TideObservation 观测口径（g[28]/g[29]）不变。</summary>
+        /// includeHand：驱动器塑形 2026-11-23 起传 true（旧 2026-09-22「剔除手牌」奖励口径已废弃，
+        /// 见类头注）；TideObservation 观测口径（g[30]/g[31]）恒 true。手牌项=每张固定 HandWeight。</summary>
         public static float ComputePotential(GameCore core, Player me, bool includeHand = true)
         {
             if (core == null || me == null) return 0f;
@@ -197,16 +203,16 @@ namespace CardCore.AI.NeuralEnv
                 }
             }
 
-            // 4) 手牌（2026-11-23 v2：按定价体系「每张 2.0」计价，不再按卡面价折算。
-            //    奖励势能口径仍由 includeHand 控制——驱动器端已改为 true（见 ComputePotential 调用点），
-            //    使"抽牌/回收"的价值与费用体系一致）
+            // 4) 手牌（2026-11-24 A4：每张固定 +HandWeight=3.0。旧注「每张 2.0」（2026-11-23 v2）
+            //    与「卡面标价 × 1.0」均为从未落地的口径，废弃——实装恒为固定加，不乘 DerivedTier。
+            //    奖励势能口径由 includeHand 控制：驱动器塑形自 2026-11-23 起传 true）
             if (includeHand)
             {
                 var hand = core.ZoneManager.GetCards(player, Zone.Hand);
                 if (hand != null)
                 {
                     foreach (var c in hand)
-                        if (c != null) value += HandWeight; // 每张固定 2.0
+                        if (c != null) value += HandWeight; // 每张固定 3.0（A4 2026-11-24：1.0→3.0）
                 }
             }
 

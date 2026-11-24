@@ -377,6 +377,12 @@ dotnet build TideServer/TideServer.csproj -c Release
 > over=2 C(n,2)/over≥3 截断+默认组，MaxDiscardRows=24，恒 ≥1 行）；TideHeadlessDriver 绑门
 >（自对弈双座/vs 模型座）+ AdvanceToDecision 循环顶停靠（g[49]=窗口语义）+ Step 应用（Complete
 > 内联跑余段）+ 强收/终局/Dispose 兜底释放。弃牌触发面=2026-11-18 后仅「上限缩水」兜底（罕见）。
+> **A0 改版（2026-11-24 回到一期训练目标·逐张弃，上段组合口径全部作废）**：模型座
+> EnforceHandLimitAsync 改**有界循环**——每步只挂 1 张、弃完重取手牌/重算上限再决定是否再挂
+>（9 张/上限 7 → 恰 2 个连续弃牌步；终止不变量=共弃 max(0, 手牌数−上限) 张、每步恰 1 张、
+> 无合法选择兜底弃第一张+日志）；`EnumerateDiscardChoices` 改**每张手牌一行**（over 参数退役
+> =引擎侧「剩余张数」元数据，不进枚举签名；组合行/MaxDiscardRows 截断/默认组兜底废弃，
+> 24 转用为轮次硬上限）；`CompleteDefault` 循环放行到不再挂起；非模型座「一次选完」不变。
 > **4.3 handler 反问**——核查裁定：DiscardCard 原子行 43ac095e **有域**（双方手牌:卡）→ 主序列
 > 使用已由既有 spec 机制覆盖（P0 白名单只管无域）；代价栏弃牌（训练·弃置）属代价目标轴（既有
 > payload gate 预检+AI 代选），不在本计划改动面。RedirectTarget/DiscoverCard **表内无行无卡**——
@@ -388,7 +394,8 @@ dotnet build TideServer/TideServer.csproj -c Release
 
 ### 4.1 手牌上限弃牌
 
-- 现状：`GameCore.EnforceHandLimitAsync` 直接 `RequestAsync`（[GameCore.cs:333-377](../Assets/Scripts/HotUpdate/CardCore/GameCore/GameCore.cs#L333-L377)）；
+- 现状（2026-11-24 A0 改版前的 v18 口径，见下方改版记录）：`GameCore.EnforceHandLimitAsync`
+  直接 `RequestAsync`（[GameCore.cs](../Assets/Scripts/HotUpdate/CardCore/GameCore/GameCore.cs) `EnforceHandLimitAsync`）；
   AI/无头在 [TargetSelection.cs:182-197](../Assets/Scripts/HotUpdate/CardCore/Effects/TargetSelection.cs#L182-L197) 自动选前 N。
 - 实现（已实施，v18）：
   - 新增 `TideActionType.DiscardChoice`（枚举尾部追加；Python `ACTION_TYPES` 同步；不改特征维度）；
@@ -400,6 +407,16 @@ dotnet build TideServer/TideServer.csproj -c Release
 - 验收：`over=2`、5 张手牌 → 10 行；应用后恰 2 张入墓；不自动；`--scenario`/`--games 1` 正常。
 - 风险：回合末时序/折返门；已用 `HandLimitDiscardGate` 的 TCS 停靠+强收/终局兜底实现，
   **但 over≥2 应用/入墓/无泄漏尚无专项断言**。
+- **A0 改版（2026-11-24 回到一期训练目标·逐张弃，上面 v18 条目作废）**：
+  - `TideAction.Targets` = 选中的 **1 张**；行 = **每张手牌一行**（无组合、无行数上限——
+    原 over 组合 / `MaxDiscardRows=24` 截断 / 默认组兜底全部废弃，24 转用为引擎逐张轮次硬上限）；
+  - `EnforceHandLimitAsync` 模型座改**有界循环**：每轮挂 1 张 → Complete → 内联入墓 → 重取
+    手牌/重算上限 → 仍超限再挂（连续弃牌步）；终止不变量 = 共弃 `max(0, 手牌数−上限)` 张、
+    每步恰 1 张；无合法选择兜底弃第一张并留 `TideLog.Warn`；被 Reset/Dispose 取消时静默退出；
+  - `CompleteDefault`（强收/终局兜底）改循环放行快照首卡直到不再挂起；
+  - 非模型座（人类/SimpleAI/无头脚本局）「一次选完 over 张」旧行为不变（脚本局逐位对拍验证）；
+  - 验收（⑧ 重写）：5 张手牌 → 5 行、`[10]=1`、两两不同；停靠门单卡链；**引擎真实 EndTurn 链
+    9 张/上限 7 → 恰 2 个连续弃牌步、终态 7 张**；非模型座 TryPark=false 回落。
 
 ### 4.2 预言类别宣言（3 选 1）
 
@@ -471,6 +488,11 @@ dotnet build TideServer/TideServer.csproj -c Release
 - [x] `dotnet run --project TideSim -- --games 1 --matchup red-blue --detail`（0 错误 0 未完）
 - [x] P2 落格专项（行数/Apply/满区）——LaeMultiTargetVerifier ⑩ 通过
 - [x] P3.1 弃牌专项（over=2/3、应用入墓、事件）——⑧ 通过
+- [ ] A0 逐张弃专项（2026-11-24 改版）——⑧ 重写为逐张断言（每张一行/引擎链 9→7 恰 2 步）+ 脚本局对拍。
+  产物（2026-11-24，待验收）：TideSim `--a0-discard-probe` 全绿（引擎链 9→7 恰 2 步/行数 [9,8]/剩余 [2,1]/
+  [10]=1/CompleteDefault 循环放行，`.ztmp/a0_discard_probe.txt`）；脚本局 6 对 ×20 种子改前后逐局一致
+  （`.ztmp/a0_parity_before.txt` / `a0_parity_after.txt`，唯一差异=报告文件时间戳）；
+  编辑器⑧复跑待空闲窗口（窗①延发改直发 TurnEndEvent 后未在编辑器重编复跑）。
 - [x] P3.2 预言三选一专项——⑨ 通过
 - [x] `python tide_rl/audit_action_space.py --episodes 100`（v18：15,487 步/0 截断）
 - [x] `SpecMasterVerifier` PASS 16/0；P2/P3 行为由 LaeMultiTargetVerifier 覆盖

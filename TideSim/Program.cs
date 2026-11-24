@@ -82,6 +82,16 @@ namespace TideSim
             if (args.Length > 0 && args[0] == "--hand-overflow-probe")
                 return HandOverflowProbe.Run();
 
+            // A0 逐张弃探针（2026-11-24 回到一期训练目标·阶段 A0 验收，临时——B1 后删）：
+            // 模型座回合末 9/上限7 恰 2 个连续弃牌步 + 每步行集/特征/剩余张数断言
+            if (args.Length > 0 && args[0] == "--a0-discard-probe")
+                return A0DiscardProbe.Run();
+
+            // A4 塑形单价探针（2026-11-24 回到一期训练目标·阶段 A4 验收，临时——B1 后删）：
+            // 手牌 3 / 地牌 2 / 横置净 +1 / 第 8 张仍 +3 / Any 不溢价
+            if (args.Length > 0 && args[0] == "--a4-shaping-probe")
+                return A4ShapingProbe.Run();
+
             // 临时元素持有钳（2026-11-21 定案验收）：每类型钱包余额 ≤ 地牌上限，超发即弃
             if (args.Length > 0 && args[0] == "--wallet-clamp-probe")
                 return WalletClampProbe.Run();

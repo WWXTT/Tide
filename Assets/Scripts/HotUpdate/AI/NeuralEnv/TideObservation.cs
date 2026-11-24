@@ -121,7 +121,8 @@ namespace CardCore.AI.NeuralEnv
         // 仅攻守资格不同、观测逐位相同——牌库块按特征行分组时会被并成一种卡，红·快攻只见 4 种）。
         // 死亡计数 [152] 同批改原始层数（2026-11-24：手牌累计无上限 + 计价改基价 +2 开启费——
         // 旧 /9 归一化与 ×4 计价口径随满值口径退役）。
-        // Python LAYOUT_VERSION/N_CARD_FEATURES/N_GLOBAL_FEATURES 同步 21/158/97。
+        // Python LAYOUT_VERSION/N_CARD_FEATURES/N_GLOBAL_FEATURES 同步 21/158/100（v21 定稿 2026-11-24：
+        // globals 97→100，+手牌上限三槽 g[97..99]——见 NGlobal 尾加注释）。
         public const int LayoutVersion = 21;
         public const int MaxCardsPerPlayer = 77; // v10：43→77（墓地 4→30、除外 8 入册）
         // v9 己方牌库块（尾接全局块，不走 ZoneLayout 每玩家偏移语义——专用 DeckBase+排序名次路径）：
@@ -215,10 +216,21 @@ namespace CardCore.AI.NeuralEnv
         //   g[88..95] 己方牌库开局标签（DeckTagsOf(OriginalDeckOf(me))——与对方 g[50..57] 同函数
         //             同口径、同为整局恒定的入局快照；「我是哪套」显式可见，此前只有对方有）
         //   g[96]    deckTruncated（己方牌库唯一卡种类 >30、牌库块被截断时=1；否则 0——不静默）
-        public const int NGlobal = 97; // v19：58→70（+12 元素块）；v20：→88（+9 占用码+9 格邻接）；v21：→97（+8 己方牌库标签+1 截断标记）
+        // v21 定稿尾加（2026-11-24 回到一期训练目标 B0.3 拍板：globals 100，不再讨论 v22；Python 同步 100）：
+        //   g[97]    己方手牌上限（RuleHooks.GetHandLimit 单源线性计数——修改链如纳川仪典的
+        //            额外上限直接可见；A0 逐张弃配套：弃到几时停可算）
+        //   g[98]    对方手牌上限（同上）
+        //   g[99]    己方超上限**剩余待弃张数**（弃牌进行中=HandLimitDiscardGate 快照剩余；
+        //            否则己方回合 max(0, 有效手牌−上限)；对手回合恒 0——对手回合超限走
+        //            ZoneContainer 入手闸改投除外区，不产生弃牌步）
+        public const int NGlobal = 100; // v19：58→70（+12 元素块）；v20：→88（+9 占用码+9 格邻接）；v21：→97（+8 己方牌库标签+1 截断标记）；v21 定稿（2026-11-24）：→100（+3 手牌上限三槽 g[97..99]）
         public const int DeckTagStart = 50; // v9 g[50..57] = DeckTagsOf（对方牌库开局标签）
         public const int OwnDeckTagStart = 88; // v21 g[88..95] = DeckTagsOf（己方牌库开局标签）
         public const int DeckTruncatedSlot = OwnDeckTagStart + 8; // v21 g[96]：己方牌库块唯一卡超 DeckSlots 种被截断=1
+        // v21 定稿（2026-11-24 B0.3）手牌上限三槽（A0 逐张弃配套，见上方尾加注释）
+        public const int HandLimitSelfSlot = DeckTruncatedSlot + 1;  // g[97]
+        public const int HandLimitOppSlot = DeckTruncatedSlot + 2;   // g[98]
+        public const int PendingDiscardSlot = DeckTruncatedSlot + 3; // g[99]
         // 动作特征槽（v8 8→11 维；v13 11→12；v14 12→14；v17 14→17=P1 v0.3 移动/宣言）：
         // [0]valid [1]type [2]sourceIndex [3]targetIndex [4]modeIndex
         // [5]actionCost [6]effectIdentity [7]targetKind + v8 多目标追加：
@@ -824,6 +836,18 @@ namespace CardCore.AI.NeuralEnv
             var ownDeckTags = DeckTagsOf(core.OriginalDeckOf(me));
             for (int i = 0; i < ownDeckTags.Length; i++)
                 g[OwnDeckTagStart + i] = ownDeckTags[i];
+
+            // v21 定稿（2026-11-24 回到一期目标 B0.3）手牌上限三槽：上限走 RuleHooks.GetHandLimit
+            // 单源（线性计数，与 g[5]/g[6] 手牌计数同族）；g[99]=己方超上限剩余待弃——弃牌进行中
+            //（停靠步：回合可能已切换到对方，以门快照归属为准）取 HandLimitDiscardGate 剩余；
+            // 否则己方回合按 g[5] 同口径有效手牌（已剔施放中）算差；对手回合恒 0（超限走除外区闸）。
+            g[HandLimitSelfSlot] = RuleHooks.GetHandLimit(me);
+            g[HandLimitOppSlot] = RuleHooks.GetHandLimit(opp);
+            var pendingSnap = HandLimitDiscardGate.Snapshot();
+            int pendingOver = ReferenceEquals(pendingSnap.player, me) ? pendingSnap.over : 0;
+            int overIfOwnTurn = ReferenceEquals(me, core.TurnEngine.TurnPlayer)
+                ? Math.Max(0, (int)g[5] - (int)g[HandLimitSelfSlot]) : 0;
+            g[PendingDiscardSlot] = Math.Max(pendingOver, overIfOwnTurn);
 
             // v19 剩余可用元素块（g[58..63]=me / g[64..69]=opp，绿套补盲）：
             // 逐色「钱包余额 + 未横置地牌张数」+ Any 单独成维 + 总量——「还差几点出大哥」
