@@ -1273,15 +1273,16 @@ def train(args: Args):
                            sp_len, 20, num_updates_reached)
         eval_opponent = "simpleai" if args.opponent == "selfplay" else None
         if len(eval_themes) == 1 and len(model_themes) == 1:
-            # A2（2026-11-24）修复收尾解包 bug：evaluate_greedy 返回 8 元组（含 matrix_stats），
-            # 旧按 7 元组解包——任何跑完的 run 都在收尾评估处抛 ValueError（plan A2 记录项）。
-            (final_win_rate, wins, losses_, draws, avg_length,
-             _theme_stats, _cells, _matrix) = evaluate_greedy(
+            # 单主题分支：evaluate_greedy 返回 7 元组（无 matrix_stats）——本分支原本正确，
+            # 勿随 multi 分支的 8 元组修复改动（2026-11-24 A2 曾误改后回退）。
+            final_win_rate, wins, losses_, draws, avg_length, _theme_stats, _cells = evaluate_greedy(
                 jit_apply, train_state.params, eval_env, args, num_episodes=final_eps,
                 opponent=eval_opponent, theme=eval_themes[0],
                 model_theme=model_themes[0],
             )
         else:
+            # A2（2026-11-24）修复收尾解包 bug：evaluate_greedy_multi 返回 8 元组（含
+            # matrix_stats），旧按 7 元组解包——任何跑完的 run 都在收尾评估处抛 ValueError。
             (final_win_rate, wins, losses_, draws, avg_length,
              _theme_stats, _cells, _matrix) = evaluate_greedy_multi(
                 jit_apply, train_state.params, eval_env, args, num_episodes=final_eps,

@@ -527,6 +527,7 @@ namespace CardCore.AI.NeuralEnv
             // 自对弈（_modelPlayer=null）双座皆模型；vs 模式仅模型座
             HandLimitDiscardGate.Reset();
             HandLimitDiscardGate.Bind(p => _modelPlayer == null || ReferenceEquals(p, _modelPlayer));
+            TargetPickGate.Reset(); // A6（2026-11-24 逐目标单选）：新对局弃残留拾取序列
             _bannedThisTurn.Clear(); // 新对局：无进展防护状态归零（stamp 由 BuildResult 兜底重置）
             _actionsThisTurn = 0;
             _budgetClosedThisTurn = false; // L2 预算收口状态归零（_loopBudgetCount 只增不清）
@@ -599,6 +600,7 @@ namespace CardCore.AI.NeuralEnv
             // 不计数则 StallDraw 永远到不了阈值（64×512≈3.3 万步空转），2026-09-30 复发实证。
             if (_legal == null || actionIndex < 0 || actionIndex >= _legal.Actions.Count)
             {
+                TargetPickGate.Reset(); // A6：越界=弃拾取序列（闸内表恒非空，越界必为异常采样）
                 // D2d：停靠步越界也必须放行泵（否则链悬挂死锁后续对局）——按让过完成 TCS
                 if (_parkTcs != null)
                 {
@@ -642,6 +644,41 @@ namespace CardCore.AI.NeuralEnv
                 _stallCounter = 0;
             }
 
+            // A6（2026-11-24 逐目标单选）：多步拾取序列——首步行（PickPlan!=null）开闸并记录
+            // 第一拾取；闸内拾取步不 Apply/不推进（引擎状态冻结，BuildResult 重枚举闸行——不走
+            // AdvanceToDecision，它会推进相位；指纹也跳过：状态未变必误报回环）。
+            // 提交行（[10]=0 且 Targets 非空）→ Submit 锁定当前可变 spec；Fixed 收满自动前移。
+            // 收口后 BuildFinal 按计划序规范化拼全集塞回 a：主表来源落入下方 Apply 链；
+            // D2d 停靠来源（闸记忆 ResponseOption）写回目标集后 TrySetResult——泵内联应用并推进，
+            // 不走下方动作链（与 _parkTcs 分支的双应用防护同理）。
+            bool gatePumpApplied = false;
+            if (a.PickPlan != null && !TargetPickGate.HasPending)
+            {
+                TargetPickGate.Open(a, ParkedOptionAt(actionIndex)); // 首步行目标=第一拾取
+                return BuildResult(0f); // 门控行恒 ≥2 步或含可变——开闸后必有余步
+            }
+            if (TargetPickGate.HasPending)
+            {
+                if (a.PicksRemaining == 0 && a.Targets != null && a.Targets.Count > 0)
+                    TargetPickGate.Submit(); // 提交行：锁定当前可变 spec（末位=序列收口）
+                else
+                    TargetPickGate.Pick(a); // 拾取步：本步只收 1 个目标
+                if (!TargetPickGate.Completed)
+                    return BuildResult(0f); // 还有剩余步：重建闸表（状态不变，不指纹不计奖励）
+                a = TargetPickGate.BuildFinal(_core, me);
+                var parkedChoice = TargetPickGate.ConsumeParked();
+                if (parkedChoice != null)
+                {
+                    parkedChoice.Targets = a.Targets;          // 声明期预选目标=规范化全集（同 D2d 分支口径）
+                    parkedChoice.DynamicCounts = a.DynamicCounts;
+                    var gateTcs = _parkTcs;
+                    _parkTcs = null;
+                    _parkOptions = null;
+                    gateTcs?.TrySetResult(parkedChoice); // 泵内联应用并推进（可能再次停靠）
+                    gatePumpApplied = true;
+                }
+            }
+
             // L2 回合预算收口（2026-11-18 循环治理 §5.3）：尽力收口——排干栈 → Main 相强 EndTurn；
             // EndTurn 可能被引擎拒绝（阶段/栈态），此时只打日志不重试（MaxActionsPerTurn=256 硬保险兜底）。
             // D2d：停靠步不收口（本步完成 TCS 后链内联自推进；停靠链上强排干/EndTurn 会与挂起泵
@@ -656,7 +693,7 @@ namespace CardCore.AI.NeuralEnv
                 Console.WriteLine($"[LoopGuard] budget turn={_core.TurnEngine.TurnNumber} seat={SeatOf(_decider)} actions={_actionsThisTurn} n={_legal?.Count ?? 0} hand={_core.ZoneManager.GetCards(_decider, Zone.Hand)?.Count ?? 0}");
             }
 
-            if (_parkTcs != null)
+            if (!gatePumpApplied && _parkTcs != null)
             {
                 // D2d（2026-11-22 对手回合响应停靠）续跑：本步=脚本回合响应窗的模型选择。
                 // 所选行按 ParkedOptionOfRow 映射回泵收集的 ResponseOption（RespondPlay 行的
@@ -691,6 +728,7 @@ namespace CardCore.AI.NeuralEnv
             {
                 // 保险：同回合动作数超限（如换状态翻转死循环、模型互挂响应）→
                 // 强制收口（响应窗口先强排干，Main 再强制 EndTurn），保证回合流动（疲劳/战斗最终能终结对局）
+                TargetPickGate.Reset(); // A6：强收前弃拾取序列（未 Apply 的卡声明不存在，直接收口）
                 if (!_gameOver && !_core.StackEngine.IsEmpty) GameActions.DrainStack(_core, 64);
                 if (!_gameOver && _core.TurnEngine.CurrentPhase?.Phase == PhaseType.Main
                     && _core.StackEngine.IsEmpty)
@@ -784,6 +822,7 @@ namespace CardCore.AI.NeuralEnv
         {
             HandLimitDiscardGate.Reset(); // P3 §4.1：解绑+清挂起
             HandLimitDiscardGate.Bind(null);
+            TargetPickGate.Reset(); // A6：释放弃残留拾取序列
             // D2c/D2d（2026-11-22）：vs 模式响应接线还原（镜像 AiDuelRunner.Run finally）——
             // 注册表/AiResponder/AiAsyncResponder 是全局静态，不还原会串入同进程后续局
             AiStrategyRegistry.Clear();
@@ -808,10 +847,22 @@ namespace CardCore.AI.NeuralEnv
             _winner = e.Winner;
             _reason = e.Reason.ToString();
             HandLimitDiscardGate.CompleteDefault(); // P3 §4.1：终局释放挂起弃牌（防泄漏死等）
+            TargetPickGate.Reset(); // A6：终局弃拾取序列（纯驱动层状态，直接清）
         }
 
         private int SeatOf(Player p)
             => p == null || _core == null ? -1 : (ReferenceEquals(p, _core.Player1) ? 0 : 1);
+
+        /// <summary>A6（2026-11-24 逐目标单选）：停靠表所选行 → 泵候选对象（D2d 停靠来源的
+        /// ResponseOption 引用，闸提交时写回规范化目标集）；非停靠表/兜底行 = null。</summary>
+        private ResponseOption ParkedOptionAt(int row)
+        {
+            if (_parkTcs == null || _parkOptions == null || _legal == null) return null;
+            var map = _legal.ParkedOptionOfRow;
+            if (row < 0 || row >= map.Count) return null;
+            int oi = map[row];
+            return oi >= 0 && oi < _parkOptions.Count ? _parkOptions[oi] : null;
+        }
 
         /// <summary>
         /// 推进到下一决策点（v2 泛化：Main 停靠 + 响应停靠）：
@@ -1244,6 +1295,13 @@ namespace CardCore.AI.NeuralEnv
                 if (snap.cards != null)
                     _legal = LegalActionEnumerator.EnumerateDiscardChoices(_core, _decider, snap.cards);
             }
+            else if (TargetPickGate.HasPending)
+            {
+                // A6（2026-11-24 逐目标单选）：闸内拾取步——行集=当前 spec 剩余候选 + 可变档提交行
+                //（独立枚举口 EnumeratePickSteps；不折叠/不摘除/无兜底行——闸内表恒非空，
+                // 防御强制提交行保底；先于 _responseStop——停靠表内开闸的序列也走闸表）
+                _legal = LegalActionEnumerator.EnumeratePickSteps(_core, _decider);
+            }
             else if (_responseStop)
             {
                 // D2d：脚本回合停靠步——行集来自泵给定候选（1:1 映射，Step 据此完成 TCS）；
@@ -1252,7 +1310,7 @@ namespace CardCore.AI.NeuralEnv
                 else _legal.EnumerateResponses(_core, _decider);
             }
             else _legal.Enumerate(_core, _decider);
-            if (!_discardStop)
+            if (!_discardStop && !TargetPickGate.HasPending)
             {
                 _legal.RemoveAll(_bannedThisTurn); // 本回合已判无效的动作不再出现在选项表
                 _legal.AppendFallback(_responseStop); // 空表冻结兜底（2026-09-30：停靠态与引擎瞬态错位/摘除清空时补 PassPriority/EndTurn 保流动）

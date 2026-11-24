@@ -24,7 +24,7 @@ crashlytics-build.properties
 
 # ---------------- IDE / 本机工程文件 ----------------
 # Unity 生成的 csproj/sln 含本机绝对路径，跨机必炸，各自本地生成；
-# 手写的 TideServer/TideServer.csproj、Tide.slnx 不受影响。
+# 手写的 Tide.slnx 不受影响（TideServer 已整体隔离，见「构建 / 热更产物」段）。
 /*.csproj
 /*.sln
 /.vs/
@@ -56,8 +56,9 @@ __pycache__/
 /build/outputs/
 /Tide_BackUpThisFolder_ButDontShipItWithYourGame/
 /Tide_BurstDebugInformation_DoNotShip/
-/TideServer/bin/
-/TideServer/obj/
+# TideServer 是内嵌的独立私有仓（2026-11-24 定案）：目录内另有自己的 .git，
+# 推送到私有远程仅作云备份，整个目录对本公开仓不可见。
+/TideServer/
 
 # ---------------- 编辑器工具 / 会话临时 ----------------
 /.codegraph/

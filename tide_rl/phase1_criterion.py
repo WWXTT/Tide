@@ -49,8 +49,12 @@ SCRIPT_MATRIX_BASELINES = {
 
 # 基线纪元：基线表与判据绑定执行器代码版本——D2a（正牌技能透传）之前的 best 检查点全部作废。
 # save_model("best") 盖 era 戳；eval_checkpoint.pick_ckpt 拒载旧 era 的 best。
-# **B2 重测后必须同批换值**（新卡价时代），并把 config.json 的 criterion_era 一并换新。
-BASELINE_ERA = "postD2a-dfix-20261122"
+# **B2（2026-11-24 回到一期训练目标·用户抽样口径）**：新旧代码同执行器（TideSim）6 对 ×20 种子
+# **逐局一致**（dfix beaa0a0bc ↔ 现树，唯一差异=卡表张数横幅 247→251〔预组固定，对局流零变化〕；
+# `.ztmp/dfix_20seed.txt` vs `now_20seed.txt`）⇒ **沿用 11-22 基线值**，仅升纪元标注「脚本行为未变」
+#（本轮改动全在模型侧：A0 弃牌/A4 塑形/A7 折叠键均不经脚本对局路径，引擎侧 A0 非模型分支
+# 逐位不动——120 局对拍三度实证）。
+BASELINE_ERA = "v21frozen-20261124-script-parity"
 
 # ==================== 口径常量 ====================
 

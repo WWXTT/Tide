@@ -75,12 +75,8 @@ namespace CardCore.AI.NeuralEnv
         public int TargetIndex;
         /// <summary>目标类别特征（动作特征 [7]）：0=无/区域自结算，1=卡目标，2=对方玩家，3=己方玩家。</summary>
         public int TargetKindCode;
-        /// <summary>次目标槽位（v8 多目标，动作特征 [8]/[9]）：Targets[1]/[Targets[2] 的 cards_ 槽位。
-        /// 仅目标展开四类动作（PlayCard/RespondPlay/Activate/RespondActivate，经 BuildTargetedRow）有效——
-        /// 其余类型构造点不设（struct 默认 0 会被 BuildFeatures 的类型闸强制 -1，防误读为槽 0）。
-        /// -1 = 无次目标/玩家目标/超出编码上限（行内 Targets 仍完整，特征截断）。</summary>
-        public int TargetIndex2;
-        public int TargetIndex3;
+        // A6（2026-11-24 逐目标单选）：TargetIndex2/TargetIndex3（v8 次目标槽位）随组合行退役删除——
+        // 特征 [8]/[9] 恒 -1（次目标维废止，见 BuildFeatures），多目标信息改由拾取步序列表达。
         /// <summary>参照单位（步5 §3.5 参照 Enumerate spec 的选择结果镜像——参照=数值基准锚，
         /// 与受体 Targets 分角色编码；v1 单参照=行内首个 Reference 角色选位）。null=本动作无参照。</summary>
         public Entity Reference;
@@ -92,6 +88,16 @@ namespace CardCore.AI.NeuralEnv
         public bool HeroAttacker;
         /// <summary>响应窗口动作（签名区分上下文：同一动作在 Main 与响应窗口不互相摘除）。</summary>
         public bool ResponseContext;
+        /// <summary>A6（2026-11-24 逐目标单选）：剩余待选目标数（含本步），特征 [10]。
+        /// 默认=构造点口径（BuildTargetedRow：单步行有目标=1、无目标=0；DiscardChoice 行=1）；
+        /// 多步计划首步行=计划需选总数（≥2）或 **-1**（计划含可变数量 spec——开放步数无法编码为定值）；
+        /// 提交行=0（Targets=规范化已选集合——「本步不选目标，只提交」）。
+        /// 旧口径（[10]=nTargets 目标数）随组合/子集/前缀行退役废止。</summary>
+        public int PicksRemaining;
+        /// <summary>A6：多步拾取计划（首步行携带；null=普通行——单步可 Apply）。
+        /// 不进特征值/签名（计划由枚举态决定）；驱动 Step 据它开 TargetPickGate。
+        /// 闸内步行的 PickPlan 恒 null（由 gate.HasPending 区分）。</summary>
+        public TargetPickPlan PickPlan;
 
         public override string ToString()
         {
@@ -148,26 +154,20 @@ namespace CardCore.AI.NeuralEnv
     ///    映射（守卫/自愿桶/主动）+ 手牌响应卡（RespondPlay，速度门全检）+ PassPriority 恒末位。
     ///
     /// 指向性目标逐目标展开（镜像 SimpleAI.ChooseTargets 的 ResolveCandidates 口径）：
-    ///  - Single/SingleUnion：逐候选一行；Multiple/MultipleUnion（TargetCount&gt;0）：按引擎候选序组合枚举，
-    ///    每效果上限 24 组截断；None/Whole/WholeUnion/Random/动态数量：单行（targets=null，引擎自动解析）。
-    ///  - v8（2026-11-02 多目标定案对齐）：逐原子口径（PerAtomTargets）按 CollectAtomTargetSpecs 单源
-    ///    规格展开——数量=每原子 effCount（>1 压过选一模式，如洗回跨双墓地选 N）；特征 8→11 维追加
-    ///    target2/target3/nTargets（组合行次目标可见，Python N_ACTION_FEATURES 同步）。
+    ///  - **A6（2026-11-24 逐目标单选）**：组合/子集/prefix-k 行全部退役——多目标效果改
+    ///    「每步选 1 个目标」：主表只出**首步行**（1 目标/行，携 TargetPickPlan），驱动开
+    ///    TargetPickGate 累积，收满/提交后按计划序拼全集走原 Apply（同目标集同结算）；
+    ///    单步行（恰 1 个模型选择）保持旧行形直发。特征 [10]=PicksRemaining（剩余待选数）。
+    ///  - Single/SingleUnion（单一 spec）：仍是逐候选一行（=单步行，行为不变）；
+    ///    None/Whole/WholeUnion/Random：单行（targets=null 或全取占位，引擎自动解析）。
     ///
     /// 文档化简化（v1 沿袭）：横置地牌由 driver 回合初自动完成（LandTapPolicy），不建模。
     /// </summary>
     public sealed class LegalActionEnumerator
     {
-        /// <summary>多目标（Multiple/MultipleUnion）组合枚举上限（契约第 4 节：每效果 24 组截断）。</summary>
-        private const int MaxTargetCombos = 24;
-
-        /// <summary>任意数量/动态数量的子集行上限（2026-11-15 目标选择对齐）：每 spec 最多 64 行
-        /// （1..N 按数量升序、同数量按候选序字典序）——覆盖小数量全组合 + 全取行。</summary>
-        private const int MaxSubsetRows = 64;
-
-        /// <summary>prefix-k 前缀行上限（P0 2026-11-19 无域原子目标）：无域牺牲/蛰伏候选 N 超上限时
-        /// 只发 1..23 + 全取行（与 MaxSubsetRows 的「小数量 + 全取」截断取舍同口径）。</summary>
-        private const int MaxPrefixRows = 24;
+        // A6（2026-11-24 逐目标单选）：MaxTargetCombos=24 / MaxSubsetRows=64 / MaxPrefixRows=24 /
+        // MaxExpansionRows=128 四常量随组合/子集/前缀行退役删除——动作表不再按目标组合爆炸，
+        // 多步行数=当前 spec 候选数（+可变档提交行 1 条）；多步累积见 TargetPickGate。
 
         /// <summary>移动行上限（P1 2026-11-19 v0.3 §3.1）：每效果 目标×合法空格 ≤18（9 格×2 目标内）。</summary>
         private const int MaxMoveRows = 18;
@@ -179,9 +179,6 @@ namespace CardCore.AI.NeuralEnv
         ///（= 单位区格数；总行数继续走 MaxActions 硬上限）。</summary>
         private const int MaxPlaceRows = 9;
 
-        /// <summary>单效果展开总行上限（多 spec 笛卡尔合并后）——防组合爆炸拖垮动作表/掩码。</summary>
-        private const int MaxExpansionRows = 128;
-
         /// <summary>动作表硬上限（v3 契约 §6：与 Python MAX_ACTIONS / OnnxTidePolicy.MaxActions 三处同步）。
         /// 超限时保留前 MaxActions-1 行 + 恒保末位兜底行（Main=EndTurn / 响应=PassPriority）——
         /// Python pad_or_truncate_actions 是头截断，无此守卫会把兜底行切掉（模型无法结束回合，
@@ -190,9 +187,10 @@ namespace CardCore.AI.NeuralEnv
 
         public List<TideAction> Actions = new List<TideAction>();
         /// <summary>动作特征张量（Actions.Count × TideObservation.NAction），供模型输入。
-        /// 11 维布局（v8 契约）：[0]valid [1]type [2]sourceIndex [3]targetIndex
-        /// [4]modeIndex [5]actionCost [6]effectIdentity [7]targetKind
-        /// [8]target2Index [9]target3Index [10]nTargets（多目标组合行次目标可见）。</summary>
+        /// 11 维布局（v8 契约；[8]/[9]/[10] A6 2026-11-24 改义）：[0]valid [1]type [2]sourceIndex
+        /// [3]targetIndex [4]modeIndex [5]actionCost [6]effectIdentity [7]targetKind
+        /// [8]/[9]=恒 -1（组合行退役，次目标维废止）[10]=PicksRemaining 剩余待选数
+        ///（0=无目标/提交行、1=单步行/最后一步、N=纯固定计划剩余步数、-1=计划含可变数量 spec）。</summary>
         public float[] Features = Array.Empty<float>();
 
         public int Count => Actions.Count;
@@ -365,7 +363,7 @@ namespace CardCore.AI.NeuralEnv
                             AddRowsWithInteraction(core, me, m < castDefs.Count ? castDefs[m] : null,
                                 TideActionType.RespondPlay, c, m, src, set.Targets, response: true,
                                 reference: ReferencePickOf(core, me, c, m, set.Targets),
-                                dynamicCounts: set.Counts); // P1 v0.3：目标/动态数量随行
+                                pickPlan: set.Plan); // P1 v0.3 目标随行 + A6 多步计划随行（Counts 由闸提交时重建）
                             ParkedOptionOfRow.Add(oi);
                         }
                         break;
@@ -400,7 +398,8 @@ namespace CardCore.AI.NeuralEnv
         /// 键 = 动作特征行去掉 [2]sourceIndex——对模型而言唯一不可区分差异是「来源卡在
         /// cards_ 的第几格」（同名同费同模式同目标的第 2..N 张手牌）。同键只留第一行：
         /// 深潭碑类局面 177 行 → 约 8 行，EndTurn 概率不再被稀释到 1/177，同时省算力。
-        /// 费用/效果身份/目标槽/参照/区域特征全在键内——费用指示物不同的同名牌不会被误折。
+        /// 费用/效果身份/目标槽/参照/区域特征+**来源区（A7 2026-11-24）**全在键内——费用指示物
+        /// 不同的同名牌不会被误折；牌库顶行（来源=Deck）不再被同名手牌行（来源=Hand）并掉。
         /// 位于 EnforceActionCap 之前（折叠后通常远离 512 上限）。</summary>
         private void FoldEquivalentRows()
         {
@@ -422,7 +421,11 @@ namespace CardCore.AI.NeuralEnv
                 Console.WriteLine($"[ActionFold] raw={raw} folded={w}");
         }
 
-        /// <summary>动作 k 的特征行去掉 sourceIndex（[2]）后的等价键（float 用 R 往返格式）。</summary>
+        /// <summary>动作 k 的特征行去掉 sourceIndex（[2]）后的等价键（float 用 R 往返格式）。
+        /// A7（2026-11-24 回到一期训练目标）：键尾追加**来源卡当前 Zone**——牌库顶虚拟手牌行
+        ///（TopDeckAsHandAura，来源=Deck）与同名手牌行特征全同、仅 [2] 槽位异，去 sourceIndex
+        /// 后被误并成一行（11-18 起 DeckVerifier ⑨ 两条红的根因：可出的牌库顶行被吞）。
+        /// 同区同内容副本仍折叠（折叠本意不变）；无来源卡的行（EndTurn 等）区键="—"。</summary>
         private string FeatureKeyExceptSource(int k)
         {
             int b = k * TideObservation.NAction;
@@ -432,7 +435,8 @@ namespace CardCore.AI.NeuralEnv
                 if (j == 2) continue;
                 parts[i++] = Features[b + j].ToString("R");
             }
-            return string.Join(",", parts);
+            var src = Actions[k].Card;
+            return string.Join(",", parts) + "|" + (src != null ? src.GetZone().ToString() : "—");
         }
 
         /// <summary>动作表硬上限守卫（v3 契约 §6）：超过 MaxActions 时保留前 MaxActions-1 行，
@@ -689,7 +693,7 @@ namespace CardCore.AI.NeuralEnv
                             AddRowsWithInteraction(core, me, m < castDefs.Count ? castDefs[m] : null,
                                 TideActionType.PlayCard, c, m, src, set.Targets,
                                 reference: ReferencePickOf(core, me, c, m, set.Targets),
-                                dynamicCounts: set.Counts);
+                                pickPlan: set.Plan); // A6：多步计划随行
                 }
             }
 
@@ -716,7 +720,7 @@ namespace CardCore.AI.NeuralEnv
                     AddRowsWithInteraction(core, me, m < topDefs.Count ? topDefs[m] : null,
                         TideActionType.PlayCard, top, m, TideObservation.DeckTopSlot, set.Targets,
                         reference: ReferencePickOf(core, me, top, m, set.Targets),
-                        dynamicCounts: set.Counts);
+                        pickPlan: set.Plan); // A6：多步计划随行
             }
         }
 
@@ -763,7 +767,8 @@ namespace CardCore.AI.NeuralEnv
 
         /// <summary>主动动作行（带逐目标展开）：Main=Activate / 响应窗口=RespondActivate 共用。
         /// 展开口径：def 自身 SelectionMode/组合域（主动无抉择模式，modeIndex 恒 0）。
-        /// 2026-11-15：任意数量（-1）与动态数量（-3）也展开成显式目标集行（不再交给引擎代选）。</summary>
+        /// A6（2026-11-24 逐目标单选）：多目标/任意数量/动态数量改首步行（TargetPickPlan 随行，
+        /// 驱动开闸累积）；动态可付性预滤随 Counts 退役（EmitFromPlan 存在性检查收口）。</summary>
         private void AddActivatedRows(GameCore core, Player me, Card src, EffectDefinition def,
             TideActionType type, int sourceSlot = -2)
         {
@@ -774,9 +779,8 @@ namespace CardCore.AI.NeuralEnv
             if (expansions.Count == 0) expansions.Add(default);
             bool response = type == TideActionType.RespondActivate;
             foreach (var set in expansions)
-                if (set.Counts == null || DynamicCountAffordable(core, me, def, set.Counts))
-                    AddRowsWithInteraction(core, me, def, type, src, 0, sourceSlot, set.Targets,
-                        response, dynamicCounts: set.Counts, effect: def); // P1 v0.3：移动/宣言逐参数展开
+                AddRowsWithInteraction(core, me, def, type, src, 0, sourceSlot, set.Targets,
+                    response, effect: def, pickPlan: set.Plan); // P1 v0.3 展开 + A6 计划随行
         }
 
         private void EnumerateAttack(GameCore core, Player me, Player opp, ZoneManager zm)
@@ -914,8 +918,9 @@ namespace CardCore.AI.NeuralEnv
         /// 挂 1~3 效果——**逐效果展开目标集**（ModeIndex=效果序号，发动时抉择）；技能卡在场地区——
         /// v3 起场地区槽 [45] 已编码，SourceIndex 可解析。
         /// 2026-11-15 目标选择对齐：与人类的「结算帧选择窗」同源展开（CollectSpecPlan 候选）——
-        /// 选一逐候选、选 N 组合、任意数量/动态数量按子集行展开；targets 随动作行下发，
-        /// 结算期按预选队列消费（不再靠 AiOrder 代选）。目标源=技能卡（与声明收集/结算同源）。</summary>
+        /// A6（2026-11-24 逐目标单选）：选 N/任意数量/动态数量改首步行（TargetPickPlan 随行开闸
+        /// 累积，提交行按预选队列序拼全集）；结算期按预选队列消费（不再靠 AiOrder 代选）。
+        /// 目标源=技能卡（与声明收集/结算同源）。</summary>
         private void EnumerateHeroSkill(GameCore core, Player me)
         {
             var skillCard = HeroSkillSystem.ResolveSkillCard(core, me);
@@ -941,11 +946,8 @@ namespace CardCore.AI.NeuralEnv
                 if (slots.Count == 0) slots.Add(default);
                 int slot = TideObservation.IndexOfCard(core, me, skillCard); // 场地区槽（v3 已编码）
                 foreach (var set in slots)
-                {
-                    if (set.Counts != null && !DynamicCountAffordable(core, me, effect, set.Counts)) continue;
                     AddRowsWithInteraction(core, me, effect, TideActionType.HeroSkill, skillCard, e, slot,
-                        set.Targets, dynamicCounts: set.Counts, effect: effect); // P1 v0.3：移动/宣言逐参数展开
-                }
+                        set.Targets, effect: effect, pickPlan: set.Plan); // P1 v0.3 展开 + A6 计划随行
             }
         }
 
@@ -1053,17 +1055,18 @@ namespace CardCore.AI.NeuralEnv
                         AddRowsWithInteraction(core, me, m < castDefs.Count ? castDefs[m] : null,
                             TideActionType.RespondPlay, c, m, src, set.Targets, response: true,
                             reference: ReferencePickOf(core, me, c, m, set.Targets),
-                            dynamicCounts: set.Counts); // P1 v0.3：移动/宣言逐参数展开
+                            pickPlan: set.Plan); // P1 v0.3 展开 + A6 多步计划随行
                 }
             }
         }
 
         /// <summary>带目标组合的动作行构造（PlayCard/RespondPlay/Activate/RespondActivate）：
         /// 填 Target 兼容别名、槽位与目标类别特征。reference=参照角色选位镜像（步5 §3.5——
-        /// Reference Enumerate spec 的选择结果带进动作行，特征 [11] 编码；null=无参照）。</summary>
+        /// Reference Enumerate spec 的选择结果带进动作行，特征 [11] 编码；null=无参照）。
+        /// A6（2026-11-24）：PicksRemaining 单步行默认哨兵化（有目标=1/无目标=0）——
+        /// 首步行/提交行由 AttachPickPlan / EnumeratePickSteps 显式覆盖。</summary>
         private TideAction BuildTargetedRow(TideActionType type, Card card, int modeIndex, int sourceSlot,
-            List<Entity> targets, bool response = false, EffectDefinition effect = null, Entity reference = null,
-            List<int> dynamicCounts = null)
+            List<Entity> targets, bool response = false, EffectDefinition effect = null, Entity reference = null)
         {
             var a = new TideAction
             {
@@ -1071,7 +1074,6 @@ namespace CardCore.AI.NeuralEnv
                 Card = card,
                 ModeIndex = modeIndex,
                 Targets = targets,
-                DynamicCounts = dynamicCounts,
                 Effect = effect,
                 SourceIndex = sourceSlot,
                 ResponseContext = response,
@@ -1081,37 +1083,33 @@ namespace CardCore.AI.NeuralEnv
             a.PlacementCell = -1; // P2：落格行由展开层写格下标（struct 默认 0 须显式哨兵化）
             a.SummonPlan = -1;    // v20：召唤计划行由 EmitSummonPlanRows 写（哨兵化同理）
             a.SummonUnityHits = -1;
+            a.PicksRemaining = targets != null && targets.Count > 0 ? 1 : 0; // A6：单步行默认
             if (targets != null && targets.Count > 0)
             {
                 a.Target = targets[0];
                 a.TargetIndex = targets[0] is Card tc ? TideObservation.IndexOfCard(_core, _me, tc) : -1;
                 a.TargetKindCode = targets[0] is Card ? 1 : (ReferenceEquals(targets[0], _me) ? 3 : 2);
-                a.TargetIndex2 = TargetSlotOf(targets, 1); // v8 多目标：次目标槽位（超出 3 个截断不编码）
-                a.TargetIndex3 = TargetSlotOf(targets, 2);
             }
             else
             {
                 a.TargetIndex = -1;
                 a.TargetKindCode = 0;
-                a.TargetIndex2 = -1;
-                a.TargetIndex3 = -1;
             }
             return a;
         }
 
-        /// <summary>targets[i] 的 cards_ 槽位（v8 多目标）：非卡目标/越界 = -1（与 TargetIndex 同口径）。</summary>
-        private int TargetSlotOf(List<Entity> targets, int i)
-            => i < targets.Count && targets[i] is Card tc ? TideObservation.IndexOfCard(_core, _me, tc) : -1;
-
         // ===================================================== 目标展开（镜像 SimpleAI.ChooseTargets 口径） =====================================================
 
-        /// <summary>目标集合行（2026-11-15 目标选择对齐）：Targets=预选目标集（null=引擎自动解析），
-        /// Counts=每原子动态数量（下标=效果原子序；null=非动态）。</summary>
+        /// <summary>目标集合行（2026-11-15 目标选择对齐；**A6 2026-11-24 逐目标单选改版**）：
+        /// Targets=预选目标集（null=引擎自动解析；单步行=计划序拼接含 Forced 占位；首步行=单候选）。
+        /// Counts 随组合/子集/前缀行退役删除——动态数量的 Counts 由 TargetPickGate 提交时重建。</summary>
         private readonly struct TargetSet
         {
             public readonly List<Entity> Targets;
-            public readonly List<int> Counts;
-            public TargetSet(List<Entity> targets, List<int> counts = null) { Targets = targets; Counts = counts; }
+            /// <summary>A6 多步拾取计划（null=单步行/引擎自动——可直发 Apply）。</summary>
+            public readonly TargetPickPlan Plan;
+            public TargetSet(List<Entity> targets) { Targets = targets; Plan = null; }
+            public TargetSet(List<Entity> targets, TargetPickPlan plan) { Targets = targets; Plan = plan; }
         }
 
         /// <summary>出牌目标展开（PlayCard/RespondPlay 共用）：FirstDomainEffect 找带组合域的施放即结算效果，
@@ -1126,81 +1124,25 @@ namespace CardCore.AI.NeuralEnv
                 return result;
             }
             ExpandDefinitionTargets(core, me, card, def, modeIndex, result);
-            result.RemoveAll(s => s.Counts != null && !DynamicCountAffordable(core, me, def, s.Counts));
+            // A6：动态数量可付性预滤随 Counts 退役——改为 EmitFromPlan 内的可付完成存在性检查
+            //（TargetPickGate.CompletionExists）；全不可付时上方已兜底默认行
             if (result.Count == 0) result.Add(default);
             return result;
         }
 
-        /// <summary>按效果定义的目标模式展开（v8 多目标 2026-11-02 两口径分流；2026-11-15 任意/动态对齐）：
-        /// <para>逐原子口径（PerAtomTargets=true，header 无 kinds 声明）→ <see cref="ExpandPerAtomTargets"/>：
-        /// 候选域=atom.kinds/filter、数量=每原子 effCount（>1 压过选一模式）——与人类声明期收集器/
-        /// 结算路径 ResolveAtomTargetsAsync 完全同口径（CollectAtomTargetSpecs 单源）。</para>
-        /// 组合层口径（header 域共享）：无域/随机 → 单行 null（引擎自动）；Whole/WholeUnion → 单行全取；
-        /// Single/SingleUnion → 逐候选一行；任意数量（TargetCount=-1）→ 1..N 子集行；
-        /// Multiple/MultipleUnion（TargetCount&gt;0）→ 引擎候选序组合枚举，上限 MaxTargetCombos 截断。
-        /// 候选= ResolveCandidates（与引擎 ResolveCompositionTargetsAsync / SimpleAI.ChooseTargets 同源）。</summary>
+        /// <summary>按效果定义的目标模式展开（**A6 2026-11-24 逐目标单选改版**；v8/2026-11-15 的
+        /// 组合/子集/前缀行口径已退役）：两口径（PerAtomTargets 逐原子 / header 域共享）都先构建
+        /// <see cref="TargetPickPlan"/>（CollectSpecPlan / SelectionMode 单源），再由
+        /// <see cref="EmitFromPlan"/> 按计划出行——剩余恰 1 步=旧行形逐候选一行；多步/含可变=
+        /// 首步行（逐候选 1 目标/行，驱动开 TargetPickGate 累积）；纯 Forced/全自动=单行占位。</summary>
         private static void ExpandDefinitionTargets(GameCore core, Player me, Card card, EffectDefinition def,
             int modeIndex, List<TargetSet> sink, Entity sourceOverride = null)
         {
-            if (def.PerAtomTargets)
-            {
-                ExpandPerAtomTargets(core, me, card, def, sink, sourceOverride);
-                if (sink.Count == 0) sink.Add(default); // 全部原子自动/免弹 → 单行 null（引擎自解析）
-                return;
-            }
-
-            var domain = DomainOfMode(def, modeIndex);
-            if (domain == null || domain.Count == 0 || def.SelectionMode == SelectionMode.None)
-            {
-                sink.Add(default);
-                return;
-            }
-
-            var ctx = BuildTargetCtx(core, me, card, sourceOverride);
-            var candidates = CardCore.Attribute.EffectHandlerRegistry.ResolveCandidates(domain, def.TargetFilter, ctx);
-            if (candidates == null || candidates.Count == 0)
-            {
-                sink.Add(default);
-                return;
-            }
-
-            switch (def.SelectionMode)
-            {
-                case SelectionMode.Whole:
-                case SelectionMode.WholeUnion:
-                    sink.Add(new TargetSet(new List<Entity>(candidates))); // 全取档单行（不弹选择）
-                    return;
-            }
-            if (def.RandomTarget)
-            {
-                sink.Add(default); // 随机自动抽取：单行交引擎
-                return;
-            }
-
-            if (SelectionModeRules.IsPickOne(def.SelectionMode))
-            {
-                foreach (var t in candidates)
-                    sink.Add(new TargetSet(new List<Entity> { t }));
-                return;
-            }
-
-            // 任意数量（-1，2026-11-15 对齐人类「任意数量」窗）：1..N 任意子集 → 显式子集行
-            if (def.TargetCount == -1)
-            {
-                AddSubsetRows(candidates, -1, 0, sink);
-                return;
-            }
-
-            // 选多（Multiple/MultipleUnion）：固定 TargetCount 组合
-            int need = def.TargetCount;
-            if (need <= 0 || need >= candidates.Count)
-            {
-                sink.Add(new TargetSet(new List<Entity>(candidates))); // 未声明/超出候选 → 全取兜底
-                return;
-            }
-            var combos = new List<List<Entity>>();
-            EmitCombinations(candidates, need, MaxTargetCombos, combos);
-            foreach (var combo in combos) sink.Add(new TargetSet(combo));
+            var plan = def.PerAtomTargets
+                ? BuildPerAtomPlan(core, me, card, def, sourceOverride)
+                : BuildHeaderPlan(core, me, card, def, modeIndex, sourceOverride);
+            EmitFromPlan(core, me, plan, sink);
+            if (sink.Count == 0) sink.Add(default); // 全自动/无域/全不可付 → 单行 null（引擎自解析）
         }
 
         /// <summary>参照角色选位（步5 §3.5）：效果 spec 计划首个 Enumerate spec 为 Reference 时，
@@ -1219,157 +1161,209 @@ namespace CardCore.AI.NeuralEnv
                 ? targets[0] : null;
         }
 
-        /// <summary>逐原子目标展开（v8 多目标 2026-11-02；步5 2026-11-08 切 spec 计划单源；
-        /// 2026-11-15 任意/动态数量对齐人类窗口；P0 2026-11-19 无域 prefix-k）：
-        /// 按 CollectSpecPlan 规格**仅展开 AiMode=Enumerate 的 spec**（参照 spec=逐参照候选一行；
-        /// 分段受体 spec=Auto 不展开——结算期引擎/AiOrder 代选，不与参照维做笛卡尔积 §7 坑③；
-        /// 同域共享组=单 spec 单选位——同域并列原子共享目标）；候选已完成两道过滤（与结算路径
-        /// 交互分支同序）；**任意数量（-1）与动态数量（-3）展开 1..N 子集行**（人类任意数量窗的
-        /// 等价选择；动态行同时写每原子数量——base×N 计价与 N 消费预选同表）；
-        /// 无域牺牲/蛰伏（NoDomainTargetScopes.IsPrefixAtom）例外：候选过 HeroSkillTargetPolicy
-        /// 共享序后展开 **prefix-k 前缀行**（k=1..N 取前 k 张，AddPrefixRows——「祭几张」型决策）；
-        /// 单目标免弹档
-        /// （AutoTake∧effCount&lt;=1）不预选；选 N 档被免弹自动取（候选≤需求）仍显式展开唯一组合
-        /// =全候选；选一逐候选一行；选 N（effCount&gt;1）组合枚举；多规格=笛卡尔串接（返回序=计划序
-        /// =预选队列有序消费对齐），总行数 cap=MaxExpansionRows 截断。行内 Targets 完整
-        /// （特征只编码前 3 个目标 + 目标数）。</summary>
-        private static void ExpandPerAtomTargets(GameCore core, Player me, Card card, EffectDefinition def,
-            List<TargetSet> sink, Entity sourceOverride = null)
+        /// <summary>逐原子拾取计划构建（A6 2026-11-24 逐目标单选；v8/步5/2026-11-15/P0 历史口径收敛）：
+        /// 按 CollectSpecPlan 规格**仅取 AiMode=Enumerate 的 spec**，逐 spec 分档——
+        /// 任意数量（-1）/动态数量（-3）= <see cref="TargetPickPlan.SpecKind.Variable"/>（prefix 原子
+        /// 候选过 HeroSkillTargetPolicy 共享序——「祭几张」型自由拾取）；AutoTake∧effCount&lt;=1=跳过
+        /// （引擎自动取，无占位）；AutoTake= Forced（前 N 候选占位）；选一= Fixed(1)；选 N= Fixed(k)
+        ///（k&gt;候选数=丢弃该 spec——旧组合枚举无组合口径）。计划序=specs 收集序
+        ///（=引擎预选队列消费序，提交行 Targets 顺序单源）。无模型 spec 返回 null。</summary>
+        private static TargetPickPlan BuildPerAtomPlan(GameCore core, Player me, Card card, EffectDefinition def,
+            Entity sourceOverride)
         {
             var ctx = BuildTargetCtx(core, me, card, sourceOverride);
             var specs = CardCore.Attribute.EffectHandlerRegistry.CollectSpecPlan(def, ctx)
                 .Where(s => s.AiMode == CardCore.Attribute.AiPickMode.Enumerate)
                 .ToList();
-            if (specs.Count == 0) return;
+            if (specs.Count == 0) return null;
 
-            int atomCount = def.Effects?.Count ?? 0;
-            var rows = new List<TargetSet> { new TargetSet(new List<Entity>()) }; // 笛卡尔种子（空行）
+            var plan = new TargetPickPlan
+            {
+                AtomCount = def.Effects?.Count ?? 0,
+                Def = def,
+                FirstSpecIsReference = specs[0].Role == CardCore.Attribute.TargetSpecRole.Reference,
+                Key = $"{card?.ID ?? "-"}/{def?.Id ?? "-"}",
+            };
             foreach (var spec in specs)
             {
-                var atomRows = new List<TargetSet>();
+                var cands = spec.Candidates ?? new List<Entity>();
                 bool dynamic = spec.EffCount == AtomicEffectInstance.DynamicTargetCount;
                 if (spec.EffCount == -1 || dynamic)
                 {
+                    // P0（2026-11-19 无域原子目标）：牺牲/蛰伏候选过共享 policy 序（排除归根/场上
+                    // 阿格洛斯、蛰伏滤未横置池地）——顺序单源 CardCore.AI.HeroSkillTargetPolicy
+                    //（A6 起由 prefix-k 收窄行改自由拾取，提交时按该序规范化=旧前缀行序兼容）。
+                    List<Entity> ordered = cands;
                     if (NoDomainTargetScopes.IsPrefixAtom(spec.Atom, def))
+                        ordered = spec.Atom.Type == AtomicEffectType.Sacrifice
+                            ? HeroSkillTargetPolicy.OrderSacrifice(core, me, cands)
+                            : HeroSkillTargetPolicy.OrderDormancy(core, me, cands);
+                    if (ordered.Count == 0) continue; // 空 Variable=丢弃（旧子集行 0 行口径）
+                    plan.Specs.Add(new TargetPickPlan.Spec
                     {
-                        // P0（2026-11-19 无域原子目标）：牺牲/蛰伏走 prefix-k 前缀行（k=1..N 取前 k 张，
-                        // 不枚举 2^N）——候选先过共享 policy（排除归根/场上阿格洛斯、蛰伏滤未横置池地），
-                        // 顺序单源 CardCore.AI.HeroSkillTargetPolicy（GreenRampStrategy 同口）。
-                        var ordered = spec.Atom.Type == AtomicEffectType.Sacrifice
-                            ? HeroSkillTargetPolicy.OrderSacrifice(core, me, spec.Candidates)
-                            : HeroSkillTargetPolicy.OrderDormancy(core, me, spec.Candidates);
-                        AddPrefixRows(ordered, atomRows);
-                    }
-                    else
-                    {
-                        // 任意数量/动态数量：1..N 子集行 = 人类窗口的任意子集选择；
-                        // 动态行写每原子数量（-3 → 引擎按 base×N 计价、按 N 消费预选）
-                        AddSubsetRows(spec.Candidates, dynamic ? spec.AtomIndex : -1, atomCount, atomRows);
-                    }
+                        Kind = TargetPickPlan.SpecKind.Variable,
+                        Candidates = ordered,
+                        AtomIndex = dynamic ? spec.AtomIndex : -1,
+                        Dynamic = dynamic, // -3：提交行重建 Counts（base×N 计价）
+                    });
+                    plan.HasVariable = true;
+                    plan.HasDynamic |= dynamic;
                 }
                 else if (spec.AutoTake && spec.EffCount <= 1)
                 {
-                    continue; // 单目标免弹档：不预选（引擎自动取）
+                    continue; // 单目标免弹档：不预选、无占位（引擎自动取）
                 }
                 else if (spec.AutoTake)
                 {
-                    var forced = new List<Entity>(); // 候选≤需求的选 N 档：唯一组合=全候选（与引擎 AutoTake 同取值）
-                    for (int i = 0; i < spec.Candidates.Count && i < spec.EffCount; i++) forced.Add(spec.Candidates[i]);
-                    atomRows.Add(new TargetSet(forced));
+                    var forced = new List<Entity>(); // 候选≤需求的选 N 档：占位=前 N 候选（与引擎 AutoTake 同取值）
+                    for (int i = 0; i < cands.Count && i < spec.EffCount; i++) forced.Add(cands[i]);
+                    if (forced.Count == 0) continue;
+                    plan.Specs.Add(new TargetPickPlan.Spec
+                    {
+                        Kind = TargetPickPlan.SpecKind.Forced,
+                        Candidates = cands,
+                        ForcedTargets = forced,
+                    });
                 }
                 else if (spec.EffCount <= 1)
                 {
-                    foreach (var t in spec.Candidates)
-                        atomRows.Add(new TargetSet(new List<Entity> { t })); // 选一：逐候选一行
+                    if (cands.Count == 0) continue;
+                    plan.Specs.Add(new TargetPickPlan.Spec
+                    { Kind = TargetPickPlan.SpecKind.Fixed, K = 1, Candidates = cands });
                 }
                 else
                 {
-                    // 选 N：候选≤需求已由 AutoTake 吸收（ShouldAutoTake），此处恒组合枚举
-                    var combos = new List<List<Entity>>();
-                    EmitCombinations(spec.Candidates, spec.EffCount, MaxTargetCombos, combos);
-                    foreach (var combo in combos) atomRows.Add(new TargetSet(combo));
+                    // 选 N：候选≤需求已由 AutoTake 吸收（ShouldAutoTake）；k>候选数=丢弃（旧口径无组合）
+                    if (spec.EffCount > cands.Count) continue;
+                    plan.Specs.Add(new TargetPickPlan.Spec
+                    { Kind = TargetPickPlan.SpecKind.Fixed, K = spec.EffCount, Candidates = cands });
                 }
-
-                if (atomRows.Count == 0) continue;
-                rows = MergeCartesian(rows, atomRows, atomCount);
             }
-            foreach (var r in rows)
-                if (r.Targets.Count > 0) sink.Add(r);
+            foreach (var s in plan.Specs)
+                if (s.Kind == TargetPickPlan.SpecKind.Fixed) plan.FixedTotal += s.K;
+            return plan.Specs.Count > 0 ? plan : null;
         }
 
-        /// <summary>目标集笛卡尔串接（多 spec 合并；Counts 按原子下标合并——各 spec 只写自己的原子位）。</summary>
-        private static List<TargetSet> MergeCartesian(List<TargetSet> rows, List<TargetSet> atomRows, int atomCount)
+        /// <summary>header 域共享口径计划构建（A6 2026-11-24；旧 SelectionMode 分支收敛）：
+        /// 无域/None/随机 → null（单行交引擎）；Whole/WholeUnion 与全取兜底（need≤0 或 ≥候选）=
+        /// Forced 全取；选一 = Fixed(1)；任意数量（-1）= Variable（非动态——目标集即选择结果，
+        /// 无 base×N 计价）；Multiple/MultipleUnion = Fixed(k)。
+        /// 候选 = ResolveCandidates（与引擎 ResolveCompositionTargetsAsync / SimpleAI.ChooseTargets 同源）。</summary>
+        private static TargetPickPlan BuildHeaderPlan(GameCore core, Player me, Card card, EffectDefinition def,
+            int modeIndex, Entity sourceOverride)
         {
-            var next = new List<TargetSet>();
-            foreach (var prefix in rows)
+            var domain = DomainOfMode(def, modeIndex);
+            if (domain == null || domain.Count == 0 || def.SelectionMode == SelectionMode.None) return null;
+            var ctx = BuildTargetCtx(core, me, card, sourceOverride);
+            var candidates = CardCore.Attribute.EffectHandlerRegistry.ResolveCandidates(domain, def.TargetFilter, ctx);
+            if (candidates == null || candidates.Count == 0) return null;
+
+            var plan = new TargetPickPlan { Def = def, Key = $"{card?.ID ?? "-"}/{def?.Id ?? "-"}" };
+            void AddForced()
             {
-                foreach (var tail in atomRows)
+                plan.Specs.Add(new TargetPickPlan.Spec
                 {
-                    var merged = new List<Entity>(prefix.Targets);
-                    merged.AddRange(tail.Targets);
-                    List<int> counts = null;
-                    if (prefix.Counts != null || tail.Counts != null)
-                    {
-                        counts = new List<int>(atomCount);
-                        for (int i = 0; i < atomCount; i++) counts.Add(0);
-                        if (prefix.Counts != null)
-                            for (int i = 0; i < atomCount && i < prefix.Counts.Count; i++) counts[i] = prefix.Counts[i];
-                        if (tail.Counts != null)
-                            for (int i = 0; i < atomCount && i < tail.Counts.Count; i++) counts[i] = tail.Counts[i];
-                    }
-                    next.Add(new TargetSet(merged, counts));
-                    if (next.Count >= MaxExpansionRows) return next;
-                }
+                    Kind = TargetPickPlan.SpecKind.Forced,
+                    Candidates = candidates,
+                    ForcedTargets = new List<Entity>(candidates), // 全取占位（不弹选择）
+                });
             }
-            return next;
+            if (def.SelectionMode == SelectionMode.Whole || def.SelectionMode == SelectionMode.WholeUnion)
+            {
+                AddForced();
+                return plan;
+            }
+            if (def.RandomTarget) return null; // 随机自动抽取：单行交引擎
+            if (SelectionModeRules.IsPickOne(def.SelectionMode))
+            {
+                plan.Specs.Add(new TargetPickPlan.Spec
+                { Kind = TargetPickPlan.SpecKind.Fixed, K = 1, Candidates = candidates });
+                plan.FixedTotal = 1;
+                return plan;
+            }
+            if (def.TargetCount == -1)
+            {
+                // 任意数量（2026-11-15 对齐人类「任意数量」窗）→ 可变拾取（非动态）
+                plan.Specs.Add(new TargetPickPlan.Spec
+                { Kind = TargetPickPlan.SpecKind.Variable, Candidates = candidates });
+                plan.HasVariable = true;
+                return plan;
+            }
+            int need = def.TargetCount;
+            if (need <= 0 || need >= candidates.Count)
+            {
+                AddForced(); // 未声明/超出候选 → 全取兜底
+                return plan;
+            }
+            plan.Specs.Add(new TargetPickPlan.Spec
+            { Kind = TargetPickPlan.SpecKind.Fixed, K = need, Candidates = candidates });
+            plan.FixedTotal = need;
+            return plan;
         }
 
-        /// <summary>任意子集行（2026-11-15 目标选择对齐）：k=1..N 的候选组合，上限 MaxSubsetRows；
-        /// 末尾恒补「全取」行（大数量选择：一次祭光全部候选）。atomIndex&lt;0=非动态（不写数量）。
-        /// 取舍说明：平坦动作空间无法枚举 2^N 全部子集（与固定 N 档的 24 组上限同一取舍）——
-        /// 这里覆盖「小数量全组合 + 全取」，训练可学「祭几张、祭哪几张」的核心决策；
-        /// 超出上限的大数量组合不在动作空间内（可走「全取」行或策略代选行）。</summary>
-        private static void AddSubsetRows(List<Entity> candidates, int atomIndex, int atomCount, List<TargetSet> sink)
+        /// <summary>按计划出行（A6 2026-11-24 逐目标单选）：
+        /// ① 纯 Forced（引擎代选占位/全取）→ 单行 Targets=占位拼接（旧全取行口径）；
+        /// ② 剩余恰 1 步且无可变 → 旧行形：逐候选一行，Targets=计划序拼接（Forced 占位在位）；
+        /// ③ 多步/含可变 → **首步行**：首个模型 spec 逐候选（1 目标/行）+ 计划引用（驱动开闸累积）；
+        /// 动态可付完成存在性预检（全不可付 → 0 行 → 调用方兜底默认行，旧 RemoveAll 空→default 口径）。</summary>
+        private static void EmitFromPlan(GameCore core, Player me, TargetPickPlan plan, List<TargetSet> sink)
         {
-            int n = candidates.Count;
-            int start = sink.Count;
-            for (int k = 1; k <= n; k++)
+            if (plan == null || plan.Specs.Count == 0) return;
+            if (plan.FixedTotal == 0 && !plan.HasVariable)
             {
-                int remain = MaxSubsetRows - (sink.Count - start);
-                if (remain <= 0) break;
-                var combos = new List<List<Entity>>();
-                EmitCombinations(candidates, k, remain, combos);
-                foreach (var combo in combos)
-                    sink.Add(new TargetSet(combo, atomIndex >= 0 ? NewCounts(atomCount, atomIndex, combo.Count) : null));
-            }
-            if (n > 1)
-            {
-                bool hasAll = false;
-                for (int i = start; i < sink.Count; i++)
-                    if (sink[i].Targets.Count == n) { hasAll = true; break; }
-                if (!hasAll)
-                    sink.Add(new TargetSet(new List<Entity>(candidates),
-                        atomIndex >= 0 ? NewCounts(atomCount, atomIndex, n) : null));
-            }
-        }
-
-        /// <summary>prefix-k 前缀行（P0 2026-11-19 无域原子目标）：k=1..N，每行 Targets=候选前 k 张
-        ///（候选序=HeroSkillTargetPolicy 共享序；k=Targets 长度本身，TideAction 不加字段）。
-        /// 上限 MaxPrefixRows；N 超上限时只发 1..MaxPrefixRows-1 + 全取行（与 AddSubsetRows 的
-        /// 「小数量 + 全取」取舍同口径）。不写 Counts（任意数量 -1：目标集即选择结果，无动态计价）。</summary>
-        private static void AddPrefixRows(List<Entity> candidates, List<TargetSet> sink)
-        {
-            int n = candidates.Count;
-            if (n <= MaxPrefixRows)
-            {
-                for (int k = 1; k <= n; k++)
-                    sink.Add(new TargetSet(candidates.Take(k).ToList()));
+                sink.Add(new TargetSet(CanonicalForced(plan)));
                 return;
             }
-            for (int k = 1; k <= MaxPrefixRows - 1; k++)
-                sink.Add(new TargetSet(candidates.Take(k).ToList()));
-            sink.Add(new TargetSet(new List<Entity>(candidates))); // 全取行（k=n 超上限，兜底补上）
+            if (plan.FixedTotal == 1 && !plan.HasVariable)
+            {
+                for (int i = 0; i < plan.Specs.Count; i++)
+                {
+                    var s = plan.Specs[i];
+                    if (s.Kind != TargetPickPlan.SpecKind.Fixed) continue;
+                    foreach (var c in s.Candidates)
+                        sink.Add(new TargetSet(SpliceSingle(plan, i, c)));
+                }
+                return;
+            }
+            int first = plan.FirstModelSpecIndex();
+            if (first < 0) return; // 防御（纯 Forced 已在 ① 收口）
+            var fs = plan.Specs[first];
+            var empty = new List<List<Entity>>();
+            foreach (var s in plan.Specs) empty.Add(new List<Entity>());
+            if (!TargetPickGate.CompletionExists(core, me, plan, empty, first, 1))
+                return; // 全不可付 → 默认行（引擎自动）
+            foreach (var c in fs.Candidates)
+                sink.Add(new TargetSet(new List<Entity> { c }, plan));
         }
+
+        /// <summary>计划序拼接（单步行 Targets）：specIndex 位替换为 [c]，其余 Forced 占位在位
+        ///（= 旧笛卡尔行序——同目标集同结算的行形兼容）。</summary>
+        private static List<Entity> SpliceSingle(TargetPickPlan plan, int specIndex, Entity c)
+        {
+            var list = new List<Entity>();
+            for (int i = 0; i < plan.Specs.Count; i++)
+            {
+                if (i == specIndex) { list.Add(c); continue; }
+                var s = plan.Specs[i];
+                if (s.Kind == TargetPickPlan.SpecKind.Forced && s.ForcedTargets != null)
+                    list.AddRange(s.ForcedTargets);
+            }
+            return list;
+        }
+
+        /// <summary>纯 Forced 计划的占位拼接（全取行 Targets）。</summary>
+        private static List<Entity> CanonicalForced(TargetPickPlan plan)
+        {
+            var list = new List<Entity>();
+            foreach (var s in plan.Specs)
+                if (s.Kind == TargetPickPlan.SpecKind.Forced && s.ForcedTargets != null)
+                    list.AddRange(s.ForcedTargets);
+            return list;
+        }
+
+        // A6（2026-11-24 逐目标单选）：MergeCartesian / AddSubsetRows / AddPrefixRows / EmitCombinations
+        // 随组合/子集/前缀行退役删除——多 spec 不再笛卡尔串接（改 TargetPickPlan 计划序逐 spec 拾取），
+        // 任意/动态/prefix 数量改「逐候选拾取 + 提交行」（TargetPickGate），Counts 由闸提交时重建。
 
         /// <summary>P3（2026-11-19 §4.1 建）手牌上限弃牌行——**独立枚举口**（非主动作流）：
         /// 驱动（TideHeadlessDriver）在 HandLimitDiscardGate 挂起时停靠调用。A0（2026-11-24
@@ -1387,7 +1381,7 @@ namespace CardCore.AI.NeuralEnv
                     if (c != null) cards.Add(c); // 不滤 IsAlive——手牌卡 IsAlive=false 是常态（仅战场/在场为 true，池地牌同例）
             if (cards.Count == 0)
             {
-                lae.Actions.Add(new TideAction { Type = TideActionType.DiscardChoice, SourceIndex = -1, TargetIndex = -1 });
+                lae.Actions.Add(new TideAction { Type = TideActionType.DiscardChoice, SourceIndex = -1, TargetIndex = -1, PicksRemaining = 0 });
                 return lae;
             }
 
@@ -1400,10 +1394,85 @@ namespace CardCore.AI.NeuralEnv
                     SourceIndex = -1,
                     TargetIndex = TideObservation.IndexOfCard(core, me, c),
                     TargetKindCode = 1,
+                    PicksRemaining = 1, // A6：每步弃 1 张（构造点不走 BuildTargetedRow，显式哨兵）
                 });
             }
             lae.BuildFeatures();
             return lae;
+        }
+
+        /// <summary>A6（2026-11-24 逐目标单选）闸内拾取步行枚举——**独立枚举口**（镜像
+        /// EnumerateDiscardChoices 的停靠生命周期）：驱动 BuildResult 在 TargetPickGate.HasPending
+        /// 时调用。行集=当前 spec 的**剩余候选**（1 目标/行；[10]=计划含可变=-1 / 否则 Fixed 剩余
+        /// 总数）+（Variable 且已选≥1 且定格后可付完成）**提交行**（Targets=规范化已选、[10]=0、
+        /// [5]=当前选择实价 base×N）。不折叠/不摘除/无兜底行；闸内表恒非空（防御性强制提交行保底）。
+        /// 交互参数/落格/召唤计划随 prototype（首步行已带——模型在首步行已选定变体）。</summary>
+        public static LegalActionEnumerator EnumeratePickSteps(GameCore core, Player me)
+        {
+            var lae = new LegalActionEnumerator { _core = core, _me = me };
+            var plan = TargetPickGate.PendingPlan;
+            if (plan == null)
+                return lae; // 防御：空表（调用方 AppendFallback 兜底——不应发生）
+            var proto = TargetPickGate.Prototype;
+            int cur = TargetPickGate.CurrentSpecIndex;
+            if (cur < 0)
+                return lae; // 防御：序列已收口（不应发生——驱动收口即清闸）
+            var spec = plan.Specs[cur];
+            var picked = TargetPickGate.Picked;
+            int remaining = plan.FixedRemaining(picked);
+            int curPicked = picked[cur] != null ? picked[cur].Count : 0;
+            bool candidateAffordable = TargetPickGate.CompletionExists(core, me, plan, picked, cur, 1);
+            int firstModel = plan.FirstModelSpecIndex();
+
+            foreach (var c in spec.Candidates)
+            {
+                if (TargetPickGate.AlreadyPicked(cur, c)) continue;
+                if (!candidateAffordable) break; // 可付性只看数量与候选个体无关——一次判定整体收口
+                var row = lae.BuildTargetedRow(proto.Type, proto.Card, proto.ModeIndex, proto.SourceIndex,
+                    new List<Entity> { c }, proto.ResponseContext, proto.Effect,
+                    plan.FirstSpecIsReference && cur == firstModel ? c : proto.Reference);
+                CopyProtoExtras(proto, ref row);
+                row.PicksRemaining = plan.HasVariable ? -1 : remaining; // 固定计划：剩余总数（末步=1）
+                lae.Actions.Add(row);
+            }
+            if (spec.Variable && curPicked >= 1
+                && TargetPickGate.CompletionExists(core, me, plan, picked, cur, 0))
+            {
+                var sofar = TargetPickGate.CanonicalSoFar();
+                var row = lae.BuildTargetedRow(proto.Type, proto.Card, proto.ModeIndex, proto.SourceIndex,
+                    sofar, proto.ResponseContext, proto.Effect, proto.Reference);
+                CopyProtoExtras(proto, ref row);
+                row.DynamicCounts = TargetPickGate.BuildCountsForCurrent(); // [5] 实价 base×N 可见
+                row.PicksRemaining = 0; // 提交行：本步不选目标，只提交当前选择
+                lae.Actions.Add(row);
+            }
+            if (lae.Actions.Count == 0)
+            {
+                // 防御：候选尽/全不可付而提交行缺位——强制提交当前选择（引擎终审）
+                var sofar = TargetPickGate.CanonicalSoFar();
+                var row = lae.BuildTargetedRow(proto.Type, proto.Card, proto.ModeIndex, proto.SourceIndex,
+                    sofar, proto.ResponseContext, proto.Effect, proto.Reference);
+                CopyProtoExtras(proto, ref row);
+                row.DynamicCounts = TargetPickGate.BuildCountsForCurrent();
+                row.PicksRemaining = 0;
+                lae.Actions.Add(row);
+            }
+            lae.BuildFeatures();
+            return lae;
+        }
+
+        /// <summary>prototype 随行字段拷贝（交互参数/落格/召唤计划/守卫/待发——首步行选定的变体）。
+        /// TideAction 是 struct——row 必须 ref（按值改副本会被丢）。ReferenceIndex 不拷
+        ///（BuildTargetedRow 已按本行 reference 现算）。</summary>
+        private static void CopyProtoExtras(TideAction proto, ref TideAction row)
+        {
+            row.Interaction = proto.Interaction;
+            row.PlacementCell = proto.PlacementCell;
+            row.SummonPlan = proto.SummonPlan;
+            row.SummonUnityHits = proto.SummonUnityHits;
+            row.Pending = proto.Pending;
+            row.AttackInstance = proto.AttackInstance;
+            row.Guarder = proto.Guarder;
         }
 
         // ===================================================== P1（2026-11-19 v0.3）移动/宣言交互行 =====================================================
@@ -1582,8 +1651,8 @@ namespace CardCore.AI.NeuralEnv
         /// 特征 [14]/[15]/[16]/[17]/[18]/[19] 由 BuildFeatures 读取。</summary>
         private void AddRowsWithInteraction(GameCore core, Player me, EffectDefinition def,
             TideActionType type, Card card, int modeIndex, int sourceSlot, List<Entity> targets,
-            bool response = false, Entity reference = null, List<int> dynamicCounts = null,
-            EffectDefinition effect = null)
+            bool response = false, Entity reference = null, EffectDefinition effect = null,
+            TargetPickPlan pickPlan = null)
         {
             var variants = InteractionVariants(core, me, card, def, targets, out var declaredNames);
             if (variants != null && variants.Count == 0) return; // 交互不可用（空格/候选空/多目标移动）
@@ -1595,7 +1664,7 @@ namespace CardCore.AI.NeuralEnv
             if (HasMainSummon(def) && !permanentPlay)
             {
                 EmitSummonPlanRows(core, me, def, type, card, modeIndex, sourceSlot, targets,
-                    response, reference, dynamicCounts, effect);
+                    response, reference, effect, pickPlan);
                 return;
             }
 
@@ -1611,27 +1680,39 @@ namespace CardCore.AI.NeuralEnv
                 if (placeCells == null)
                 {
                     var row0 = BuildTargetedRow(type, card, modeIndex, sourceSlot, targets, response, effect,
-                        reference, dynamicCounts);
+                        reference);
                     row0.Interaction = inter;
                     if (inter != null && declaredNames != null)
                         inter.DeclaredIndex = Math.Min(declaredNames.IndexOf(inter.DeclaredName), 15);
+                    AttachPickPlan(ref row0, pickPlan); // A6：多步计划随行（struct 须 ref——按值改副本会被丢）
                     Actions.Add(row0);
                     return;
                 }
                 foreach (var ci in placeCells)
                 {
                     var row = BuildTargetedRow(type, card, modeIndex, sourceSlot, targets, response, effect,
-                        reference, dynamicCounts);
+                        reference);
                     row.Interaction = inter;
                     if (inter != null && declaredNames != null)
                         inter.DeclaredIndex = Math.Min(declaredNames.IndexOf(inter.DeclaredName), 15);
                     row.PlacementCell = ci; // P2：格下标 0..8（特征 [17]）
+                    AttachPickPlan(ref row, pickPlan); // A6：多步计划随行（含落格变体各自行）
                     Actions.Add(row);
                 }
             }
 
             if (variants == null) Emit(null);
             else foreach (var v in variants) Emit(v);
+        }
+
+        /// <summary>A6（2026-11-24 逐目标单选）：首步行挂接多步计划——
+        /// PicksRemaining=计划需选总数（≥2）；含可变数量 spec=-1（开放步数哨兵）。
+        /// TideAction 是 struct——必须 ref 传入，否则改的是副本。</summary>
+        private static void AttachPickPlan(ref TideAction row, TargetPickPlan plan)
+        {
+            if (plan == null) return;
+            row.PickPlan = plan;
+            row.PicksRemaining = plan.HasVariable ? -1 : plan.FixedTotal;
         }
 
         /// <summary>召唤计划行总数上限（计划 §3.3：默认 1 + 锚点 ≤9 + 去重余量）。</summary>
@@ -1643,7 +1724,7 @@ namespace CardCore.AI.NeuralEnv
         /// plan/cells（防折叠误并）。无空格=0 行（不发动）。count 取召唤原子 value（Max(1,·)）。 </summary>
         private void EmitSummonPlanRows(GameCore core, Player me, EffectDefinition def,
             TideActionType type, Card card, int modeIndex, int sourceSlot, List<Entity> targets,
-            bool response, Entity reference, List<int> dynamicCounts, EffectDefinition effect)
+            bool response, Entity reference, EffectDefinition effect, TargetPickPlan pickPlan)
         {
             var board = GameBoard.MoveUnitRules.Current;
             var free = GameBoard.SummonPlacementRules.FreeCells(board, me);
@@ -1665,7 +1746,8 @@ namespace CardCore.AI.NeuralEnv
             void AddRow(List<int> cells, int planId)
             {
                 var row = BuildTargetedRow(type, card, modeIndex, sourceSlot, targets, response, effect,
-                    reference, dynamicCounts);
+                    reference);
+                AttachPickPlan(ref row, pickPlan); // A6：多步计划随行（各落位计划行共用同一计划；struct 须 ref）
                 if (cells != null)
                 {
                     row.Interaction = new InteractionParams { SummonCells = new List<int>(cells) };
@@ -1695,47 +1777,10 @@ namespace CardCore.AI.NeuralEnv
             }
         }
 
-        private static List<int> NewCounts(int atomCount, int atomIndex, int value)
-        {
-            var counts = new List<int>(atomCount);
-            for (int i = 0; i < atomCount; i++) counts.Add(0);
-            if (atomIndex >= 0 && atomIndex < counts.Count) counts[atomIndex] = value;
-            return counts;
-        }
-
-        /// <summary>动态数量行预过滤（2026-11-15）：按 base×N 推费用粗检（总费 ≤ 当前可用总量）——
-        /// 精确逐色可付性仍由 Apply 时引擎终审；此闸只去掉明显付不起的行（降动作掩码噪声）。</summary>
-        private static bool DynamicCountAffordable(GameCore core, Player me, EffectDefinition def,
-            IReadOnlyList<int> counts)
-        {
-            if (counts == null || def == null) return true;
-            var cost = CostDerivationService.DeriveElementCosts(def, 0, counts);
-            if (cost == null || cost.Total <= 0f) return true;
-            return cost.Total <= core.ElementPool.GetTotalAvailableMana(me) + 0.001f;
-        }
-
-        /// <summary>候选序组合枚举（字典序前 cap 组）：候选序=引擎 ResolveCandidates 返回序（契约口径）。</summary>
-        private static void EmitCombinations(List<Entity> cands, int k, int cap, List<List<Entity>> sink)
-        {
-            int n = cands.Count;
-            if (k <= 0 || k > n) return; // k>n 无组合（调用方兜底）——防 idx 越界（2026-11-19 audit 第10局崩点）
-            var idx = new int[k];
-            for (int i = 0; i < k; i++) idx[i] = i;
-            int emitted = 0;
-            while (emitted < cap)
-            {
-                var combo = new List<Entity>(k);
-                for (int i = 0; i < k; i++) combo.Add(cands[idx[i]]);
-                sink.Add(combo);
-                emitted++;
-
-                int p = k - 1;
-                while (p >= 0 && idx[p] == n - k + p) p--;
-                if (p < 0) return;
-                idx[p]++;
-                for (int i = p + 1; i < k; i++) idx[i] = idx[i - 1] + 1;
-            }
-        }
+        // A6（2026-11-24 逐目标单选）：NewCounts / DynamicCountAffordable / EmitCombinations 随
+        // 组合/子集/前缀行退役删除——Counts 由 TargetPickGate.BuildCounts 提交时重建；
+        // 可付性粗检移 TargetPickGate.CompletionExists（存在性口径）；组合枚举不再需要
+        //（等价对拍 verifier 自带局部工具）。
 
         // ===================================================== 特征构造 =====================================================
 
@@ -1763,18 +1808,18 @@ namespace CardCore.AI.NeuralEnv
                     ? TideCardIndex.IndexOfEffectDefinition(a.Effect) / 1024f
                     : 0f;
                 Features[b + 7] = a.TargetKindCode;                          // 0 无/1 卡/2 对方玩家/3 己方玩家
-                // v8 多目标（2026-11-02 动作空间扩维）：次目标槽位 + 目标数——只有走 BuildTargetedRow
-                // 目标展开的四类动作才有次目标；其余类型（Attack/Guard 恒单目标、无目标类）恒 -1/按
-                // TargetKindCode 单目标计数（构造点不设字段，struct 默认 0 在此闸强制归位，防误读为槽 0）
+                // A6（2026-11-24 逐目标单选）：组合行退役——[8]/[9] 次目标维废止恒 -1；
+                // [10]=PicksRemaining 剩余待选数（含本步）：0=无目标/提交行、1=单步行/最后一步、
+                // N=纯固定计划剩余步数（≤16 钳）、**-1=计划含可变数量 spec（开放步数哨兵）**。
                 bool expanded = a.Type == TideActionType.PlayCard || a.Type == TideActionType.RespondPlay
                     || a.Type == TideActionType.Activate || a.Type == TideActionType.RespondActivate
-                    || a.Type == TideActionType.HeroSkill // 2026-11-15：英雄技能也按目标集展开（目标数/次目标可见）
-                    || a.Type == TideActionType.DiscardChoice; // P3 2026-11-19：弃牌行 [10]=选中张数
-                Features[b + 8] = expanded ? a.TargetIndex2 : -1;            // Targets[1] 槽位（-1=无/截断）
-                Features[b + 9] = expanded ? a.TargetIndex3 : -1;            // Targets[2] 槽位（-1=无/截断）
-                Features[b + 10] = expanded                                  // 目标数（0..16 钳；全取行=候选数）
-                    ? Math.Min(a.Targets?.Count ?? 0, 16) // P0 2026-11-19：0..8→0..16（prefix-k 行 k=9..16 须可分）
-                    : (a.TargetKindCode > 0 ? 1 : 0);                        // Attack/Guard 单目标=1，无目标=0
+                    || a.Type == TideActionType.HeroSkill // 2026-11-15：英雄技能也按目标集展开
+                    || a.Type == TideActionType.DiscardChoice; // P3 2026-11-19：弃牌行 [10]=1（逐张）
+                Features[b + 8] = -1;
+                Features[b + 9] = -1;
+                Features[b + 10] = expanded
+                    ? Math.Max(-1, Math.Min(a.PicksRemaining, 16)) // -1 哨兵原样；N 钳 16（防特征尖峰）
+                    : (a.TargetKindCode > 0 ? 1 : 0);              // Attack/Guard 单目标=1，无目标=0
                 // v13 参照槽位（步5 2026-11-08 参照 Enumerate 进动作空间）：Reference 角色选位镜像——
                 // AI 枚举了参照（活体炸弹的己方生物参照），特征必须可分（否则策略看不到选了哪个参照）。
                 // -1=无参照/玩家参照（与 TargetIndex 同口径）。

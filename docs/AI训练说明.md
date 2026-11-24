@@ -85,6 +85,11 @@
 > = "postD2a-dfix-20261122"；D2a（正牌技能透传）之前的全部 `best` 检查点在病态环境里选出，
 > **作废**：`save_model("best")` 盖 `baseline_era` 戳，`eval_checkpoint.pick_ckpt` 对旧 era 的
 > best 拒载（提示 `--split last`）。`last` 不受影响（权重可用，只是当时口径的选点不可信）。
+> **B2（2026-11-24 抽样口径·回到一期训练目标）**：新旧代码同执行器 6 对 ×20 种子**逐局一致**
+>（dfix `beaa0a0bc` ↔ 现树，唯一差异=卡表张数横幅 247→251〔预组固定、对局流零变化〕）⇒
+> **基线值沿用上表不变**，仅升纪元 `BASELINE_ERA="v21frozen-20261124-script-parity"`
+>（本轮改动全在模型侧：A0 逐张弃/A4 塑形/A7 折叠键均不经脚本对局路径）。全量 400/局复测
+> 同日跑作同分布存证（`Tide_train/tide_rl/logs/script_baseline_20261122.json`，不替代官方表）。
 > **归因留档（2026-11-22）**：换表前曾在 headless 复测出绿脚本对红 **0/400**（全 LifeZero、
 > 均 6.4 回合）——根因=驱动缺三接线（技能被 AutoPick 换掉〔首要〕+无策略响应+Board=null），
 > 当日修复后绿红 39.5%（TideSim 41%）、绿镜 P1 97.8%（92.5%），9 对矩阵与 TideSim 结构对齐，
@@ -181,8 +186,9 @@ options 的 reset 不受池影响（直通）。
   抽中，权重 ∝ 序号——防过旧弱策略占比过大）。
 - 日志证据：控制台每 log_interval 打一行 `[对手池] opponentSource 累计: …`；
   `stats.jsonl` 每行带 `oppPool`（累计来源分布）与 `fsp` 字段。
-- **绿专项统计点（v19 2026-11-20 绿套补盲 §3 起加）**：`stats.jsonl` 每行带 `green` 块——
-  `sacrifice_rows/sacrifice_frac`（牺牲行=HeroSkill 且 `[10]nTargets>0`）、`any_gain`（牺牲目标数合计
+- **绿专项统计点（v19 2026-11-20 绿套补盲 §3 起加；A6 2026-11-24 口径更新）**：`stats.jsonl` 每行带 `green` 块——
+  `sacrifice_rows/sacrifice_frac`（牺牲拾取行=HeroSkill 且 `[10]==-1`（A6 起牺牲=可变数量计划，
+  拾取步行 `[10]=-1`、提交行 `[10]=0`——旧 `[10]nTargets>0` 口径随组合行退役废弃））、`any_gain`（牺牲目标数合计
   ——SacrificeHandler 逐目标 +1 Any 的代理量，蛰伏层兑现不走动作行故为下界）、`big_plays/big_play_frac`
   （大哥出牌=PlayCard/RespondPlay 且 `[5]actionCost>=12`——绿 T5 阿格洛斯 14 费档）、
   `ep_len/episodes`（绿局平均局长，近 100 绿局滚动；bootcamp 期模型恒绿=全局口径）。
@@ -394,6 +400,8 @@ FSP 口径；开启后日志/config 标注 `fsp=true`，`info.fsp=True`。
    LAE 产 **prefix-k 前缀行**（k=1..N，`MaxPrefixRows=24`），`[10]nTargets` 钳位 0..8→0..16；固定数量牺牲
    （如教学 61D64777 count=1）不走 prefix、维持原跳过。验收：LaeMultiTargetVerifier T5=11 行/T7 排除场上
    阿格洛斯/蛰伏=3 行全过（4 个既有红=③④ 旧场景漂移，非 P0 引入）。
+   **A6（2026-11-24 逐目标单选）起**：prefix-k 前缀行退役——牺牲/蛰伏=可变数量计划（首步行 `[10]=-1`，
+   闸拾取+提交行收口；候选序=HeroSkillTargetPolicy 共享序，逐取首行=旧前缀行同集，等价可对拍）。
 2. ~~**移动选格 / 宣言卡名**~~ **（2026-11-19 晚 P1 已落地，v0.3 规格/v17）**：`InteractionParams` 透传链
    （声明入栈→`MoveUnitHandler` 落格/`ProphecyHandlerUtil` 宣言名）；LAE 移动行=目标×合法空格（≤18）、
    宣言行=候选名（≤16，`DeclarationCandidates` 只读已读到的——检索=己方牌库去重名、强夺/窃取=对手手牌/牌库
@@ -462,7 +470,7 @@ FSP 口径；开启后日志/config 标注 `fsp=true`，`info.fsp=True`。
   牌库都分不清，红·快攻只见 4 种卡）。现按效果行同构合成进身份——原子槽 **[10]=攻击（Activate_Active）/
   [11]=守卫（Activate_Response）**（冻结表行 cc6d592f / 23a06182，效果原子占 [0..9]）、结构哈希含其骨架、
   卡特征 `[7]` 可攻击粗判加攻资格闸（守卫专用生物不再误标可攻击）。
-  验证：`TideObservationDeckVerifier` **2/40**（2026-11-24 B0.3 后；余 2 条=牌库顶行被 `FoldEquivalentRows` 折叠的既有红，见 §8；产物 `Logs/DeckVerifier_20261124_164904.log`）、
+  验证：`TideObservationDeckVerifier` **40/40 全绿**（2026-11-24 A7 折叠键补来源 Zone 后；产物 `Logs/DeckVerifier_20261124_174120.log`）、
   `IdentityStabilityVerifier` 2/2、`StableIndexVerifier` 10/10、Python `test_identity_encoder` 过。
   **v20 权重 / ONNX / fixture 全废**；库内已部署的 v20 `tide_policy.onnx` 加载期按 dims 拒载回落 SimpleAI——
   重训重导出前难度 2 的模型 AI 不可用。
@@ -470,21 +478,21 @@ FSP 口径；开启后日志/config 标注 `fsp=true`，`info.fsp=True`。
   死亡计数规则/计价改版——手牌累计**无上限**（`DeathTollCap`/满值口径退役）、计价改**基价 +2 开启费**（旧 ×4 退役、
   属性化漏迁补上）、卡特征 `[152]` 改**原始层数**（去 /9）。单独登记于[计价与塑形_统一口径](计价与塑形_统一口径.md) §6，单独验收。
 - 动作特征 `[0..19]`：`[0]valid [1]type [2]sourceIndex [3]targetIndex [4]modeIndex [5]actionCost
-  [6]effectIdentity [7]targetKind [8]target2Index [9]target3Index [10]nTargets [11]referenceIndex
+  [6]effectIdentity [7]targetKind [8]/[9]恒 -1（A6 起次目标维废止） [10]picksRemaining [11]referenceIndex
   [12]targetZoneRank [13]targetSideRank`（v13 加 `[11]`，v14 加 `[12]/[13]`）；
   `[14]moveCellX [15]moveCellZ [16]declaredNameIndex [17]placementCell`（v17 加 `[14..16]`，v18 加 `[17]`）；
   `[18]summonPlan（0=默认/1..9=锚点/-1=非召唤）[19]summonUnityHits（0..6/-1）`（v20 加）。
   `[14]/[15]` 仅移动行有值（其余 -1）；`[16]` 0..15 为宣言/预言候选序号（其余 -1）；`[17]` 0..8 为落格格下标（其余 -1）。
-- **`[10]` 语义定稿（2026-11-24 用户拍板·方案 A，A6 未实现）**：A6 落地后 `[10]` 由 `nTargets` 改为「**剩余待选数（含本步）**」——
-  0=非目标选择行、1=单目标或最后一步、N=本步选完还差 N 个（如 4 目标步依次 4/3/2/1）；`[8]/[9]` 恒 -1（每行 1 目标）。
-  **动作维仍 20、不升 `LAYOUT_VERSION`**，但属**语义变更**：旧 ONNX / checkpoint / 回放夹具即使维度相同也不得复用。落地前现行语义不变。
-- **只编码前 3 个目标 + 目标数**；第 4 个以后对模型不可见。现行 `[10]nTargets` 钳 **0..16**
-  （2026-11-19 P0 落地：由 0..8 提升，维度不变——牺牲/蛰伏 prefix-k 行 k=9..16 须可分）。
-  任意数量/动态数量的子集行上限 `MaxSubsetRows=64`（`k` 升序、字典序截断），大候选集时 `k≥3` 只剩“全取”行；
-  无域牺牲/蛰伏走 prefix-k 前缀行（`MaxPrefixRows=24`，N 超上限时 1..23+全取）——不枚举 2^N。
-  > **2026-11-24 拍板：本段整体退役**——目标选择改「AI 逐目标单选」（每行 1 目标、`[10]`=剩余待选数、
-  > 组合/prefix-k 行不再枚举），见[回到一期训练目标](回到一期训练目标.md) 阶段 A6。落地前现状仍是本段。
-  移动行上限 `MaxMoveRows=18`，宣言行 `MaxDeclareRows=16`，落格行 `MaxPlaceRows=9`，弃牌组合 `MaxDiscardRows` 截断+默认组（**已废弃 2026-11-24 A0 逐张弃**：改每张手牌一行、无截断，24 转用为引擎逐张轮次硬上限）。
+- **`[10]` 语义（2026-11-24 A6 已落地·方案 A）**：`[10]=picksRemaining` 剩余待选数（含本步）——
+  0=非目标选择行/提交行、1=单步行或最后一步、N=纯固定计划剩余步数（如 4 目标步依次 4/3/2/1，≤16 钳）、
+  **-1=计划含可变数量 spec（牺牲/蛰伏等开放步数，拾取至提交行收口）**；`[8]/[9]` 恒 -1。
+  多目标效果改**每步选 1 个目标**（`TargetPickGate` 驱动层累积：固定档收满自动提交、可变档提交行 `[10]=0`
+  `Targets`=规范化已选集），提交按计划序拼全集走原 Apply——同目标集同结算（SimpleAI/人类 UI 不经闸，一次提交不变）。
+  **动作维仍 20、不升 `LAYOUT_VERSION`**（v21 无权重），但属**语义变更**：旧 ONNX / checkpoint / 回放夹具即使维度相同也不得复用。
+- ~~**只编码前 3 个目标 + 目标数**（组合行截断）~~（**已废弃 2026-11-24 A6 逐目标单选**：组合/子集/prefix-k
+  行全部退役——`MaxTargetCombos=24`/`MaxSubsetRows=64`/`MaxPrefixRows=24`/`MaxExpansionRows=128` 删除，
+  行数=当前 spec 候选数+可变档提交行 1 条；根因=4 目标行只编码前 3 导致 `FoldEquivalentRows` 误并，18→9）。
+  移动行上限 `MaxMoveRows=18`，宣言行 `MaxDeclareRows=16`，落格行 `MaxPlaceRows=9`（以上不变），弃牌组合 `MaxDiscardRows` 截断+默认组（**已废弃 2026-11-24 A0 逐张弃**：改每张手牌一行、无截断，24 转用为引擎逐张轮次硬上限）。
 - **P2 落格**：永久物（生物/结界）PlayCard/RespondPlay 行×空格逐格展开；`[17]=0..8`，法术/场地恒 -1；
   Apply 声明成功即 PinCard（`MoveUnitRules.Current` 单源，无棋盘跳过）。旧 checkpoint/ONNX/fixture 全部作废
   （A2 对账 v18/18、export 冒烟 512x18、SpecMaster 16/0）。
@@ -654,12 +662,11 @@ FSP 口径；开启后日志/config 标注 `fsp=true`，`info.fsp=True`。
 
 ## 8. 已知断链（待修）
 
-- **牌库顶虚拟手牌行被等价折叠吞掉（2026-11-24 发现，自 11-18 起既有，未修）**：
-  `LegalActionEnumerator.FoldEquivalentRows`（循环治理 L3-B）的等价键 = 动作特征行**去掉 `[2]sourceIndex`**；
-  牌库顶虚拟手牌的 PlayCard 行与同名手牌行其余特征全同，于是只保留先枚举的手牌行——`TopDeckAsHandAura`
-  命中时模型仍选不到「打牌库顶那张」（实测同一局面：折叠开 20 行 / `sourceIndex=184` 0 行；折叠关 74 行 / 9 行）。
-  `TideObservationDeckVerifier` ⑨「牌库顶 LAE 行 / Apply」两条红由此而来。修法待定：来源区不同的行
-  （zoneKind 7 牌库顶 vs 2 手牌）不应并进同一等价键。
+- ~~**牌库顶虚拟手牌行被等价折叠吞掉**~~ **【已修 2026-11-24 A7】**（原 2026-11-24 发现、自 11-18 起既有）：
+  `FoldEquivalentRows` 等价键=动作特征行去掉 `[2]sourceIndex`，牌库顶行与同名手牌行其余全同被并掉
+  （折叠开 20 行/`sourceIndex=184` 0 行；折叠关 74 行/9 行）。**修法（已落地）**：等价键尾追加
+  **来源卡当前 Zone**（`FeatureKeyExceptSource`，同区同内容副本仍折叠）——牌库顶（Deck）与手牌
+  （Hand）不再互并。修后 DeckVerifier 目标 **40/40**（⑨ 两条转绿）。
 
 - **ONNX 导出 → manifest stamp → 游戏内接线**：新权重必须重跑 `tide_rl/export_onnx.py` 重导出（同时写
   layoutVersion/dims 与卡表指纹进 onnx metadata），再经热更收集器进 `AIModel` 组。
@@ -718,7 +725,7 @@ FSP 口径；开启后日志/config 标注 `fsp=true`，`info.fsp=True`。
 | 2026-11-22 | **对手回合响应停靠 D2d**（§3.1）：引擎加 `ResponseWindowService.AiAsyncResponder`（异步 AI 响应口，泵 `await` 优先于同步链，未注册逐位不变——脚本局 20 组与 D2a 基线仍逐位一致）+ `GameActions.DecideAiResponse` 同步决策单源；驱动脚本回合改 `TakeTurnAsync` 异步链不阻塞，模型座停靠 TCS（`EnumerateParkedResponses` 给定候选 1:1 建行 + `ParkedOptionOfRow` 映射回选），Step `TrySetResult` 续跑**内联在本线程**（TCS 内联性 batchmode 探针实证）；布局/动作空间/g[49] 语义零改动 | D2c 遗留边界「模型在脚本回合不获停靠」收口；验收：脚本局零回归 ✓、蓝|红 20 局真响应停靠 88→169（含脚本回合 94 次停靠全恢复、模型选 HandCard 实响应）、2k smoke 蓝 35.9%/P50/P95=12/32 绿 6.3%/9/18 全自然终局 0 触顶 0 EnvTimeout、合法 seed 两遍 20 局**逐步观测哈希逐位一致**；附带发现并修工具坑：**reset seed 超 int32 被 JsonUtility 静默损坏成 0**（echo=0——官方 `tide_env_tcp` 有回显断言会拦，自写冒烟须校验；`d2c_vs_smoke.py` 已加断言+换合法基） |
 
 | 2026-11-22 晚 | **达标门改稳健口径**：18 格矩阵早停门由「全格 margin≥0」改为「覆盖齐前提下 Δ 中位数 ≥+5pp 且 Δ≥−5pp 格数 ≥16/18」；best 排序不变（min Δ） | 旧门被 16 局/格 ±12pp 单格噪声绑架（一格翻车即永不达标）；门控分量（delta_median/robust_cells/gate）随 selector 行落 eval.jsonl，控制台每次评估打印；`train_tide_complete.py` 双仓同批改，改后 D2d 环境首轮重训启动 |
-| 2026-11-24 | **布局升 v21（卡组分布与策略分界，§4.3）**：己方牌库块改「每种唯一卡一槽 + [157] 张数」、+g[88..95] 己方牌库开局标签、+g[96] 截断标记；同批攻/守资格入内容身份（原子槽 [10]/[11]、结构哈希、卡特征 [7] 加攻资格闸）。卡特征 157→158 / globals 88→97 / 动作 20 不变 | 绿 60 张此前被 30 槽截断只见 2 种卡、己方无牌库标签（红蓝费档几乎重合只能靠颜色分）；实施中发现火灵·攻/守仅攻守资格不同却观测逐位相同（红·快攻只见 4 种）——用户定案攻/守=带发动条件的主动效果，按效果行同构补进身份。旧 checkpoint/ONNX/fixture 全废（库内 v20 ONNX 加载期拒载回落 SimpleAI）；验证器 2/40（余 2 条=牌库顶行折叠既有红）；**待验收**，见 [回到一期训练目标](回到一期训练目标.md) 附录 A |
+| 2026-11-24 | **布局升 v21（卡组分布与策略分界，§4.3）**：己方牌库块改「每种唯一卡一槽 + [157] 张数」、+g[88..95] 己方牌库开局标签、+g[96] 截断标记；同批攻/守资格入内容身份（原子槽 [10]/[11]、结构哈希、卡特征 [7] 加攻资格闸）。卡特征 157→158 / globals 88→97 / 动作 20 不变 | 绿 60 张此前被 30 槽截断只见 2 种卡、己方无牌库标签（红蓝费档几乎重合只能靠颜色分）；实施中发现火灵·攻/守仅攻守资格不同却观测逐位相同（红·快攻只见 4 种）——用户定案攻/守=带发动条件的主动效果，按效果行同构补进身份。旧 checkpoint/ONNX/fixture 全废（库内 v20 ONNX 加载期拒载回落 SimpleAI）；验证器 40/40（A7 后全绿）；**待验收**，见 [回到一期训练目标](回到一期训练目标.md) 附录 A |
 | 2026-11-24 晚 | **v21 定稿=100（回到一期训练目标 B0.3，用户拍板不再讨论 v22）**：+g[97]/g[98] 双方手牌上限（RuleHooks 单源）+g[99] 己方超上限剩余待弃（A0 逐张弃配套）。globals 97→100 / 其余三维不变 | 手牌上限三特征（契约 §2·II）；DeckVerifier ⓪/①b/⑪ 断言（起手 8 张>7→g[99]=1、对手座次 0、三套预组 7/7）；旧口径 grep 归零（`NGlobal = 97`/`N_GLOBAL_FEATURES = 97`/`158/97` 代码 0 行）；**待验收** |
 
 ## 10. 未来拓展：人类对局日志（模仿学习）

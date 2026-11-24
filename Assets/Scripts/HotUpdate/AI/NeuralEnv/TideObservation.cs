@@ -123,6 +123,12 @@ namespace CardCore.AI.NeuralEnv
         // 旧 /9 归一化与 ×4 计价口径随满值口径退役）。
         // Python LAYOUT_VERSION/N_CARD_FEATURES/N_GLOBAL_FEATURES 同步 21/158/100（v21 定稿 2026-11-24：
         // globals 97→100，+手牌上限三槽 g[97..99]——见 NGlobal 尾加注释）。
+        // A6（2026-11-24 逐目标单选·同日，docs/回到一期训练目标.md 阶段 A6）：动作特征 **20 维不变、
+        // 语义变更**——[8]/[9] 次目标维废止恒 -1（组合行退役）；[10] 由 nTargets 改 **PicksRemaining
+        // 剩余待选数**（0=无目标/提交行、1=单步行/最后一步、N=纯固定计划剩余步数、-1=计划含可变
+        // 数量 spec）。多目标效果改「每步选 1 个目标」（TargetPickGate 累积，提交按计划序拼全集）。
+        // LAYOUT_VERSION 保持 21（v21 尚未产出权重、无非兼容旧件），但旧 ONNX/checkpoint/夹具
+        // 即使维度相同也不得复用（[1]/[10] 语义漂移）。
         public const int LayoutVersion = 21;
         public const int MaxCardsPerPlayer = 77; // v10：43→77（墓地 4→30、除外 8 入册）
         // v9 己方牌库块（尾接全局块，不走 ZoneLayout 每玩家偏移语义——专用 DeckBase+排序名次路径）：

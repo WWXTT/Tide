@@ -12,22 +12,20 @@ using UnityEngine;
 namespace CardCore.Editor.Tests
 {
     /// <summary>
-    /// LAE 多目标动作空间回归验证器（2026-11-02 多目标验收）：
-    /// ① 组合枚举——诱敌（selection=Multiple，count=2，单原子 kinds=[2]）按敌人数分档：
-    ///    3 敌=3 行 nTargets=2（C(3,2) 两两不同）；2 敌=1 行 nTargets=2（AutoTake 档显式展开唯一组合）；
-    ///    1 敌=1 行 nTargets=1；0 敌=不可施放（无 PlayCard 行）。
-    ///    数据链断言：effect.count=2 经 EffectSlim→CardEffectData.TargetCount→def.TargetCount=2
-    ///    （DynamicTargetCount 恒 false——全仓无赋值点，随机/任意档才走引擎代选）。
-    /// ② PerAtomTargets 逐原子——内存合成临时卡「对一敌方单位伤 2 + 对一己方单位疗 2」
-    ///    （header 不声明 kinds）：LAE 出逐原子笛卡尔积行（3 敌 × 2 己 = 6 行 n=2）；
-    ///    SimpleAI.ChooseTargets 逐原子预选（两个不同域目标各一）；引擎结算按原子序消费预选
-    ///    （伤在指定敌、疗在指定己，其余候选零变化）。临时卡纯内存构造不落盘，跑完即弃。
-    /// ③ 并列效果分段选目标——「弹回×2（对方单位）+ 回收×2（己方墓地）」并列卡（合成器形状）：
-    ///    LAE 分段组合展开 C(3,2)×C(4,2)=18 行（行内前 2 敌方战场/后 2 己方墓地）；AI 预选 4 目标分段；
-    ///    引擎交叉结算弹回入对方手牌/回收入己方手牌各只落指定目标（2026-11-02「取消并列收缩作用域」配套）。
-    /// ⑤ P0 无域原子 prefix-k（2026-11-19，AI动作空间补全 §1.4 B）——牺牲/蛰伏（原子无 Domain、
-    ///    作用域写死在 handler）：T5 纯池 11 地=11 行 k=1..11、T7 场上阿格洛斯被排除、蛰伏 k=2 恰
-    ///    2 张横置计层；应用走 Apply→ActivateHeroSkill 预选透传，handler 消费。
+    /// LAE 多目标动作空间回归验证器（2026-11-02 多目标验收；**A6 2026-11-24 逐目标单选改版**——
+    /// 组合/子集/prefix-k 行退役，多目标效果改「首步行+TargetPickGate 累积」）：
+    /// ① Multiple 分档——诱敌（count=2，单原子 kinds=[2]）按敌人数：3 敌（候选&gt;需求）=3 行**首步
+    ///    单选**（1 目标/行、[10]=2、携计划）；2 敌=1 行全取占位（AutoTake 档，[10]=1）；
+    ///    1 敌=1 行单目标；0 敌=不可施放。
+    /// ② PerAtomTargets 逐原子——「伤 2（敌）+疗 2（己）」两选一 spec=固定 2 步计划：LAE 首步行=敌方
+    ///    候选 3 行；闸驱动 Open→第 2 步己方候选 2 行[10]=1→收满自动完成→BuildFinal=[敌,己]计划序；
+    ///    SimpleAI 逐原子预选与引擎结算不变（脚本路径不经闸）。
+    /// ③ 并列效果分段（A6 验收 ⑧.1/⑧.2 主场）——「弹回×2+回收×2」并列卡=固定 4 步计划：
+    ///    **4 个连续单选步**（每步 1 目标、行数=剩余候选数）；墓地段**乱序拾取**→BuildFinal 规范化
+    ///    回候选序 == 旧 combos 一次提交序（等价断言）；引擎交叉结算弹回/回收各只落指定目标。
+    /// ⑤ P0 无域原子（2026-11-19；A6 改版）——牺牲/蛰伏=**可变数量计划**（[10]=-1 开放步数）：
+    ///    T5 纯池 11 地=11 行首步单选、闸拾 11 张+提交行；T7 阿格洛斯被排除、拾 6 张；蛰伏拾 2 张
+    ///    恰 2 张横置计层；应用走 BuildFinal→Apply→ActivateHeroSkill 预选透传。
     /// ⑥ P1 移动/宣言交互行（2026-11-19 v0.3 §6.2/6.3/6.4）——训练·疾行者（MoveUnit）行=单位×
     ///    合法空格、[14]/[15]=格坐标、满盘 0 行；训练·强夺/窃取/检索行=候选名、[16] 序号互异、
     ///    命中迁移、无展示 0 行、手牌/牌库候选不混区；SimpleAI 端 PickMoveCell/PickDeclaration/空集不发动。
@@ -164,24 +162,30 @@ namespace CardCore.Editor.Tests
                         lae.Enumerate(core, p1);
                         var rows = lae.Actions.Where(a => a.Type == TideActionType.PlayCard && ReferenceEquals(a.Card, handLure)).ToList();
                         string describe(TideAction a) => a.Targets == null ? "null"
-                            : "n=" + a.Targets.Count + "[" + string.Join("+", a.Targets.Select(NameOf).ToArray()) + "]";
+                            : "n=" + a.Targets.Count + "[" + string.Join("+", a.Targets.Select(NameOf).ToArray()) + "]"
+                            + (a.PickPlan != null ? $"PR={a.PicksRemaining}[10]={FeatureOf(lae, a, 10)}" : "plan=null");
                         log.AppendLine($"[诱敌] 敌人={scen} → 行数={rows.Count} :: {string.Join(" ; ", rows.Select(describe).ToArray())}");
 
                         switch (scen)
                         {
                             case 3:
-                                checks.Add(new Check(rows.Count == 3 && rows.All(r => r.Targets != null && r.Targets.Count == 2),
-                                    $"3 敌期望 3 行 nTargets=2，实际 {rows.Count} 行（{string.Join(" ; ", rows.Select(describe).ToArray())}）"));
-                                var pairs = rows.Select(r => string.Join("|", r.Targets.Select(t => t.GetHashCode().ToString()).OrderBy(x => x))).ToList();
-                                checks.Add(new Check(pairs.Distinct().Count() == 3, "3 敌各行 t1/t2 组合须两两不同（C(3,2)）"));
+                                // A6：候选>需求 → 固定 2 步计划——首步行（1 目标/行、[10]=2、携计划）
+                                checks.Add(new Check(rows.Count == 3 && rows.All(r => r.Targets != null && r.Targets.Count == 1
+                                    && r.PickPlan != null && r.PicksRemaining == 2 && FeatureOf(lae, r, 10) == 2f),
+                                    $"3 敌期望 3 行首步单选（Targets=1/[10]=2/携计划），实际 {rows.Count} 行（{string.Join(" ; ", rows.Select(describe).ToArray())}）"));
+                                var singles = rows.Select(r => r.Targets[0]).Distinct().ToList();
+                                checks.Add(new Check(singles.Count == 3 && singles.All(t => t is Card tc && tc.GetController() == p2),
+                                    "3 敌首步行候选两两不同（逐候选=敌方战场——旧 C(3,2) 组合口径退役）"));
                                 break;
                             case 2:
-                                checks.Add(new Check(rows.Count == 1 && rows[0].Targets != null && rows[0].Targets.Count == 2,
-                                    $"2 敌期望 1 行 nTargets=2，实际 {rows.Count} 行（{string.Join(" ; ", rows.Select(describe).ToArray())}）"));
+                                checks.Add(new Check(rows.Count == 1 && rows[0].Targets != null && rows[0].Targets.Count == 2
+                                    && rows[0].PickPlan == null && FeatureOf(lae, rows[0], 10) == 1f,
+                                    $"2 敌期望 1 行全取占位（候选≤需求 AutoTake 档，[10]=1 单步确认），实际 {rows.Count} 行（{string.Join(" ; ", rows.Select(describe).ToArray())}）"));
                                 break;
                             case 1:
-                                checks.Add(new Check(rows.Count == 1 && rows[0].Targets != null && rows[0].Targets.Count == 1,
-                                    $"1 敌期望 1 行 nTargets=1（候选≤需求 AutoTake 显式收口），实际 {rows.Count} 行"));
+                                checks.Add(new Check(rows.Count == 1 && rows[0].Targets != null && rows[0].Targets.Count == 1
+                                    && rows[0].PickPlan == null && FeatureOf(lae, rows[0], 10) == 1f,
+                                    $"1 敌期望 1 行单目标（AutoTake 占位，[10]=1），实际 {rows.Count} 行"));
                                 break;
                             case 0:
                                 checks.Add(new Check(rows.Count == 0, $"0 敌期望不可施放（0 行），实际 {rows.Count} 行"));
@@ -248,20 +252,19 @@ namespace CardCore.Editor.Tests
                         $"原子规格期望 伤(3 候选)+疗(2 候选) 且均占选择权，实际 " +
                         string.Join(" ; ", specs.Select(s => $"{s.Atom.Type}:{s.Candidates.Count}c/auto={s.AutoTake}").ToArray())));
 
-                    // LAE：逐原子笛卡尔积 3×2=6 行 n=2
+                    // LAE（A6 逐目标单选）：两个选一 spec（伤 3 候选+疗 2 候选）=固定 2 步计划——
+                    // 首步行=敌方域候选逐个（3 行、1 目标、[10]=2、携计划）；旧 3×2 笛卡尔行退役
+                    bool IsEnemySide(Entity t) => ReferenceEquals(t, p2) || (t is Card tc && tc.GetController() == p2);
+                    bool IsOwnSide(Entity t) => ReferenceEquals(t, p1) || (t is Card oc && oc.GetController() == p1);
                     var lae = new LegalActionEnumerator();
                     lae.Enumerate(core, p1);
                     CheckZoneFeatures(lae, core, p1, checks, "逐原子场景");
                     var rows = lae.Actions.Where(a => a.Type == TideActionType.PlayCard && ReferenceEquals(a.Card, tCard)).ToList();
-                    log.AppendLine("[逐原子] LAE 行数=" + rows.Count + " :: " + string.Join(" ; ",
-                        rows.Select(r => r.Targets == null ? "null" : "n=" + r.Targets.Count + "[" + string.Join("+", r.Targets.Select(NameOf).ToArray()) + "]").ToArray()));
-                    checks.Add(new Check(rows.Count == 6 && rows.All(r => r.Targets != null && r.Targets.Count == 2),
-                        $"LAE 期望 6 行 nTargets=2（3 敌 × 2 己笛卡尔），实际 {rows.Count} 行"));
-                    // 行序=原子执行序：目标0 须敌方域（对方生物或对方角色）、目标1 须己方域（己方生物或己方角色）
-                    bool IsEnemySide(Entity t) => ReferenceEquals(t, p2) || (t is Card tc && tc.GetController() == p2);
-                    bool IsOwnSide(Entity t) => ReferenceEquals(t, p1) || (t is Card oc && oc.GetController() == p1);
-                    checks.Add(new Check(rows.All(r => IsEnemySide(r.Targets[0]) && IsOwnSide(r.Targets[1])),
-                        "笛卡尔行序须为 [敌方目标, 己方目标]（返回序=原子执行序）"));
+                    log.AppendLine("[逐原子] LAE 首步行数=" + rows.Count + " :: " + string.Join(" ; ",
+                        rows.Select(r => r.Targets == null ? "null" : "[" + NameOf(r.Targets[0]) + "]").ToArray()));
+                    checks.Add(new Check(rows.Count == 3 && rows.All(r => r.Targets != null && r.Targets.Count == 1
+                        && r.PickPlan != null && IsEnemySide(r.Targets[0]) && FeatureOf(lae, r, 10) == 2f),
+                        $"LAE 期望 3 行首步单选（敌方候选、[10]=2=固定剩余两步），实际 {rows.Count} 行"));
 
                     // AI：SimpleAI.ChooseTargets 逐原子预选（两域各一）
                     var ai = new SimpleAI();
@@ -273,17 +276,39 @@ namespace CardCore.Editor.Tests
                     log.AppendLine("[逐原子] AI picked=" + (picked == null ? "null" : string.Join("+", picked.Select(NameOf).ToArray())));
                     checks.Add(new Check(aiOk, $"AI 期望 2 目标（敌一 + 己一·不同域），实际 " + (picked == null ? "null" : picked.Count + " 个")));
 
-                    // 引擎：交叉预选 [伤=火种, 疗=巨像] —— 按原子序消费
-                    int e1L = EntityEffectExtensions.GetLife(e1), e2L = EntityEffectExtensions.GetLife(e2), owL = EntityEffectExtensions.GetLife(ow);
-                    var ok = GameActions.PlayCard(core, p1, tCard, new List<Entity> { e2, ow }, Zone.Hand, 0);
-                    int drain = 0;
-                    while (ok && !core.StackEngine.IsEmpty && drain++ < 10) GameActions.DrainStack(core);
-                    int dE1 = EntityEffectExtensions.GetLife(e1) - e1L, dE2 = EntityEffectExtensions.GetLife(e2) - e2L;
-                    int dOw = EntityEffectExtensions.GetLife(ow) - owL, dHero = p1.Life - heroBefore;
-                    int wantDE2 = -Math.Min(2, e2L); // 1 血单位受 2 伤=死亡钳 0（Δ=-1），高血单位 Δ=-2
-                    log.AppendLine($"[逐原子] 引擎交叉结算 Δ：火灵={dE1} 火种={dE2} 巨像={dOw} 角色={dHero}");
-                    checks.Add(new Check(ok && dE2 == wantDE2 && dOw == +2 && dE1 == 0 && dHero == 0,
-                        $"引擎期望 伤只落在火种（Δ={wantDE2}·血量钳底）、疗+2 只落在巨像（其余 0），实际 Δ火灵={dE1} Δ火种={dE2} Δ巨像={dOw} Δ角色={dHero}"));
+                    // 闸驱动（A6）：Open（首步选火种）→ 第 2 步=己方候选 2 行[10]=1（末步）→
+                    // Pick(巨像) → Fixed 收满自动完成 → BuildFinal=[火种,巨像]（计划序）→ Apply 走引擎
+                    try
+                    {
+                        var firstRow = rows.First(r => ReferenceEquals(r.Targets[0], e2));
+                        TargetPickGate.Open(firstRow, null);
+                        checks.Add(new Check(TargetPickGate.HasPending && !TargetPickGate.Completed, "闸：Open 后进行中、未收口"));
+                        var stepLae = LegalActionEnumerator.EnumeratePickSteps(core, p1);
+                        var stepRows = stepLae.Actions.Where(r => r.PicksRemaining != 0).ToList();
+                        checks.Add(new Check(stepRows.Count == 2 && stepRows.All(r => r.Targets.Count == 1 && IsOwnSide(r.Targets[0])
+                            && FeatureOf(stepLae, r, 10) == 1f),
+                            $"闸第 2 步=己方候选 2 行[10]=1（末步），实际 {stepRows.Count} 行"));
+                        TargetPickGate.Pick(stepRows.First(r => ReferenceEquals(r.Targets[0], ow)));
+                        checks.Add(new Check(TargetPickGate.Completed, "闸：第二 spec 收满自动完成（Fixed 档无提交行）"));
+                        var final = TargetPickGate.BuildFinal(core, p1);
+                        TargetPickGate.ConsumeParked();
+                        checks.Add(new Check(final.Targets.Count == 2 && ReferenceEquals(final.Targets[0], e2)
+                            && ReferenceEquals(final.Targets[1], ow) && !TargetPickGate.HasPending,
+                            "BuildFinal Targets=[火种,巨像]（计划序=原子执行序）"));
+
+                        // 引擎：闸提交全集 [伤=火种, 疗=巨像] —— 按原子序消费
+                        int e1L = EntityEffectExtensions.GetLife(e1), e2L = EntityEffectExtensions.GetLife(e2), owL = EntityEffectExtensions.GetLife(ow);
+                        var ok = LegalActionEnumerator.Apply(core, p1, final);
+                        int drain = 0;
+                        while (ok && !core.StackEngine.IsEmpty && drain++ < 10) GameActions.DrainStack(core);
+                        int dE1 = EntityEffectExtensions.GetLife(e1) - e1L, dE2 = EntityEffectExtensions.GetLife(e2) - e2L;
+                        int dOw = EntityEffectExtensions.GetLife(ow) - owL, dHero = p1.Life - heroBefore;
+                        int wantDE2 = -Math.Min(2, e2L); // 1 血单位受 2 伤=死亡钳 0（Δ=-1），高血单位 Δ=-2
+                        log.AppendLine($"[逐原子] 闸提交结算 Δ：火灵={dE1} 火种={dE2} 巨像={dOw} 角色={dHero}");
+                        checks.Add(new Check(ok && dE2 == wantDE2 && dOw == +2 && dE1 == 0 && dHero == 0,
+                            $"引擎期望 伤只落在火种（Δ={wantDE2}·血量钳底）、疗+2 只落在巨像（其余 0），实际 Δ火灵={dE1} Δ火种={dE2} Δ巨像={dOw} Δ角色={dHero}"));
+                    }
+                    finally { TargetPickGate.Reset(); }
                 }
                 finally
                 {
@@ -387,21 +412,59 @@ namespace CardCore.Editor.Tests
                         "原子规格期望 弹回(3 候选)+回收(4 候选) 且均占选择权，实际 "
                         + string.Join(" ; ", specs.Select(s => $"{s.Atom.Type}:{s.Candidates.Count}c/auto={s.AutoTake}").ToArray())));
 
-                    // LAE：分段组合展开 C(3,2)×C(4,2)=18 行，行内 4 目标（前 2 敌方战场 / 后 2 己方墓地）
+                    // LAE（A6 2026-11-24 逐目标单选）：并列两 Fixed(2) spec=固定 4 步计划——
+                    // 首步行=弹回 spec 候选逐个（3 行、1 目标、[10]=4、携计划）；旧 18 行组合口径退役
                     var lae = new LegalActionEnumerator();
                     lae.Enumerate(core, p1);
                     CheckZoneFeatures(lae, core, p1, checks, "并列弹回回收场景");
                     var rows = lae.Actions.Where(a => a.Type == TideActionType.PlayCard && ReferenceEquals(a.Card, tCard)).ToList();
                     var enemySet = new HashSet<Card> { e1, e2, e3 };
                     var graveSet = new HashSet<Card>(grave);
-                    bool rowsOk = rows.Count == 18 && rows.All(r => r.Targets != null && r.Targets.Count == 4
-                        && enemySet.Contains(r.Targets[0] as Card) && enemySet.Contains(r.Targets[1] as Card)
-                        && graveSet.Contains(r.Targets[2] as Card) && graveSet.Contains(r.Targets[3] as Card)
-                        && !ReferenceEquals(r.Targets[0], r.Targets[1]) && !ReferenceEquals(r.Targets[2], r.Targets[3]));
-                    log.AppendLine("[并列弹回回收] LAE 行数=" + rows.Count + "（前 2 行示例："
-                        + string.Join(" ; ", rows.Take(2).Select(r => string.Join("+", r.Targets.Select(NameOf).ToArray())).ToArray()) + "）");
+                    bool rowsOk = rows.Count == 3 && rows.All(r => r.PickPlan != null && r.Targets != null && r.Targets.Count == 1
+                        && enemySet.Contains(r.Targets[0] as Card) && FeatureOf(lae, r, 10) == 4f);
+                    log.AppendLine("[并列弹回回收] LAE 首步行数=" + rows.Count + " :: "
+                        + string.Join(" ; ", rows.Select(r => "[" + NameOf(r.Targets[0]) + "]").ToArray()));
                     checks.Add(new Check(rowsOk,
-                        $"LAE 期望 18 行（C(3,2)×C(4,2)）各 4 目标分段〔敌×2+墓地×2〕，实际 {rows.Count} 行"));
+                        $"LAE 期望 3 行首步单选（弹回候选、[10]=4=固定总步数），实际 {rows.Count} 行"));
+
+                    // 闸驱动（A6 验收 ⑧.1/⑧.2）：**4 个连续单选步**（每步 1 目标、行数=剩余候选数）；
+                    // 墓地段**乱序拾取**（先墓3后墓2）——BuildFinal 须规范化回候选序
+                    //= 旧 combos 一次提交序（「N 步累积目标集 == 一次提交同目标集」等价断言）
+                    TideAction gateFinal = default;
+                    try
+                    {
+                        TargetPickGate.Open(rows.First(r => ReferenceEquals(r.Targets[0], e2)), null); // 步1：弹回选火种
+                        var step2 = LegalActionEnumerator.EnumeratePickSteps(core, p1);                // 步2：弹回第 2 目标
+                        checks.Add(new Check(step2.Actions.Count == 2
+                            && step2.Actions.All(r => r.Targets.Count == 1 && enemySet.Contains(r.Targets[0] as Card)
+                                && FeatureOf(step2, r, 10) == 3f),
+                            $"步2 弹回剩余候选 2 行[10]=3，实际 {step2.Actions.Count} 行"));
+                        TargetPickGate.Pick(step2.Actions.First(r => ReferenceEquals(r.Targets[0], e3)));
+                        var step3 = LegalActionEnumerator.EnumeratePickSteps(core, p1);                 // 步3：回收第 1 目标
+                        checks.Add(new Check(step3.Actions.Count == 4
+                            && step3.Actions.All(r => graveSet.Contains(r.Targets[0] as Card) && r.Targets.Count == 1)
+                            && step3.Actions.All(r => FeatureOf(step3, r, 10) == 2f),
+                            $"步3 回收候选 4 行[10]=2（首目标均己方墓地），实际 {step3.Actions.Count} 行"));
+                        TargetPickGate.Pick(step3.Actions.First(r => ReferenceEquals(r.Targets[0], grave[3]))); // 乱序：先拾墓3
+                        var step4 = LegalActionEnumerator.EnumeratePickSteps(core, p1);                 // 步4：回收第 2 目标
+                        checks.Add(new Check(step4.Actions.Count == 3 && step4.Actions.All(r => r.Targets.Count == 1
+                                && FeatureOf(step4, r, 10) == 1f),
+                            $"步4 回收剩余候选 3 行[10]=1（末步），实际 {step4.Actions.Count} 行"));
+                        TargetPickGate.Pick(step4.Actions.First(r => ReferenceEquals(r.Targets[0], grave[2]))); // 后拾墓2
+                        checks.Add(new Check(TargetPickGate.Completed, "4 步收满自动完成（Fixed 计划无提交行）"));
+                        gateFinal = TargetPickGate.BuildFinal(core, p1);
+                        TargetPickGate.ConsumeParked();
+                    }
+                    finally { if (TargetPickGate.HasPending) TargetPickGate.Reset(); }
+
+                    var chosen = gateFinal.Targets; // 乱序拾取 → 规范化=候选序拼接（提交行 Targets 单源）
+                    bool equiv = chosen != null && chosen.Count == 4
+                        && ReferenceEquals(chosen[0], e2) && ReferenceEquals(chosen[1], e3)
+                        && ReferenceEquals(chosen[2], grave[2]) && ReferenceEquals(chosen[3], grave[3]);
+                    log.AppendLine("[并列弹回回收] 4 步累积(墓段乱序) → final="
+                        + (chosen == null ? "null" : string.Join("+", chosen.Select(NameOf).ToArray())));
+                    checks.Add(new Check(equiv,
+                        "等价断言：乱序拾取规范化 Targets==[火种,火炬敌,墓3,墓4]（=旧 combos 一次提交序）"));
 
                     // AI：SimpleAI 逐原子预选 4 目标（2 敌 + 2 墓地卡）
                     var ai = new SimpleAI();
@@ -413,9 +476,14 @@ namespace CardCore.Editor.Tests
                     log.AppendLine("[并列弹回回收] AI picked=" + (picked == null ? "null" : string.Join("+", picked.Select(NameOf).ToArray())));
                     checks.Add(new Check(aiOk, $"AI 期望 4 目标分段（敌 2 + 墓地 2），实际 " + (picked == null ? "null" : picked.Count + " 个")));
 
-                    // 引擎：交叉预选 [弹回=火种+火炬敌, 回收=墓地3+墓地4] —— 按原子序分段消费
-                    var chosen = new List<Entity> { e2, e3, grave[2], grave[3] };
-                    var ok = GameActions.PlayCard(core, p1, tCard, chosen, Zone.Hand, 0);
+                    // 引擎：闸提交全集 [弹回=火种+火炬敌, 回收=墓3+墓4] —— 按原子序分段消费
+                    //（equiv 前置闸：驱动失败不落无效 Apply）
+                    // 夹具稳定化（2026-11-24）：弹回=回持有者手牌——P2 手牌 7 张满额时回手
+                    // 溢出直接入除外（对手回合超 7 规则），断言随开局抽牌位置随机抖；
+                    // 先把 P2 手牌压到 ≤5（沉回牌库）保证两个弹回目标必落手牌
+                    foreach (var hc in zm.GetCards(p2, Zone.Hand).ToList().Skip(5))
+                        zm.MoveCard(hc, p2, Zone.Hand, Zone.Deck);
+                    var ok = equiv && LegalActionEnumerator.Apply(core, p1, gateFinal);
                     int drain = 0;
                     while (ok && !core.StackEngine.IsEmpty && drain++ < 10) GameActions.DrainStack(core);
                     bool engineOk = ok
@@ -424,6 +492,7 @@ namespace CardCore.Editor.Tests
                         && zm.IsCardInZone(grave[2], p1, Zone.Hand) && zm.IsCardInZone(grave[3], p1, Zone.Hand) // 回收入己方手牌
                         && zm.IsCardInZone(grave[0], p1, Zone.Graveyard) && zm.IsCardInZone(grave[1], p1, Zone.Graveyard); // 未选卡留墓地
                     log.AppendLine($"[并列弹回回收] 引擎交叉结算：火种入手2={zm.IsCardInZone(e2, p2, Zone.Hand)} 火炬敌入手2={zm.IsCardInZone(e3, p2, Zone.Hand)}"
+                        + $" e2实际区={e2.GetZone()} e3实际区={e3.GetZone()}"
                         + $" 火灵留场={zm.IsCardInZone(e1, p2, Zone.Battlefield)} 墓3入手1={zm.IsCardInZone(grave[2], p1, Zone.Hand)} 墓4入手1={zm.IsCardInZone(grave[3], p1, Zone.Hand)}"
                         + $" 墓1留={zm.IsCardInZone(grave[0], p1, Zone.Graveyard)} 墓2留={zm.IsCardInZone(grave[1], p1, Zone.Graveyard)}");
                     checks.Add(new Check(engineOk,
@@ -518,6 +587,12 @@ namespace CardCore.Editor.Tests
 
                     var actRows = lae.Actions
                         .Where(a => a.Type == TideActionType.Activate && ReferenceEquals(a.Card, unit)).ToList();
+                    // A6 排查读数：逐行打印目标/区/计划（组合行退役后行形变化定位）
+                    foreach (var ar in actRows)
+                        log.AppendLine("[区域特征·排查] 行 t=" + (ar.Targets == null ? "null"
+                            : ar.Targets.Count + "[" + string.Join("+", ar.Targets.Select(t =>
+                                t is Card zc ? NameOf(zc) + "@" + zc.GetZone() : NameOf(t)).ToArray()) + "]")
+                            + " PR=" + ar.PicksRemaining + " plan=" + (ar.PickPlan != null));
                     var poolRows = actRows.Where(r => r.Targets != null && r.Targets.Count > 0
                         && r.Targets[0] is Card tc && tc.GetZone() == Zone.ElementPool).ToList();
                     var fieldRows = actRows.Where(r => r.Targets != null && r.Targets.Count > 0
@@ -543,14 +618,14 @@ namespace CardCore.Editor.Tests
 
         // ======================================== ⑤ P0 无域原子 prefix-k（牺牲/蛰伏，2026-11-19） ========================================
 
-        /// <summary>P0 无域原子目标（docs/AI动作空间补全_修改计划.md §1.4 B）：牺牲（C_AC7FC01F/FXGREEN08）
-        /// 与蛰伏（C_23EE2486/E31E9EB0）的原子行无 Domain、作用域写死在 handler——改造前
-        /// CollectAtomTargetSpecs 跳过无域原子，HeroSkill 只剩一条 Targets=null 行（点牺牲=空放）。
-        /// 改造后白名单（NoDomainTargetScopes）按域串产候选、HeroSkillTargetPolicy 共享序排序，
-        /// LAE 产 prefix-k 前缀行（k=1..N——模型可选「祭几张」，k=Targets 长度）。
-        /// 三盘面：T5=纯池 11 地（11 行，应用 k=11 全献——临时彩 min(11,cap) 入持有钳断言，2026-11-21）；
-        /// T7=场上阿格洛斯+池 11 地（行不含场上阿格洛斯，应用 k=6 恰献 6 张池地）；蓝蛰伏=池 3 未横置地
-        ///（3 行，应用 k=2 恰 2 张横置计层、第 3 张不动）。另附无目标行回归（EndTurn [10]=0、[12]/[13]=-1）。</summary>
+        /// <summary>P0 无域原子目标（docs/AI动作空间补全_修改计划.md §1.4 B；A6 2026-11-24 改版）：
+        /// 牺牲（C_AC7FC01F/FXGREEN08）与蛰伏（C_23EE2486/E31E9EB0）的原子行无 Domain、作用域
+        /// 写死在 handler——白名单（NoDomainTargetScopes）按域串产候选、HeroSkillTargetPolicy
+        /// 共享序排序。A6 起改**可变数量计划**（首步行 [10]=-1 开放步数）：「祭几张」由闸拾取+
+        /// 提交行表达（候选序=共享序，逐取首行=旧 prefix-k 同集）。
+        /// 三盘面：T5=纯池 11 地（11 行首步，闸拾 11 全献——临时彩 min(11,cap) 入持有钳断言）；
+        /// T7=场上阿格洛斯+池 11 地（候选不含阿格洛斯，闸拾 6 恰献 6 张池地）；蓝蛰伏=池 3 未横置地
+        ///（3 行首步，闸拾 2 恰 2 张横置计层、第 3 张不动）。另附无目标行回归（EndTurn [10]=0、[12]/[13]=-1）。</summary>
         private static void RunNoDomainPrefixScenarios(StringBuilder log, List<Check> checks)
         {
             var catalog = CardCatalog.LoadAll().ToList();
@@ -565,8 +640,9 @@ namespace CardCore.Editor.Tests
             RunDormancyBoard(catalog, log, checks);                    // 蓝蛰伏
         }
 
-        /// <summary>牺牲盘面（T5/T7）：绿技能=牺牲；元素池直入 11 张地（夹具播种绕槽上限，
-        /// 镜像 ④ 的池两步落地）；fieldAgros=true 时场上加 1 张阿格洛斯（OrderSacrifice 排除项）。</summary>
+        /// <summary>牺牲盘面（T5/T7；A6：断言口径随 prefix-k 退役改首步行+闸驱动）：绿技能=牺牲；
+        /// 元素池直入 11 张地（夹具播种绕槽上限，镜像 ④ 的池两步落地）；fieldAgros=true 时
+        /// 场上加 1 张阿格洛斯（OrderSacrifice 排除项）。</summary>
         private static void RunSacrificeBoard(List<CardData> catalog, StringBuilder log, List<Check> checks, bool fieldAgros)
         {
             string tag = fieldAgros ? "P0牺牲T7" : "P0牺牲T5";
@@ -625,17 +701,17 @@ namespace CardCore.Editor.Tests
                     string Describe(TideAction a) => "n=" + (a.Targets?.Count ?? -1);
                     log.AppendLine($"[{tag}] HeroSkill 行数={rows.Count} :: {string.Join(" ; ", rows.Select(Describe).ToArray())}");
 
-                    checks.Add(new Check(rows.Count == 11 && rows.All(r => r.Targets != null),
-                        $"{tag} 期望 11 行 prefix-k（k=1..11）且无 Targets=null 行，实际 {rows.Count} 行"));
-                    checks.Add(new Check(rows.Count == 11
-                        && rows.Select(r => r.Targets.Count).SequenceEqual(Enumerable.Range(1, 11)),
-                        $"{tag} 第 k 行 Targets.Count==k（前缀行序）"));
-                    checks.Add(new Check(rows.Count == 11 && rows.All(r => FeatureOf(lae, r, 10) == r.Targets.Count
-                            && FeatureOf(lae, r, 12) == 2f && FeatureOf(lae, r, 13) == 0f),
-                        $"{tag} 全行 [10]==k（0..16 钳后 k=9..11 仍可分）、首目标 [12]=2/[13]=0（元素池/己方）"));
+                    // A6：prefix-k 退役——牺牲=可变数量计划（[10]=-1 开放步数）：首步行=池地候选逐个
+                    //（11 行、1 目标、携计划）；「祭几张」改闸拾取+提交行表达
+                    checks.Add(new Check(rows.Count == 11 && rows.All(r => r.Targets != null && r.Targets.Count == 1
+                        && r.PickPlan != null && FeatureOf(lae, r, 10) == -1f),
+                        $"{tag} 期望 11 行首步单选（[10]=-1 开放步数），实际 {rows.Count} 行"));
+                    checks.Add(new Check(rows.Count == 11 && rows.Select(r => r.Targets[0]).Distinct().Count() == 11
+                            && rows.All(r => FeatureOf(lae, r, 12) == 2f && FeatureOf(lae, r, 13) == 0f),
+                        $"{tag} 首步行候选两两不同、首目标 [12]=2/[13]=0（元素池/己方）"));
                     if (fieldAgros)
-                        checks.Add(new Check(rows.All(r => r.Targets.All(t => !ReferenceEquals(t, agros))),
-                            $"{tag} 行内目标不含场上的阿格洛斯（OrderSacrifice 排除）"));
+                        checks.Add(new Check(rows.All(r => !ReferenceEquals(r.Targets[0], agros)),
+                            $"{tag} 首步行目标不含场上的阿格洛斯（OrderSacrifice 排除）"));
 
                     // 无目标行回归：EndTurn [10]=0、[12]=[13]=-1
                     var endRow = lae.Actions.FirstOrDefault(a => a.Type == TideActionType.EndTurn);
@@ -644,10 +720,11 @@ namespace CardCore.Editor.Tests
                             && FeatureOf(lae, endRow, 12) == -1f && FeatureOf(lae, endRow, 13) == -1f,
                         $"{tag} 无目标行回归：EndTurn [10]=0、[12]=[13]=-1"));
 
-                    // 应用：T5=全取 k=11；T7=k=6（恰献 6 张池地，阿格洛斯留场）
+                    // 应用（A6）：闸拾 applyK 张（候选序=OrderSacrifice 共享序——逐取首行=旧前缀 k 行
+                    ///同集）→ 提交行收口 → BuildFinal→Apply。T5=全拾 11；T7=6（阿格洛斯留场）
                     int applyK = fieldAgros ? 6 : 11;
-                    var row = rows.FirstOrDefault(r => r.Targets.Count == applyK);
-                    var ok = LegalActionEnumerator.Apply(core, p1, row);
+                    var final = DriveVariablePick(core, p1, rows[0], applyK, checks, tag);
+                    var ok = final.Targets != null && LegalActionEnumerator.Apply(core, p1, final);
                     int drain = 0;
                     while (ok && !core.StackEngine.IsEmpty && drain++ < 10) GameActions.DrainStack(core);
                     int graveLands = zm.GetCards(p1, Zone.Graveyard).Count(c => IsName(c, LandName));
@@ -669,8 +746,42 @@ namespace CardCore.Editor.Tests
             }
         }
 
-        /// <summary>蓝蛰伏盘面：蓝技能=蛰伏；池 3 张未横置地 → 3 行 prefix-k；应用 k=2 恰 2 张
-        /// 横置+各 1 层 DormancyLayers，第 3 张不动。</summary>
+        /// <summary>A6 闸驱动（验证器白盒，2026-11-24 逐目标单选）：可变数量计划——首步行 Open
+        ///（拾 1 张）→ 逐步拾候选首行（候选序=共享序，逐取首行=旧 prefix-k 同集）至 want 张 →
+        /// 提交行收口 → BuildFinal。中途断言：每步候选行=剩余候选、提交行自第 2 步起可见
+        ///（[10]=0、Targets=已选数）、Submit 后收口。</summary>
+        private static TideAction DriveVariablePick(GameCore core, Player me, TideAction firstRow, int want,
+            List<Check> checks, string tag)
+        {
+            try
+            {
+                TargetPickGate.Open(firstRow, null); // 首步行=第 1 拾取
+                for (int picked = 1; picked < want; picked++)
+                {
+                    var step = LegalActionEnumerator.EnumeratePickSteps(core, me);
+                    var cand = step.Actions.Where(r => r.PicksRemaining != 0).ToList();
+                    var submit = step.Actions.FirstOrDefault(r => r.PicksRemaining == 0);
+                    checks.Add(new Check(cand.Count > 0 && submit.Targets != null
+                            && submit.Targets.Count == picked && FeatureOf(step, submit, 10) == 0f,
+                        $"{tag} 第 {picked + 1} 步：候选 {cand.Count} 行 + 提交行（已选 {picked}、[10]=0）"));
+                    if (cand.Count == 0) return default;
+                    TargetPickGate.Pick(cand[0]);
+                }
+                var last = LegalActionEnumerator.EnumeratePickSteps(core, me);
+                var submitRow = last.Actions.FirstOrDefault(r => r.PicksRemaining == 0);
+                checks.Add(new Check(submitRow.Targets != null && submitRow.Targets.Count == want,
+                    $"{tag} 拾满 {want} 张 → 提交行 Targets={want}"));
+                TargetPickGate.Submit();
+                checks.Add(new Check(TargetPickGate.Completed, $"{tag} Submit 后序列收口"));
+                var final = TargetPickGate.BuildFinal(core, me);
+                TargetPickGate.ConsumeParked();
+                return final;
+            }
+            finally { if (TargetPickGate.HasPending) TargetPickGate.Reset(); }
+        }
+
+        /// <summary>蓝蛰伏盘面：蓝技能=蛰伏；池 3 张未横置地 → 3 行首步单选（A6 可变数量计划）；
+        /// 闸拾 2 张（OrderDormancy 共享序前 2）恰 2 张横置+各 1 层 DormancyLayers，第 3 张不动。</summary>
         private static void RunDormancyBoard(List<CardData> catalog, StringBuilder log, List<Check> checks)
         {
             var landData = ByName(catalog, LandName);
@@ -717,14 +828,16 @@ namespace CardCore.Editor.Tests
                     var rows = lae.Actions
                         .Where(a => a.Type == TideActionType.HeroSkill && ReferenceEquals(a.Card, skillCard)).ToList();
                     log.AppendLine($"[P0蛰伏] HeroSkill 行数={rows.Count} :: "
-                        + string.Join(" ; ", rows.Select(r => "n=" + (r.Targets?.Count ?? -1)).ToArray()));
+                        + string.Join(" ; ", rows.Select(r => "[" + NameOf(r.Targets[0]) + "]").ToArray()));
                     checks.Add(new Check(rows.Count == 3
-                            && rows.Select(r => r.Targets?.Count ?? -1).SequenceEqual(new[] { 1, 2, 3 })
+                            && rows.All(r => r.Targets != null && r.Targets.Count == 1 && r.PickPlan != null
+                                && FeatureOf(lae, r, 10) == -1f)
                             && rows.All(r => FeatureOf(lae, r, 12) == 2f && FeatureOf(lae, r, 13) == 0f),
-                        "P0蛰伏 期望 3 行 prefix-k（k=1..3）首目标=元素池"));
+                        "P0蛰伏 期望 3 行首步单选（[10]=-1 开放步数）首目标=元素池"));
 
-                    var row = rows.FirstOrDefault(r => r.Targets.Count == 2);
-                    var ok = LegalActionEnumerator.Apply(core, p1, row);
+                    // 应用（A6）：闸拾 2 张（OrderDormancy 共享序前 2 = 旧 prefix-2 同集）→ 提交行收口
+                    var final = DriveVariablePick(core, p1, rows[0], 2, checks, "P0蛰伏");
+                    var ok = final.Targets != null && LegalActionEnumerator.Apply(core, p1, final);
                     int drain = 0;
                     while (ok && !core.StackEngine.IsEmpty && drain++ < 10) GameActions.DrainStack(core);
                     var pooled = core.ElementPool.GetPooledCards(p1);

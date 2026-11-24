@@ -148,19 +148,22 @@ TransferEquipment（装备退役）；DrainStack（driver 自动）。
 [6] effectIdentity 效果定义哈希注册下标 / 1024.0（PlayCard/PlayLand/Attack/EndTurn/PassPriority/
                   TapCreature = 0）
 [7] targetKind   0=无/区域自结算，1=卡目标，2=对方玩家，3=己方玩家
-[8] target2Index v8 多目标：Targets[1] 槽位（-1=无/玩家目标/组合超出 3 个截断不编码）
-[9] target3Index v8 多目标：Targets[2] 槽位（同上）
-[10] nTargets    v8 多目标：行内目标数（0..8 钳；全取行=候选数）
+[8] -1          A6（2026-11-24 逐目标单选）：次目标维**废止**，恒 -1（组合行退役）
+[9] -1          同上
+[10] picksRemaining A6：剩余待选目标数（含本步）——0=无目标/提交行、1=单步行/最后一步、
+                N=纯固定计划剩余步数（≤16 钳）、-1=计划含可变数量 spec（开放步数哨兵）
 ```
 
-> [8..10] 仅目标展开四类动作（PlayCard/RespondPlay/Activate/RespondActivate）有效；
-> 其余类型恒 -1 / 按 targetKind 计单目标（Attack/Guard 恒单目标）。行内 `TideAction.Targets`
-> 完整（预选按原子执行序串接，引擎结算期预选队列消费），特征只编码前 3 个目标。
+> [8..10] 仅目标展开类动作（PlayCard/RespondPlay/Activate/RespondActivate/HeroSkill/DiscardChoice）
+> 有效；其余类型按 targetKind 计单目标（Attack/Guard 恒单目标）。行内 `TideAction.Targets`
+> 完整（提交行=按计划序规范化拼接的全集，引擎结算期预选队列消费）。
 
-> **2026-11-24 定稿（方案 A；A6，未实现）**：`[10]` 将由 `nTargets` 改为「**剩余待选数（含本步）**」——
-> 0=非目标选择行、1=单目标/最后一步、N=选完还差 N 个；每行 `Targets` 恒 **1 个**，`[8]/[9]` 恒 -1；
-> 组合行 / prefix-k / `MaxSubsetRows` / `MaxPrefixRows` / `MaxDiscardRows` 退役（AI 逐目标单选，玩家侧仍一次提交）。
-> 动作维仍 20、`LAYOUT_VERSION` 不变，但属语义变更：旧 ONNX / checkpoint / 夹具不得复用。见 `docs/回到一期训练目标.md` A6。
+> **2026-11-24 A6 已落地（方案 A 定稿）**：`[10]` 由 `nTargets` 改为「**剩余待选数（含本步）**」——
+> 多目标效果每步选 1 个目标（`TargetPickGate` 累积，固定档收满自动提交、可变档显式提交行 `[10]=0`）；
+> 组合行 / 子集行 / prefix-k / `MaxTargetCombos` / `MaxSubsetRows` / `MaxPrefixRows` / `MaxExpansionRows`
+> 退役（AI 逐目标单选，玩家/脚本侧仍一次提交——SimpleAI 与人类 UI 不走 LAE）。
+> 动作维仍 20、`LAYOUT_VERSION` 不变（v21 无权重），但属语义变更：旧 ONNX / checkpoint / 夹具不得复用。
+> 见 `docs/回到一期训练目标.md` A6。
 
 > v5 苏醒变体行的区分信号：同 (source,target,mode) 下 actionCost 更低的那行=苏醒施放
 >（特征无独立 awaken 位；C# 侧按行序普通行在前、苏醒变体在后）。

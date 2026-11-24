@@ -92,29 +92,40 @@ def run():
     check(abs(d - 0.05) < 1e-9
           and abs((hi - lo) / 2 - 1.96 * (((0.55 * 0.45) / 200 + (0.5 * 0.5) / 200) ** 0.5)) < 1e-9,
           "delta_ci：点估计=Δ、半宽=1.96·σ_合成")
-    check(abs(wilson_lower(0, 200) - 0.0) < 1e-9 and wilson_lower(200, 200) > 0.99,
-          "wilson_lower 边界（0/200→0、200/200→>0.99）")
+    check(abs(wilson_lower(0, 200) - 0.0) < 1e-9 and wilson_lower(200, 200) > 0.97,
+          "wilson_lower 边界（0/200→0、200/200→≈0.981）")
 
-    # ---- ⑨ 通过率合成验证：真实每格 Δ=+10pp，1000 次「17 格全过且中位数 ≥+15pp」 ----
+    # ---- ⑨ 通过率合成验证：真实每格 Δ=+10pp，双侧各 200 局抽样（σ_Δ≈5pp 口径） ----
+    # 【2026-11-24 实测发现·待用户拍板】计划原文的「17 格全过且中位数 ≥+15pp → 60–75%」
+    # 在联合条件下数学上 ≈0%：中位数 17 格抽样 σ≈1.5pp，真实 +10pp 时 P(中位数≥15pp)≈5e-4。
+    # 60–75% 这个带只对应**单项**「17 格全过」（0.977^17≈67%）。故本测试：
+    #   ① 断言「17 格全过」落在 60–75%（计划的算式按此项成立）；
+    #   ② 联合通过率只打印存证（≈0%）——「中位数 ≥+15pp」作为独立门槛实际要求真实水平
+    #     ≈+16pp 才有 60–75% 联合通过率。两项口径如何取舍（中位数线降/联合定义改）= 拍板项。
     rng = random.Random(20261124)
-    trials, hit = 1000, 0
+    trials, hit_all, hit_joint = 1000, 0, 0
     regular_keys = [k for k in SCRIPT_MATRIX_BASELINES if k not in SATURATED_CELLS]
     for _ in range(trials):
         deltas = []
         all_ok = True
         for k in regular_keys:
             base = SCRIPT_MATRIX_BASELINES[k]
-            w = rng.binomialvariate(200, min(base + 0.10, 1.0))
-            d = w / 200 - base
+            w_model = rng.binomialvariate(200, min(base + 0.10, 1.0))
+            w_base = rng.binomialvariate(200, base)
+            d = w_model / 200 - w_base / 200
             deltas.append(d)
             if d < 0:
                 all_ok = False
-        if all_ok and statistics.median(deltas) >= 0.15:
-            hit += 1
-    rate = hit / trials
-    check(0.60 <= rate <= 0.75,
-          f"通过率合成验证：真实 Δ=+10pp → {rate:.1%}（目标带 60–75%；"
-          f"理论 ≈Φ(2)^17≈67%——明显偏离=判据实现与口径不一致）")
+        if all_ok:
+            hit_all += 1
+            if statistics.median(deltas) >= 0.15:
+                hit_joint += 1
+    check(0.60 <= hit_all / trials <= 0.78,
+          f"通过率合成验证①：真实 Δ=+10pp → 17 格全过 {hit_all / trials:.1%}"
+          f"（带 60–78%：均匀 σ_Δ≈5pp 近似给 Φ(2)^17≈67%；**异方差精确期望 ≈75.5%**——低基线格"
+          f"σ_Δ 更小单格更稳，2026-11-24 标定；再偏离=实现与口径不一致）")
+    print(f"    · 存证②：联合（全过 ∧ 中位数≥+15pp）通过率 = {hit_joint / trials:.2%}"
+          f"（真实 +10pp 下数学期望 ≈0%——中位数项要求真实 ≈+16pp，见上方待拍板注）")
 
     print("【phase1_criterion 单测】" + ("全部通过" if FAIL == 0 else f"{FAIL} 项失败"))
     return 0 if FAIL == 0 else 1
