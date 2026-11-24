@@ -83,9 +83,9 @@ def run():
     check(key in cand["below"] and cand["worst"][0] == key,
           f"候选门：Δ=−8pp 计入 below（{len(cand['below'])} 格）")
 
-    # ---- ⑦ 6 格门槛同步：= 基线（Δ≥0），不再是基线+15pp ----
-    check(abs(cell_threshold("red", 0) - 0.595) < 1e-9,
-          f"6 格门槛=基线（实际 {cell_threshold('red', 0)}，旧口径为 0.745）")
+    # ---- ⑦ 6 格门槛同步：= 基线（Δ≥0），不再是基线+15pp；基线值随 B2 重测更新 ----
+    check(abs(cell_threshold("red", 0) - 0.602) < 1e-9,
+          f"6 格门槛=基线（实际 {cell_threshold('red', 0)}，B2 前为 0.745=基线+15pp）")
 
     # ---- ⑧ 统计原语 sanity ----
     d, lo, hi = delta_ci(110, 200, 0.5)

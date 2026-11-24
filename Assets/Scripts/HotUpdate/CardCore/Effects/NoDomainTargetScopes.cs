@@ -2,9 +2,11 @@ using System.Collections.Generic;
 
 namespace CardCore
 {
-    /// <summary>无域原子的动作行模式（P0 2026-11-19 无域原子目标）：
-    /// Subset=任意子集行（既有 -1/-3 口径，AddSubsetRows）；Prefix=前缀行（k=1..N 取候选前 k 张，
-    /// AddPrefixRows——「祭几张」型决策，不枚举 2^N）。</summary>
+    /// <summary>无域原子的动作行模式（P0 2026-11-19 无域原子目标；A6 2026-11-24 起行形态统一）：
+    /// Subset=任意子集（既有 -1/-3 口径）；Prefix=牺牲/蛰伏前缀语义（候选序=HeroSkillTargetPolicy
+    /// 共享序）。A6 起两者都改**可变数量拾取计划**（逐候选拾取+提交行；旧 AddSubsetRows/AddPrefixRows
+    /// 组合行退役）——本枚举保留供作用域串分类（TryGet/IsPrefixAtom 消费——BuildPerAtomPlan 据此
+    /// 走共享序候选），不再决定 LAE 行形。</summary>
     public enum TargetRowMode
     {
         Subset,

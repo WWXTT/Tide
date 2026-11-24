@@ -124,9 +124,11 @@ def action_usage_stats(rollout_data):
 
     rollout 记录的 obs 是**行动前**观测（actions_ 为 C# 原始特征、未过编码器归一化），
     故可按下标直读所选动作行的 type/targetKind，global_[47] 即该步决策上下文。
-    v19 绿套补盲（2026-11-20）：同趟追加绿专项信号（绿套学习与观测补盲计划 §3）——
-      sacrifice_rows = 牺牲行（type=HeroSkill 且 [10]nTargets>0——牺牲/蛰伏 prefix-k 行）；
-      any_gain      = 牺牲目标数合计（SacrificeHandler 逐目标 +1 Any——每局 Any 获取的代理量；
+    v19 绿套补盲（2026-11-20；**A6 2026-11-24 口径更新**）：同趟追加绿专项信号——
+      sacrifice_rows = 牺牲拾取行（type=HeroSkill 且 [10]==-1——A6 起牺牲/蛰伏=可变数量计划，
+      拾取步行 [10]=-1、每行恰 1 个牺牲目标；提交行 [10]=0 不计。旧「[10]nTargets>0」
+      随 prefix-k 组合行退役废弃）；
+      any_gain      = 牺牲目标数合计（=拾取行数——SacrificeHandler 逐目标 +1 Any 的代理量；
                       蛰伏地牌层兑现不走动作行，此值为下界）；
       big_plays     = 大哥出牌行（PlayCard/RespondPlay 且 [5]actionCost>=12——绿 T5 阿格洛斯
                       推导费 14，与沃土 6/归根 8 清晰分档）。
@@ -154,10 +156,11 @@ def action_usage_stats(rollout_data):
                 targeted += 1
             if int(obs["global_"][GLOBAL_F_DECISION_CONTEXT]) == 1:
                 response_steps += 1
-            # 绿专项：牺牲行 = HeroSkill 且 nTargets>0（prefix-k 牺牲行，逐目标 +1 Any）
-            if t == 5 and int(row[ACTION_F_NTARGETS]) > 0:
+            # 绿专项（A6 2026-11-24）：牺牲拾取行 = HeroSkill 且 [10]==-1（可变数量计划拾取步，
+            # 每行恰 1 个牺牲目标；提交行 [10]=0 不计）；any_gain 代理量=拾取行数
+            if t == 5 and int(row[ACTION_F_NTARGETS]) == -1:
                 sacrifice_rows += 1
-                any_gain += int(row[ACTION_F_NTARGETS])
+                any_gain += 1
             # 绿专项：大哥出牌（阿格洛斯 14 费档——actionCost>=12 与中费曲线分档）
             if t in (0, 8) and float(row[ACTION_F_COST]) >= 12.0:
                 big_plays += 1

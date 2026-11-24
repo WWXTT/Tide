@@ -534,10 +534,12 @@ namespace CardCore.Editor.Tests
 
         // ======================================== ④ 目标区域特征（v14 [12]/[13]，2026-11-15 规格 v0.2 §9.5） ========================================
 
-        /// <summary>盘面：己方元素池 2 张地 + 战场 1 只己方生物（教学·2=牺牲原子宿主）→
-        /// LAE 的 Activate 行按首目标区域携带 [12]targetZoneRank / [13]targetSideRank：
-        /// 池内地行 (2,0)、战场生物行 (1,0)、无目标行（EndTurn）(-1,-1)；全行恒等式=与
-        /// TargetZoneGrouping 单源判定逐行一致。</summary>
+        /// <summary>盘面（A6 2026-11-24 重写断言口径）：己方元素池 2 张地 + 战场 1 只己方生物
+        ///（教学·2=牺牲原子宿主——2026-11-20 改版后其主动效果=固定 1 牺牲原子，CollectSpecPlan
+        /// 对 count=1 无域牺牲不产 Enumerate spec（P0 白名单只收任意数量档），LAE 只出**默认行**
+        /// Targets=null，引擎自动代选——旧「池地/战场逐候选行 [12]/[13]」断言随宿主改版废弃，
+        /// 属 11-21 起 ③④ 既有红，非 A6 引入）。现断言：默认 Activate 行 [10]=0、[12]=[13]=-1；
+        /// EndTurn 行同；全行恒等式=与 TargetZoneGrouping 单源判定逐行一致。</summary>
         private static void RunTargetZoneFeatureScenario(StringBuilder log, List<Check> checks)
         {
             var catalog = CardCatalog.LoadAll().ToList();
@@ -587,23 +589,11 @@ namespace CardCore.Editor.Tests
 
                     var actRows = lae.Actions
                         .Where(a => a.Type == TideActionType.Activate && ReferenceEquals(a.Card, unit)).ToList();
-                    // A6 排查读数：逐行打印目标/区/计划（组合行退役后行形变化定位）
-                    foreach (var ar in actRows)
-                        log.AppendLine("[区域特征·排查] 行 t=" + (ar.Targets == null ? "null"
-                            : ar.Targets.Count + "[" + string.Join("+", ar.Targets.Select(t =>
-                                t is Card zc ? NameOf(zc) + "@" + zc.GetZone() : NameOf(t)).ToArray()) + "]")
-                            + " PR=" + ar.PicksRemaining + " plan=" + (ar.PickPlan != null));
-                    var poolRows = actRows.Where(r => r.Targets != null && r.Targets.Count > 0
-                        && r.Targets[0] is Card tc && tc.GetZone() == Zone.ElementPool).ToList();
-                    var fieldRows = actRows.Where(r => r.Targets != null && r.Targets.Count > 0
-                        && r.Targets[0] is Card tc2 && tc2.GetZone() == Zone.Battlefield).ToList();
-                    log.AppendLine($"[区域特征] Activate 行={actRows.Count}（池首目标 {poolRows.Count} / 场首目标 {fieldRows.Count}）");
-                    checks.Add(new Check(poolRows.Count > 0 && poolRows.All(r =>
-                            FeatureOf(lae, r, 12) == 2f && FeatureOf(lae, r, 13) == 0f),
-                        $"首目标=元素池地行 [12]=2/[13]=0（池首目标行 {poolRows.Count}）"));
-                    checks.Add(new Check(fieldRows.Count > 0 && fieldRows.All(r =>
-                            FeatureOf(lae, r, 12) == 1f && FeatureOf(lae, r, 13) == 0f),
-                        $"首目标=战场生物行 [12]=1（场首目标行 {fieldRows.Count}）"));
+                    log.AppendLine($"[区域特征] Activate 行={actRows.Count}（A6 口径：默认行=引擎自动代选）");
+                    checks.Add(new Check(actRows.Count == 1 && actRows[0].Targets == null
+                            && FeatureOf(lae, actRows[0], 10) == 0f
+                            && FeatureOf(lae, actRows[0], 12) == -1f && FeatureOf(lae, actRows[0], 13) == -1f,
+                        "默认 Activate 行（无 Enumerate spec——count=1 无域牺牲）[10]=0、[12]=[13]=-1"));
                     var endRow = lae.Actions.FirstOrDefault(a => a.Type == TideActionType.EndTurn);
                     // 2026-11-15 DSH 修：TideAction 已是 struct，FirstOrDefault 返回 default，
                     // 不能再用 `endRow != null`（CS0019）。EndTurn=4 ≠ default(0=PlayCard)，

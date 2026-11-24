@@ -6,7 +6,8 @@ namespace CardCore.AI
     /// <summary>
     /// 英雄技能无域原子的候选顺序/排除单源（P0 2026-11-19，docs/AI动作空间补全_修改计划.md §1.2.4）：
     /// 牺牲（Sacrifice）/蛰伏（Dormancy）的作用域写死在 handler、原子表无 Domain——
-    /// LAE prefix-k 行（LegalActionEnumerator.AddPrefixRows）与 GreenRampStrategy.HeroSkillTargets
+    /// A6（2026-11-24 逐目标单选）起 LAE 以本序为**候选序**产出可变数量计划的首步行/闸拾取行
+    ///（旧 prefix-k 前缀行退役；逐取前 k 行=旧前缀行同集），与 GreenRampStrategy.HeroSkillTargets
     /// **共用本类**决定「哪些候选可进名单、按什么顺序」，不得各写一份。
     /// 顺序语义：场上段在前、池段在后，组内保持传入（引擎解析）序——与 GreenRampStrategy
     /// HeroSkillTargets 2026-11-18 定案的顺序逐行等价（A/B 200 局验证口径）。

@@ -257,7 +257,7 @@ ACTION_F_TARGET_KIND = 7
 # （PlayCard/RespondPlay/Activate/RespondActivate）有效，其余类型恒 -1 / 按 targetKind 单目标计数
 ACTION_F_TARGET2 = 8
 ACTION_F_TARGET3 = 9
-ACTION_F_NTARGETS = 10
+ACTION_F_NTARGETS = 10  # A6（2026-11-24 逐目标单选）：语义=nTargets→picksRemaining（见上方 A6 段注）；常量名保留（槽位不变）
 # v13 参照槽位（2026-11-08 目标选择重构步5）：Reference 角色选位镜像——与 C# BuildFeatures [11] 对齐
 ACTION_F_REF_INDEX = 11
 
