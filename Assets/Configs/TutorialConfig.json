@@ -4,11 +4,11 @@
       "id": "basics",
       "name": "基础教学",
       "rngSeed": 20261002,
-      "_说明": "教学一·两段式第三版修订（2026-10-17 晚·考验重铸）：介绍段=7 段配音卡片+语音联动地块独占显隐（reveal 指令 Solo）；操作段=宽松步+AI 守卫演示（attack 步 aiGuard=true——宣言帧不推进，结算探针才算完成，解说卡 basics_14 文字占位待配音、由 UI 等战斗表现收尾后弹出）；basics_12 过场（aiTurnOnConfirm）显示时 midTransition 全清重铺（阶段一生物不保留），确定后直接把回合交给对手=对手进攻回合；考验=玩家 6/1 主将+8×2/2+3×1/1 对 8/8×2+7/7×2+2/2×2（2026-10-17 真实白板卡定案：同属性共用一张卡 C_E98E60F2~100E+100F=6/1 主将专用，units 数值覆写退役；当晚再改=前排三只 2/2 换 1/1 加难），AI 打法=四只大怪无脑打脸（hero）、两只 2/2 首选打玩家 6/1（target=100F，fallback=hero——6/1 死后转攻角色），victory 自由挑战（打赢过/打输重来）。阶段一生物=玩家召唤 1/1（教学生物12）·AI 铺 3/2（教学生物24）——回合 2 玩家再攻时 AI 守卫挡刀并反杀（basics_14 解说，横置不反击同段讲授）。语音=StreamingAssets/TutorialAudio/basics_01..13 到货+basics_14 待录。跳过机制 guideSkip=[victory]/skipScenario（firstPlayer=P2 直入即对手进攻回合，ScriptedAi turnOffset=1 对位 turn2）。。卡组引用文件化（2026-10-17）：playerDeckFile/aiDeckFile → StreamingAssets/Tutorial/basics.json+basics_ai.json（DeckData 格式，id 引用即是卡组、可重复）；当晚改版=玩家起手=1/1 召唤卡×2（教学生物12 固定两张上手——防垫地耗尽后无生物可召）+考验上场卡填充（2/2×3+6/1，抽牌亦 2/2）、AI=剧本 3 张（垫地×2+3/2）+其考验怪填充（8/8×2+7/7×2+2/2）；2/2 白板费 1→2 保「费用最低那张」唯一指向 1/1（考验段摆场不付费无影响）；教学卡表同批清剿无引用废卡（39→7，100C=6/6 一并退役）；教学卡表/效果表均在 StreamingAssets/Tutorial/，正式卡池 Card/ 不再混放教学卡。2026-10-23 v4 重规划：段零改 scenario 确定性开局（2 地→2 只 1/1→攻击→AI 3/2 冲脸→玩家守卫→打横置 3/1 白吃），guide 13 步；skipScenario/aiScript turn2+/victory 原样不动，考验未改。2026-10-23 晚：介绍段 7 步（basics_01..07·reveal 地块独占显隐）自 v4 前版本（abfabce33）回插 guide 头部，v4 操作步后移（用户定案：旧场地介绍+配音加回）；basics_06 文案为 10-22 重写版、mp3（10-17）仍旧稿待重录2026-11-21 表现层v0.4：guide 各步可配 mask/highlight/pause 三块（成片缓存单窗遮罩+3D选择描边+步暂停；词表与默认值见 TutorialGuideStepSpec 注释、静态校验=TideSim --tutorial-guide-audit）。当前全部未挂——开哪些步由用户点名后配置。",
+      "_说明": "教学一·两段式第三版修订（2026-10-17 晚·考验重铸）：介绍段=7 段配音卡片+语音联动地块独占显隐（reveal 指令 Solo）；操作段=宽松步+AI 守卫演示（attack 步 aiGuard=true——宣言帧不推进，结算探针才算完成，解说卡 basics_14 文字占位待配音、由 UI 等战斗表现收尾后弹出）；basics_12 过场（aiTurnOnConfirm）显示时 midTransition 全清重铺（阶段一生物不保留），确定后直接把回合交给对手=对手进攻回合；考验=玩家 6/1 主将+8×2/2+3×1/1 对 8/8×2+7/7×2+2/2×2（2026-10-17 真实白板卡定案：同属性共用一张卡 C_E98E60F2~100E+100F=6/1 主将专用，units 数值覆写退役；当晚再改=前排三只 2/2 换 1/1 加难），AI 打法=四只大怪无脑打脸（hero）、两只 2/2 首选打玩家 6/1（target=100F，fallback=hero——6/1 死后转攻角色），victory 自由挑战（打赢过/打输重来）。阶段一生物=玩家召唤 1/1（教学生物12）·AI 铺 3/2（教学生物24）——回合 2 玩家再攻时 AI 守卫挡刀并反杀（basics_14 解说，横置不反击同段讲授）。语音目录已迁 Assets/Data/TutorialData/TutorialAudio（StreamingAssets/TutorialAudio 旧口径作废，2026-10-18 迁移）。跳过机制 guideSkip=[victory]/skipScenario（firstPlayer=P2 直入即对手进攻回合，ScriptedAi turnOffset=1 对位 turn2）。。卡组引用文件化（2026-10-17）：playerDeckFile/aiDeckFile → StreamingAssets/Tutorial/basics.json+basics_ai.json（DeckData 格式，id 引用即是卡组、可重复）；当晚改版=玩家起手=1/1 召唤卡×2（教学生物12 固定两张上手——防垫地耗尽后无生物可召）+考验上场卡填充（2/2×3+6/1，抽牌亦 2/2）、AI=剧本 3 张（垫地×2+3/2）+其考验怪填充（8/8×2+7/7×2+2/2）；2/2 白板费 1→2 保「费用最低那张」唯一指向 1/1（考验段摆场不付费无影响）；教学卡表同批清剿无引用废卡（39→7，100C=6/6 一并退役）；教学卡表/效果表均在 StreamingAssets/Tutorial/，正式卡池 Card/ 不再混放教学卡。2026-10-23 v4 重规划：段零改 scenario 确定性开局（2 地→2 只 1/1→攻击→AI 3/2 冲脸→玩家守卫→打横置 3/1 白吃），guide 13 步；skipScenario/aiScript turn2+/victory 原样不动，考验未改。2026-10-23 晚：介绍段 7 步（basics_01..07·reveal 地块独占显隐）自 v4 前版本（abfabce33）回插 guide 头部，v4 操作步后移（用户定案：旧场地介绍+配音加回）；basics_06 文案为 10-22 重写版、mp3（10-17）仍旧稿待重录2026-11-21 表现层v0.4：guide 各步可配 mask/highlight/pause 三块（成片缓存单窗遮罩+3D选择描边+步暂停；词表与默认值见 TutorialGuideStepSpec 注释、静态校验=TideSim --tutorial-guide-audit）。当前全部未挂——开哪些步由用户点名后配置。",
       "scenario": {
         "startTurn": 2,
         "firstPlayer": "P1",
-        "_说明": "教学一 v4 段零（2026-10-23 重规划）：确定性资源/召唤/攻击/守卫/无损攻击教学。玩家 4 张 1 费灰卡（两张当地、两张召唤），AI 3 张（两张当地、一张 3/2），首回合 AI 铺 3/2 并攻击角色触发守卫步；deck 只放补牌防疲劳，无引用。考验仍走 skipScenario，不动。",
+        "_说明": "教学一 v5 段零（2026-11-23 新文本对齐）：手牌清空：basics_10 确认后发牌动画 7 张一张一张实抽（deck 序=摸牌序，前 7=原手牌构成）+第 8 张=准备阶段又抽 1 张（basics_11 dealOpening 标记驱动）（步 11 文案「各抽 7 张」与画面一致），准备阶段自动抽 1 张；玩家步 13 放教学生物1（1 灰）、步 14 召唤教学生物2（费 1 灰，登场效果=本回合第一张卡→召唤 1/3 守卫衍生物）；AI 首回合放两块地→召唤教学·53（2/4）冲脸触发守卫演示（步 20）。预置教学·2 已撤（场上只应出现教学生物2+衍生物两张）。deck 只放考验卡补牌防疲劳。考验仍走 skipScenario，不动。",
         "player": {
           "life": 30,
           "fatigue": 0,
@@ -21,22 +21,19 @@
             0
           ],
           "lands": [],
-          "units": [
-            {
-              "card": "C_95DC98E5",
-              "tapped": false,
-              "x": 1,
-              "z": 2
-            }
-          ],
-          "hand": [
-            "C_3D10E1A5",
-            "C_DA499FAE",
-            "C_DA499FAE"
-          ],
+          "units": [],
+          "hand": [],
           "deck": [
+            "C_7EC71001",
+            "C_7EC71002",
             "C_C3D7138E",
-            "C_C3D7138E"
+            "C_E98E60F2",
+            "C_E98E60F2",
+            "C_DA499FAE",
+            "C_DA499FAE",
+            "C_E98E60F2",
+            "C_E98E60F2",
+            "C_E98E60F2"
           ],
           "grave": []
         },
@@ -53,14 +50,18 @@
           ],
           "lands": [],
           "units": [],
-          "hand": [
+          "hand": [],
+          "deck": [
             "C_E98E60F2",
             "C_03E4B181",
-            "C_C279F399"
-          ],
-          "deck": [
+            "C_7EC71004",
             "C_8C47525E",
-            "C_8C47525E"
+            "C_8C47525E",
+            "C_03E4B181",
+            "C_8C47525E",
+            "C_8C47525E",
+            "C_03E4B181",
+            "C_E98E60F2"
           ],
           "grave": []
         }
@@ -127,7 +128,8 @@
           },
           "highlight": [
             {
-              "target": "zone:p1-land"
+              "target": "zone:p1-land",
+              "style": "pool"
             }
           ]
         },
@@ -138,78 +140,70 @@
           "hint": "战场的基本情况介绍完了，接下来将用确切的例子回顾之前介绍的内容，引导你完成一个回合中的基础操作，需要你根据提示进行对应的操作才能推进教程进度。"
         },
         {
-          "type": "element",
+          "type": "intro",
           "audio": "basics_09",
+          "hint": "对局开始时投掷硬币：蓝色面是我方先手，红色面是对方先手。本次的结果是蓝色，所以由你先行动；后手一方（对手）的角色额外获得5点护甲作为补偿。",
+          "highlight": [
+            {
+              "target": "oppHero"
+            }
+          ],
+          "coinToss": true
+        },
+        {
+          "type": "intro",
+          "audio": "basics_10",
           "reveal": "hand",
           "hint": "回合分成准备、主要、结束三个阶段；结束后交给对手，重复同样的三个阶段。阶段变化会在中间信息条上播报，操作大多集中在自己的主要阶段。",
           "highlight": [
             {
               "target": "zone:mid"
             }
-          ]
+          ],
+          "mask": {
+            "target": "hud:phase"
+          }
+        },
+        {
+          "type": "intro",
+          "audio": "basics_11",
+          "hint": "确定行动顺序后对局开始：双方从卡组各抽7张作为起手，游戏自动推进到己方的准备阶段，又抽1张，然后进入主要阶段。",
+          "dealOpening": true
+        },
+        {
+          "type": "intro",
+          "audio": "basics_12",
+          "hint": "一张卡需要支付的费用颜色，也是它作为地牌能产出的颜色。真正的对局里要决策：后面想用哪张卡，就按它的费用颜色去反推该放哪些地牌。教学里简化了这个决策，只要按卡名点击就能完成基础操作。",
+          "mask": {
+            "target": "hand"
+          }
         },
         {
           "type": "element",
-          "audio": "basics_10",
-          "hint": "对局开始时投掷硬币：蓝色面是我方先手，红色面是对方先手。本次的结果是蓝色，所以由你先行动；后手一方（对手）的角色额外获得5点护甲作为补偿。",
-          "highlight": [
-            {
-              "target": "oppHero"
-            }
-          ]
-        },
-        {
-          "type": "activate",
-          "card": "C_95DC98E5",
-          "audio": "basics_11",
-          "hint": "确定行动顺序后对局开始：双方从卡组各抽7张作为起手，游戏自动推进到己方的准备阶段，又抽1张，然后进入主要阶段。",
-          "highlight": [
-            {
-              "target": "unit:C_95DC98E5"
-            }
-          ]
-        },
-        {
-          "type": "play",
-          "card": "C_DA499FAE",
-          "audio": "basics_12",
-          "hint": "一张卡需要支付的费用颜色，也是它作为地牌能产出的颜色。真正的对局里要决策：后面想用哪张卡，就按它的费用颜色去反推该放哪些地牌。教学里简化了这个决策，只要按卡名点击就能完成基础操作。",
-          "highlight": [
-            {
-              "target": "zone:p1-land"
-            }
-          ]
-        },
-        {
-          "type": "attack",
-          "attacker": "C_DA499FAE",
-          "target": "hero",
           "audio": "basics_13",
           "hint": "点击卡名“教学生物1”的卡：卡上方显示灰色费用，并出现【放置】按钮。点它，把这张卡放进灰色元素池当地牌——灰色地牌格的计数从0/0变成1/1，含义是“该色当前可用/该色地牌总数”。再点击卡名“教学生物2”的卡，点【使用】召唤它。",
           "highlight": [
             {
               "target": "zone:p1-land"
             }
-          ]
+          ],
+          "card": "C_7EC71001"
         },
         {
-          "type": "attack",
-          "attacker": "C_DA499FAE",
-          "target": "hero",
+          "type": "play",
           "audio": "basics_14",
           "hint": "召唤“教学生物2”花掉1点灰色元素，灰色地牌格的计数从1/1变成0/1——这就是“放置地牌获得元素、使用卡消耗元素”的全过程。",
           "highlight": [
             {
               "target": "zone:p1-land"
             }
-          ]
+          ],
+          "card": "C_7EC71002"
         },
         {
-          "type": "attack",
-          "attacker": "C_DA499FAE",
-          "target": "hero",
+          "type": "intro",
           "audio": "basics_15",
-          "hint": "现在只是第一回合，只能放一张地牌；之后每次回合开始，双方的地牌上限都会+1，自然封顶10。彩元素格上的数字表示“当前可用的临时元素/地牌上限”，也能看到上限。",
+          "hint": "现在只是第一回合，只能放一张地牌；之后每次回合开始，双方的地牌上限都会+1，自然成长到10，后续不再自动增加地牌上限。彩元素格上的数字表示“当前可用的彩元素/地牌上限”",
           "highlight": [
             {
               "target": "cell:1:0"
@@ -217,87 +211,84 @@
           ]
         },
         {
-          "type": "attack",
-          "attacker": "C_DA499FAE",
-          "target": "hero",
+          "type": "intro",
           "audio": "basics_16",
           "hint": "“教学生物2”的登场效果是：若它是本回合使用的第一张卡，就召唤一个“教学生物2衍生物”。场上这两张生物都会显示自己的属性：左边是攻击力，即发起攻击时造成的战斗伤害；右边是生命值，即还能承受多少伤害。",
           "highlight": [
             {
-              "target": "unit:C_DA499FAE"
+              "target": "unit:C_7EC71002"
             }
           ]
         },
         {
-          "type": "intro",
+          "type": "attack",
           "audio": "basics_17",
-          "hint": "“教学生物2”有一个剑形图标，表示可以发起攻击。点击“教学生物2”，出现【攻击】按钮；选对手角色为攻击目标，攻击后对对手角色造成战斗伤害，这只生物随之横置。",
+          "hint": "“教学生物2”头顶有一个剑形图标，表示可以发起攻击。点击这个图标，选择对手角色为攻击目标，攻击后对对手角色造成战斗伤害，这只生物随之横置。",
           "mask": {
-            "target": "unit:C_DA499FAE"
+            "target": "unit:C_7EC71002"
           },
           "highlight": [
             {
-              "target": "unit:C_DA499FAE"
+              "target": "unit:C_7EC71002"
             }
-          ]
+          ],
+          "attacker": "C_7EC71002",
+          "target": "hero"
         },
         {
-          "type": "end",
+          "type": "intro",
           "audio": "basics_18",
-          "hint": "攻击、守卫或发动主动效果都会让生物变成横置状态，横置与否看它脚下卡牌的朝向。横置状态要到下个回合自己的准备阶段才恢复，在此之前不能再攻击、守卫或发动主动效果。",
+          "hint": "攻击、守卫或发动主动效果都会让生物变成横置状态，横置与否看它脚下卡牌的朝向。横置状态要到下个回合自己的准备阶段才恢复，恢复之前不能再攻击、守卫或发动主动效果。",
           "highlight": [
             {
-              "target": "unit:C_DA499FAE"
+              "target": "unit:C_7EC71002"
             }
           ]
         },
         {
           "type": "end",
           "audio": "basics_19",
-          "hint": "“教学生物2衍生物”有一个盾形图标，表示可以守卫——只有在对手发动攻击时才能使用。现在没有其他可执行的操作，点击中线最右格的【回合结束】，把回合交给对手。",
+          "hint": "“教学生物2衍生物”有一个盾形图标，表示可以守卫——只有在对手发动攻击时才能使用，因此是不可用的灰色。现在没有其他可执行的操作，点击中线最右格的【回合结束】，把回合交给对手。",
           "highlight": [
             {
-              "target": "unit:C_DA499FAE"
-            },
-            {
-              "target": "cell:5:3"
+              "target": "unit:C_7EC71003"
             }
           ]
         },
         {
           "type": "guard",
-          "attacker": "C_C279F399",
-          "guarder": "C_DA499FAE#2",
+          "attacker": "C_7EC71004",
+          "guarder": "C_7EC71003",
           "audio": "basics_20",
-          "hint": "对手召唤了一只2/4的生物，对你的角色发起攻击。此时游戏暂停了：因为你场上有可以守卫的生物，系统在等你的回应。点击“教学生物2衍生物”，点【守卫】，再选择发起攻击的对手生物。",
+          "hint": "对手召唤了一只攻击力为2，生命值为4的生物，对你的角色发起攻击。此时游戏暂停了：因为你场上有可以守卫的生物，系统在等你的回应。点击“教学生物2衍生物”，点【守卫】，再选择对手发起攻击的生物。",
           "highlight": [
             {
-              "target": "unit:C_C279F399"
+              "target": "unit:C_7EC71004"
             }
           ]
         },
         {
           "type": "intro",
           "audio": "basics_21",
-          "hint": "可以看到攻击没有落到角色身上：守卫把对手生物的攻击目标改指向了自己。两只生物互相造成战斗伤害，然后都进入横置状态。",
+          "hint": "可以看到攻击没有落到角色身上：守卫挡下了对手生物的攻击。两只生物互相造成战斗伤害，然后都进入横置状态。",
           "mask": {
             "target": "units"
           },
           "highlight": [
             {
-              "target": "unit:C_C279F399"
+              "target": "unit:C_7EC71004"
             }
           ]
         },
         {
           "type": "attack",
-          "attacker": "C_DA499FAE",
-          "target": "C_C279F399",
+          "attacker": "C_7EC71002",
+          "target": "C_7EC71004",
           "audio": "basics_22",
           "hint": "对手结束了回合，又到了你的回合。准备阶段可以看到：彩元素格上的地牌上限变成了3，灰色元素池回到1/1，“教学生物2”也从横置恢复成可用。点击“教学生物2”，点【攻击】，选择对方那只横置的生物。",
           "highlight": [
             {
-              "target": "unit:C_C279F399"
+              "target": "unit:C_7EC71004"
             },
             {
               "target": "cell:1:0"
@@ -309,11 +300,11 @@
           "audio": "basics_23",
           "hint": "可以看到它没有反击——横置的生物只能挨打，没办法还手。请记住：攻击、守卫、发动主动效果都会让生物进入行动力耗尽的横置状态，无法反击。这是基础战斗里最重要的规则。",
           "mask": {
-            "target": "unit:C_C279F399"
+            "target": "unit:C_7EC71004"
           },
           "highlight": [
             {
-              "target": "unit:C_C279F399"
+              "target": "unit:C_7EC71004"
             }
           ]
         },
@@ -490,11 +481,11 @@
             },
             {
               "type": "play",
-              "card": "C_C279F399"
+              "card": "C_7EC71004"
             },
             {
               "type": "attack",
-              "attacker": "C_C279F399",
+              "attacker": "C_7EC71004",
               "target": "hero"
             }
           ]

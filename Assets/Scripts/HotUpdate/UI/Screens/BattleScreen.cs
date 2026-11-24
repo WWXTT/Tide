@@ -521,7 +521,6 @@ namespace SynergyUI
             _decision.Shutdown(); // 守卫/响应窗收口协议（顺序依据见 BattleDecisionHub——2026-10-18 B3）
             _tutorial?.CloseIntroPanel(); // 介绍段配音卡片防跨屏残留（2026-10-17）
             CloseTipPrompt(); // TipPanel 提示弹窗防跨屏残留（2026-10-17）
-            _unitButtons.Dispose(); // 单位动作 3D 按钮组防跨屏残留（2026-10-26 替弹窗）
             _dragArrow3D?.Dispose(); // 拖拽 3D 箭头防跨屏残留（2026-11-15 阶段H：BattleAttackArrow 程序化网格）
             _dragArrow3D = null;
             BattleRevealDirector.End(); // 语音联动显隐全恢复防跨屏残留（2026-10-17）

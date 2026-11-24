@@ -16,11 +16,11 @@ namespace SynergyUI.Online
         /// <summary>启动装配：云存档链路（SDK Init→静默登录→启动同步旁路；编辑器/PC 空转只留日志）。</summary>
         public void InitOnStartup() => CloudSave.TapCloudSaveBootstrap.Init();
 
-        /// <summary>主菜单挂件（2026-11-22 登录迁移定案：登录/云存档/退出登录全在设置面板账号区）：
-        /// TapLoginBadge 注入 SettingsLoginSlot + 云存档入口注入 SettingsCloudSlot。</summary>
+        /// <summary>主菜单挂件（2026-11-22 登录迁移定案：登录/云存档/退出登录全在设置面板账号区；
+        /// 2026-11-23 烘焙改版：slot-login/slot-logout/up-cloud/down-cloud 四钮烘焙在
+        /// MainUI.prefab——CloudSaveMenuController 按名绑定，TapLoginBadge 注入链退役）。</summary>
         public void OnMainMenuBuilt(MainMenuScreen menu)
         {
-            TapLoginBadge.AttachToSettings(menu);
             _cloudMenu.Build(menu);
         }
 

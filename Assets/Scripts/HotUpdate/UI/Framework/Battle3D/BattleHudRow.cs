@@ -89,6 +89,10 @@ namespace SynergyUI
         ///（2026-10-26：掷币「准确落到中央连锁速度那一格」）。</summary>
         public static Transform ChainSpeedTile => TileOf("hud-tile-chain-speed");
 
+        /// <summary>阶段显示格（2026-11-23 教学验收：basics 步 10 遮罩只显回合地块——
+        /// TutorialTargetResolver "hud:phase" 词消费）。</summary>
+        public static Transform PhaseTile => TileOf("hud-tile-phase");
+
         /// <summary>装台幂等（BattleStageDirector.MountBoardAndDawnAsync 在 BattleZoneProps.Mount 后调）：
         /// 须在 BattleHexBoard.Build + BattleBoardGrid.Mount 之后（认领已拼好的中线行格）。</summary>
         public static void Mount()

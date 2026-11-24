@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -587,6 +587,11 @@ namespace CardCore.Editor.TideHeadless
                     mBlood = r.ModelBlood,
                     mBomb = r.ModelBomb,
                     mCombo = r.ModelCombo,
+                    // 2026-11-23 考察项：攻击目标分类（是否理解"打已横置单位不吃反击"）
+                    mAtkSafe = r.ModelAtkSafe,
+                    mAtkRisky = r.ModelAtkRisky,
+                    mAtkFace = r.ModelAtkFace,
+                    mAtkAny = r.ModelAtkAny,
                 },
             };
             return JsonUtility.ToJson(resp);
@@ -613,7 +618,9 @@ namespace CardCore.Editor.TideHeadless
             // 2026-11-23 行为仪表（B4 用户口径）：模型侧「牺牲 + 回收」链与 14 费大哥落地（每局累计）
             public int mSac; public int mRec; public int mChain; public int mAgros; public int mAgrosTurn;
             // 2026-11-23 追加：绿成长（沃土打出 / T1·T3 地数）+ 红法术线（血偿/炸弹/同回合斩杀尝试）
-            public int mGrow; public int mLandT1; public int mLandT3; public int mBlood; public int mBomb; public int mCombo; }
+            public int mGrow; public int mLandT1; public int mLandT3; public int mBlood; public int mBomb; public int mCombo;
+            // 2026-11-23 考察项：攻击目标分类——safe=打已横置且无警戒（不吃反击）/ risky=未横置或有警戒 / face=打角色
+            public int mAtkSafe; public int mAtkRisky; public int mAtkFace; public int mAtkAny; }
         [Serializable] public class HeadlessResponse { public string op; public HeadlessObs obs; public float reward; public bool done; public HeadlessInfo info; }
     }
 }

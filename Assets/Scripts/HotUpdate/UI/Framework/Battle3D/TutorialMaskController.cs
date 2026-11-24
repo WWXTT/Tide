@@ -7,21 +7,28 @@ using UnityEngine.UI;
 namespace SynergyUI
 {
     /// <summary>
-    /// 教学战场遮罩控制器（2026-11-21 遮罩计划 v0.4·第七轮定稿）：相机照常渲屏（不碰
-    /// targetTexture），成片由 Tide.RenderFX.TutorialMaskFeature 拷进 TutorialMaskSceneCache，
-    /// 本控制器逐帧跑**一条 blit 链**产出遮罩成品：
+    /// 教学战场遮罩控制器（2026-11-21 遮罩计划 v0.4·第七轮定稿；2026-11-23 两处用户定案改版）：
+    /// 相机照常渲屏（不碰 targetTexture），成片由 Tide.RenderFX.TutorialMaskFeature 拷进
+    /// TutorialMaskSceneCache，本控制器逐帧跑**一条 blit 链**产出遮罩成品：
     /// · **目标剪影 = 成片缓存的 alpha 通道**（第七轮定稿）：控制器只把本步目标的 renderer
     ///   交给 TutorialMaskSceneCache.SilhouetteRenderers，由 feature 在**拷成片的那一个 pass**
     ///   里平涂（Tide/TutorialSceneCopy Pass 1，只写 alpha）→ 剪影与成片同矩阵/同目标/同朝向，
     ///   **没有独立剪影 RT、没有屏幕矩形换算、没有 uv 翻转分支**（旧做法用 CommandBuffer 手工设
     ///   相机原始投影绘独立 RT，缺 RT 必需的 GPU Y 翻转 → 镂空相对画面上下镜像 = 用户实测
     ///   "镂空位置不对"的根因，已整条拆除）；
+    /// · **hand 模式**（2026-11-23 验收）：target="hand"=全屏模糊**无剪影洞**+把手牌层（self-fan-layer）
+    ///   抬到遮罩图之上——手牌 uGUI 不在相机成片里，剪影/开窗机制不适用，「只显手牌」由层级抬升达成，
+    ///   Clear 时按原兄弟位归还；
     /// · 模糊链：SceneCopy（RGB）→ qA(H) → qB(V) → ×3 迭代小半径（平滑无重影）；
     /// · 合成（Tide/TutorialMask 做 blit）：读成片 alpha 做 9 tap 均值软边，剪影处 alpha=0
     ///   （透明露出真实 3D+UI）、其余=模糊图不透明（连 UI 一起盖掉）→ qFinal（**ARGBHalf 保 alpha**）；
-    /// · mask-img 全屏 RawImage 用**默认 UI 材质**直显 qFinal（RT 自带 alpha 洞）。
+    /// · 遮罩图 RawImage 用**默认 UI 材质**直显 qFinal（RT 自带 alpha 洞）。**层由代码创建**
+    ///  （2026-11-23 用户定案：一次性节点不走预制体——BattleUI.prefab 不再烘焙 mask-img）：
+    ///   Apply 时 new 全屏 RawImage 挂 root **末位兄弟**（=BattleUI 层级最下面、盖住全部烘焙 UI，
+    ///   Hierarchy 面板语义），解说卡 TipPanel 在其之后创建仍居其上（弹窗在 mask 下面=列表更靠下
+    ///   =可读可点）；Clear 时销毁。
     /// 点击恢复口（§5.2）：点目标屏幕 AABB（bounds 投影 WindowPx，仅供交互/日志——不参与合成）
-    /// → BattlePauseBus.ResumeByWindow。关闭=层隐藏+RT Release。
+    /// → BattlePauseBus.ResumeByWindow。关闭=销毁遮罩图+RT Release。
     /// </summary>
     public static class TutorialMaskController
     {
@@ -43,6 +50,10 @@ namespace SynergyUI
         private static bool _windowValidLast = true;    // 有效性转换日志去重
         /// <summary>本帧剪影 renderer 缓冲（复用免 GC；feature 同帧读取，逐帧重填）。</summary>
         private static readonly List<Renderer> _silBuffer = new List<Renderer>(64);
+        /// <summary>hand 模式（target="hand"）：无剪影全屏模糊+手牌层抬升（Clear 归还原兄弟位）。</summary>
+        private static bool _handMode;
+        private static RectTransform _fanLayer;
+        private static int _fanOriginalIndex = -1;
 
         /// <summary>遮罩在役。</summary>
         public static bool Active => _active;
@@ -58,6 +69,9 @@ namespace SynergyUI
             TutorialMaskSceneCache.Requested = false;
             TutorialMaskSceneCache.SceneCopy = null;
             TutorialMaskSceneCache.SilhouetteRenderers = null;
+            _handMode = false;
+            _fanLayer = null;
+            _fanOriginalIndex = -1;
             _spec = null;
             _cam = null;
             _qA = _qB = _qFinal = null;
@@ -70,19 +84,17 @@ namespace SynergyUI
         }
 
         /// <summary>启用遮罩（导演逐步调用）：目标整步不可解析=false 不启用（只警告不炸）。
-        /// 层缺失/相机缺失=false——遮罩跳过，教学流程不断。</summary>
+        /// 相机缺失=false——遮罩跳过，教学流程不断。遮罩图节点（2026-11-23 定案）由本方法**代码
+        /// 创建**：root 下全屏拉伸 RawImage、**末位兄弟**（BattleUI 层级最下面=盖住全部烘焙 UI；
+        /// 后续创建的解说卡 TipPanel 再 SetAsLastSibling 会排到它后面=弹窗在 mask 下、可读可点），
+        /// 一次性节点不走 BattleUI.prefab（烘焙节点已拆除）。</summary>
         public static bool Apply(RectTransform root, TutorialFocusMaskSpec spec)
         {
             Clear();
             if (spec == null || string.IsNullOrEmpty(spec.target) || root == null) return false;
             _cam = BattleStageDirector.WorldCam;
             if (_cam == null) { Debug.LogWarning("[TutorialMask] 无世界相机——遮罩跳过"); return false; }
-            _img = UiKit.FindDeep(root, ImgNodeName)?.GetComponent<RawImage>();
-            if (_img == null)
-            {
-                Debug.LogWarning($"[TutorialMask] BattleUI.prefab 缺 {ImgNodeName} 层——遮罩跳过");
-                return false;
-            }
+            _img = CreateMaskImage(root);
             if (_blurMatH == null)
             {
                 var blurAsset = HotUpdateAssets.Load<Material>("TutorialBlur", BlurMatPath);
@@ -99,7 +111,8 @@ namespace SynergyUI
                 _blurMatV.SetVector(UniformDirection, new Vector4(0f, 1f, 0f, 0f));
                 _cutMat = Object.Instantiate(maskAsset);   // 开窗合成（blit 用，非 UGUI 材质）
             }
-            if (!TutorialTargetResolver.TryResolveBounds(spec.target, out _, out var error))
+            _handMode = spec.target == "hand"; // 手牌层：uGUI 不进相机成片——不开窗，全屏模糊+抬层
+            if (!_handMode && !TutorialTargetResolver.TryResolveBounds(spec.target, out _, out var error))
             {
                 Debug.LogWarning($"[TutorialMask] 窗目标不可解析：{error}——遮罩跳过（本步无窗）");
                 _img = null;
@@ -107,6 +120,7 @@ namespace SynergyUI
             }
 
             _spec = spec;
+            if (_handMode) LiftFanAboveMask(root);
             _img.material = null;    // 默认 UI 材质：qFinal 自带 alpha 洞（Blend SrcAlpha OneMinusSrcAlpha）
             _img.raycastTarget = false;
             _img.gameObject.SetActive(true);
@@ -120,20 +134,37 @@ namespace SynergyUI
             return true;
         }
 
-        /// <summary>关闭遮罩：Requested 撤、剪影摘、层隐藏、RT 释放（退出即零开销）。</summary>
+        /// <summary>关闭遮罩：Requested 撤、剪影摘、遮罩图销毁（代码创建的一次性节点）、RT 释放。</summary>
         public static void Clear()
         {
-            if (!_active && _qA == null && _img == null) { TutorialMaskSceneCache.Requested = false; TutorialMaskSceneCache.SilhouetteRenderers = null; return; }
+            if (!_active && _qA == null && _img == null)
+            {
+                TutorialMaskSceneCache.Requested = false;
+                TutorialMaskSceneCache.SilhouetteRenderers = null;
+                    return;
+            }
             TutorialMaskSceneCache.Requested = false;
             TutorialMaskSceneCache.SilhouetteRenderers = null;
+            if (_fanLayer != null)
+            {
+                if (_fanOriginalIndex >= 0) _fanLayer.SetSiblingIndex(_fanOriginalIndex); // 手牌层归位（2026-11-23）
+                _fanLayer = null;
+                _fanOriginalIndex = -1;
+            }
+            _handMode = false;
             _silBuffer.Clear();
-            if (_img != null) { _img.material = null; _img.texture = null; _img.gameObject.SetActive(false); }
+            if (_img != null)
+            {
+                _img.material = null;
+                _img.texture = null;
+                Object.Destroy(_img.gameObject); // 代码创建节点：直接销毁（旧烘焙层=隐藏，2026-11-23 改版）
+                _img = null;
+            }
             ReleaseRenderTextures();
             if (_blurMatH != null) { Object.Destroy(_blurMatH); _blurMatH = null; }
             if (_blurMatV != null) { Object.Destroy(_blurMatV); _blurMatV = null; }
             if (_cutMat != null) { Object.Destroy(_cutMat); _cutMat = null; }
             _spec = null;
-            _img = null;
             _cam = null;
             _active = false;
             _windowPx = Rect.zero;
@@ -158,8 +189,14 @@ namespace SynergyUI
                 _img.texture = _qFinal;
             }
 
-            // ---- 目标解析：bounds（交互 AABB/日志）+ 剪影 renderer（交 feature 写进成片 alpha） ----
-            bool valid = TutorialTargetResolver.TryResolveBounds(_spec.target, out var bounds, out _, verbose: false);
+            // ---- 目标解析：bounds（交互 AABB/日志）+ 剪影 renderer（交 feature 写进成片 alpha）----
+            // hand 模式：无窗无剪影（全屏模糊，手牌层已抬到遮罩之上）
+            bool valid = false;
+            var bounds = default(Bounds);
+            if (!_handMode)
+            {
+                valid = TutorialTargetResolver.TryResolveBounds(_spec.target, out bounds, out _, verbose: false);
+            }
             _windowPx = valid ? TutorialTargetResolver.ScreenRectOf(bounds, _cam, _spec.pad * PxScale) : Rect.zero;
             if (valid != _windowValidLast)
             {
@@ -198,6 +235,7 @@ namespace SynergyUI
         private static void FillSilhouette()
         {
             _silBuffer.Clear();
+            if (_handMode) { TutorialMaskSceneCache.SilhouetteRenderers = _silBuffer; return; } // 无洞全糊
             if (TutorialTargetResolver.TryResolveRenderers(_spec.target, out var renderers, out _, verbose: false)
                 && renderers != null)
             {
@@ -209,6 +247,34 @@ namespace SynergyUI
                 }
             }
             TutorialMaskSceneCache.SilhouetteRenderers = _silBuffer; // 空表=无洞（全糊兜底）
+        }
+
+        /// <summary>hand 模式：手牌层（self-fan-layer）抬到遮罩图之上——「只显手牌区域」（2026-11-23
+        /// 验收）：遮罩全屏模糊盖世界与其余 UI，手牌 uGUI 层后置绘制保持清晰；Clear 按原兄弟位归还。</summary>
+        private static void LiftFanAboveMask(RectTransform root)
+        {
+            _fanLayer = UiKit.FindDeep(root, "self-fan-layer") as RectTransform;
+            if (_fanLayer == null) { Debug.LogWarning("[TutorialMask] hand 模式：BattleUI 缺 self-fan-layer——手牌不抬层"); return; }
+            _fanOriginalIndex = _fanLayer.GetSiblingIndex();
+            _fanLayer.SetAsLastSibling(); // 遮罩图刚建=原末位；手牌排其后=视觉在其上
+        }
+
+        /// <summary>代码创建全屏遮罩图节点（2026-11-23 用户定案：一次性节点不走 BattleUI.prefab，
+        /// 烘焙 mask-img 已拆除）：root 下**末位兄弟**（=BattleUI 层级最下面，盖住全部烘焙 UI；
+        /// 之后创建的解说卡 TipPanel 再 SetAsLastSibling 排到它后面=弹窗在 mask 下、可读可点）。</summary>
+        private static RawImage CreateMaskImage(RectTransform root)
+        {
+            var go = new GameObject(ImgNodeName, typeof(RectTransform), typeof(RawImage));
+            var rt = (RectTransform)go.transform;
+            rt.SetParent(root, false);
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero; // 全屏拉伸（随分辨率/竖切自适应）
+            var img = go.GetComponent<RawImage>();
+            img.raycastTarget = false;   // 遮罩不拦射线：窗内窗外的 UI 点击全靠各节点自身
+            rt.SetAsLastSibling();
+            return img;
         }
 
         /// <summary>点目标区域内恢复（§5.2 教学暂停 resumeBy 含 window）：点击落在目标屏幕 AABB 即恢复。</summary>

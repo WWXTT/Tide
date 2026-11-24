@@ -64,10 +64,10 @@ namespace SynergyUI
         private readonly List<uint> _arrowStale = new List<uint>();        // 离场单位回收清单（复用缓冲）
         private int _lastSkipLogFrame = -1;
 
-        //（2026-10-15 深夜改版）单位【发动效果】头顶按钮退役：单位本体退出射线检测，
-        // 攻击/守卫/发动入口走格前 →（2026-10-23 v4 §10.2 点单位弹 BattleUnitActionPopup）
-        // →（2026-10-26 定案）动作入口回归头顶 3D：BattleUnitActionButtons 竖直按钮组落
-        // 旧读数位（本类只供 StatsAnchorOf 头顶锚），本类仍不持有可点 3D 件。
+        // 动作入口沿革：格前 →（2026-10-23 点单位弹 BattleUnitActionPopup）→（2026-10-26）
+        // BattleUnitActionButtons 点击弹出文字钮组 →（2026-11-23 用户定案）**文字钮组退役**，
+        // 攻/发动/守卫三图标常驻头顶（BattleUnitAbilityIcons——本类持有：生物挂 wrapper、
+        // 角色经 SetHeroIconStates 外挂 Map 总根钉 HeroStatsAnchor 位，状态由 BattleScreen 推）。
 
         // 施放占格类型图标（2026-10-15 发动格拆除：整个 2×6 兼任发动区；2026-10-17 两改：
         // 立绘立牌→程序描边边框→Element 预制体平贴图标）：Element.prefab 面朝上平躺贴格面，
@@ -165,6 +165,7 @@ namespace SynergyUI
                     else Object.DestroyImmediate(h.Mat);
                 }
             _heroes.Clear(); // 角色柱随 _root 销毁；着色克隆实例（HeroPillar_*）逐柱自清（2026-10-18）
+            if (_heroIcons != null) { _heroIcons.Destroy(); _heroIcons = null; } // 头顶图标簇外挂 Map 总根，不随 _root 销毁（2026-11-23）
             _heroMats[0] = null; _heroMats[1] = null; // 缓存引用随实例销毁同步清（防 fake-null 复用）
             foreach (var l in _landCounts.Values)
                 if (l != null)

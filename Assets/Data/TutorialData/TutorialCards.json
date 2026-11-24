@@ -3317,6 +3317,86 @@
         "7A11E001"
       ],
       "hash": "369A54F0"
+    },
+    {
+      "id": "C_7EC71001",
+      "cardName": "教学生物1",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "guardAbility": true,
+      "power": 1,
+      "life": 2,
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "34B022FC"
+    },
+    {
+      "id": "C_7EC71002",
+      "cardName": "教学生物2",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "guardAbility": true,
+      "power": 1,
+      "life": 1,
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "教学"
+      ],
+      "effectIds": [
+        "99725E71"
+      ],
+      "hash": "227B7418"
+    },
+    {
+      "id": "C_7EC71003",
+      "cardName": "教学生物2衍生物",
+      "supertype": "Creature",
+      "attackAbility": false,
+      "guardAbility": true,
+      "power": 1,
+      "life": 3,
+      "costList": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "教学",
+        "衍生物"
+      ],
+      "hash": "42B6BACA"
+    },
+    {
+      "id": "C_7EC71004",
+      "cardName": "教学·53",
+      "supertype": "Creature",
+      "attackAbility": true,
+      "guardAbility": false,
+      "power": 2,
+      "life": 4,
+      "costList": [
+        1.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tags": [
+        "教学"
+      ],
+      "hash": "E921D48D"
     }
   ]
 }

@@ -9,7 +9,7 @@ namespace SynergyUI
     /// 引导步骤规格（TutorialConfig.guide 条目）：
     /// intro——纯讲解步（2026-10-16 教学一两段式）：闸住玩家一切操作，UI 点击引导横幅确认推进
     ///   （NotifyIntroConfirmed）；带 audio 字段（2026-10-17 配音改版）=介绍段配音卡片——
-    ///   暂停画面+大字文案+播放 StreamingAssets/TutorialAudio/{audio}.mp3+【确定】钮（无 audio=文字卡片）；
+    ///   暂停画面+大字文案+播放 Assets/Data/TutorialData/TutorialAudio/{audio}.mp3+【确定】钮（无 audio=文字卡片）；
     ///   reveal=演出指令串（语音联动地块显隐：BattleRevealDirector.Solo 独占显示语音描述的区块；
     ///   midTransition=第二段注入）；
     /// attack——玩家须用 attacker 宣言攻击 target（"hero"=对方角色 / 卡 id=场上单位）；
@@ -61,7 +61,7 @@ namespace SynergyUI
         public string color;  // tap 的产出颜色（"Gray"/"Red"/"Blue"/"Green"/"White"/"Black"）
         public string reveal; // intro 的演出指令（语音联动显隐 zone:*/board/all/hand/units；逗号分隔多令牌
                               // 逐个消费（2026-10-19 教学二段一：units,hand/all）；midTransition=换场注入）
-        public string audio;  // intro 的配音文件名（StreamingAssets/TutorialAudio/{audio}.mp3；空=文字卡片不播语音）
+        public string audio;  // intro 的配音文件名（Assets/Data/TutorialData/TutorialAudio/{audio}.mp3；空=文字卡片不播语音）
         public bool aiGuard;  // attack 步标记（2026-10-17 守卫演示）：此攻击的响应窗 AI 选守卫（目标改写演出）；
                               // 宣言不推进——结算/取消探针才算完成（UI 侧等战斗表现收尾再弹解说卡）
         public bool aiTurnOnConfirm; // intro 步标记（2026-10-17 考验改版）：确定后把回合交给对手——
@@ -71,6 +71,12 @@ namespace SynergyUI
                               // 会吞掉 pending 的回合翻转，倒计时归零直发的报酬必须先在回合开始落地再换场。
         public bool completeOnConfirm; // intro 步标记（2026-11-09 教学一·进阶收尾）：确认本步即整课
                               // 完成——引导链收尾时 BattleTutorialDirector 落档+弹结算窗（无需打到终局）。
+        public bool coinToss;        // intro 步标记（2026-11-23 验收定案）：本步解说卡弹出前先播掷币演出
+                              //（蓝=我方先手钉死，无快进）——basics 步 9「投掷硬币」文本时序=步 8 确认
+                              // 后先演出再弹卡；旧「开局先掷」口径作废（演出早于讲解=玩家不知掷币何意）。
+        public bool dealOpening;     // intro 步标记（2026-11-23 验收定案）：本步解说卡弹出前先播**起手发牌**
+                              //——玩家 7 张一张一张实抽（deck 序=摸牌序，scenario 手牌清空由本口发满）+
+                              // AI 静默同铺 7 张 + 末尾第 8 张=「准备阶段又抽 1 张」；basics 步 11 消费。
         public TutorialFocusMaskSpec mask;       // 战场遮罩（2026-11-21 遮罩/高亮/暂停计划 v0.3）：非 null
                               // 且 target 非空=本步开单窗遮罩（相机 RT→全屏遮罩图挖洞，窗外连 UI 一起
                               // 盖掉）；旧档缺字段=null 不启用，行为与今一致。
@@ -109,7 +115,9 @@ namespace SynergyUI
     public class TutorialHighlightSpec
     {
         public string target;          // 目标 token（§2.1 词表；tmp:{token} 指该目标身上的 3D TMP 文字）
-        public string style = "outline"; // 描边样式（现役仅 outline）
+        public string style = "outline"; // 样式（2026-11-23 验收扩两档）：outline=静态色描边环；
+                                       // pool=元素池行动态环（各格各自元素色，有可用元素亮/无暗灰，
+                                       // 每帧随 ElementPool 刷新——仅 zone:p1-land 词有意义）
         public string color = "#FFD75A"; // 描边色（#RRGGBB）
         public float width = 4f;       // 描边宽 px（2~3 膨胀档的上限 8）
         public float hdr = 2.5f;       // HDR 亮度倍率（须 > bloom 阈值 0.8 才能晕开）

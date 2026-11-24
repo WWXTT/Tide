@@ -166,15 +166,15 @@ namespace Tide.RenderFX
                         ctx.cmd.DrawMesh(d.Quad, Matrix4x4.identity, d.CopyMaterial, 0, 0);
                         // 剪影：同一渲染目标、同一管线矩阵，只写 alpha（Pass 1）——与成片同源即同位置
                         var silhouettes = d.Silhouettes;
-                        if (silhouettes == null) return;
-                        for (int i = 0; i < silhouettes.Count; i++)
-                        {
-                            var rend = silhouettes[i];
-                            if (rend == null) continue; // Unity fake-null（死亡换区/拆台）
-                            int subCount = rend.sharedMaterials.Length; // 多材质=多 submesh 全涂（轮廓完整；sharedMaterials 免逐帧分配）
-                            for (int sub = 0; sub < subCount; sub++)
-                                ctx.cmd.DrawRenderer(rend, d.CopyMaterial, sub, SilhouettePass);
-                        }
+                        if (silhouettes != null)
+                            for (int i = 0; i < silhouettes.Count; i++)
+                            {
+                                var rend = silhouettes[i];
+                                if (rend == null) continue; // Unity fake-null（死亡换区/拆台）
+                                int subCount = rend.sharedMaterials.Length; // 多材质=多 submesh 全涂（轮廓完整；sharedMaterials 免逐帧分配）
+                                for (int sub = 0; sub < subCount; sub++)
+                                    ctx.cmd.DrawRenderer(rend, d.CopyMaterial, sub, SilhouettePass);
+                            }
                     });
                 }
                 // 拷贝完成即对 UI 侧可见（Canvas 渲染晚于相机——同帧拿到本帧成片）

@@ -2,7 +2,6 @@ using System;
 using CloudSyncServiceRef = CloudSave.CloudSyncService;
 using Cysharp.Threading.Tasks;
 using SynergyUI;
-using Tide.HotUpdate;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -10,158 +9,135 @@ using UnityEngine.UI;
 namespace CloudSave
 {
     /// <summary>
-    /// 主菜单云存档 UI 控制器（2026-10-23 接入，2026-10-24 预编译隔离自 MainMenuScreen 迁入本程序集）：
-    /// 设置面板账号区入口（CloudSaveEntry.prefab，2026-11-22 登录迁移迁入 slot-cloud）+ 弹开式面板
-    ///（CloudSavePanel.prefab，打开时建、关闭即毁）。入口文案=「昵称 · 同步态」；未登录点入口=提示
-    /// 先在上方登录（2026-11-22 用户定案：登录就在同面板账号区，不再清栈回启动页）；面板账号操作
-    /// 只剩「退出登录」；**云恢复完成=原地刷新**（数据已由 GameDataReload 全量失效，重订教学事件+
-    /// 刷门槛即读新数据——2026-11-22 用户定案「不走重进」，旧清栈回启动页链退役）。
+    /// 设置面板账号区控制器（2026-11-23 烘焙改版）：登录/退出登录/存档上传/云存档下载四钮
+    ///（slot-login/slot-logout/up-cloud/down-cloud）烘焙在 MainUI.prefab panel-settings，
+    /// 本类只按名绑定与填数（UI 只绑定不生成）；TapLoginBadge/CloudSaveEntry/CloudSavePanel
+    /// 三件注入预制体退役。显隐门禁（2026-11-23 用户定案）=**登录后才显示退出登录与两个存档钮**，
+    /// 登录钮常驻（未登录=「登录」可点，登录成功原地换用户名）；编辑器/不支持平台整体缺席
+    ///（实现住 Tide.TapTap，本类不编译或 IsSupported=false 都不绑——HotUpdate 侧 Module=null
+    /// 时由 MainMenuScreen.BindSettingsPanel 同步隐藏账号区）。
+    /// 云恢复完成=**原地刷新**（数据已由 GameDataReload 全量失效，重订教学事件+刷门槛即读新
+    /// 数据——2026-11-22 用户定案，旧清栈回启动页链退役）。上传/下载/登录失败结果经
+    /// TipPromptHost toast 反馈（旧 CloudSavePanel 面板与状态行一并退役）。
     /// 经 TapModule.OnMainMenuBuilt/Enter/Exit 驱动；本地单机风味本类不编译——入口整体缺席。
     /// 控制器随 TapModule 进程级存续、每任主菜单 Build 重绑（事件订阅在控制器方法上，跨屏重订对称）。
     /// </summary>
     public sealed class CloudSaveMenuController
     {
         private MainMenuScreen _menu;
-        private RectTransform _root; // 当前主菜单根（面板挂点——Build 时刷新）
+        private RectTransform _root; // 当前主菜单根（toast/确认框挂点——Build 时刷新）
 
-        private Button _cloudButton;
-        private TMP_Text _cloudStatusLabel;
-        private GameObject _cloudPanel; // 面板实例（打开时建、关闭即毁——TipPanel 同款）
-        private TMP_Text _cloudStatusLine;
-        private TMP_Text _cloudAccountLine;
-        private Button _cloudLoginButton; // 文案随登录态换「登录/退出登录」
-        private TipPromptHost _tips;      // 游客闸提示（2026-11-22：替代旧清栈回启动页）
+        private Button _loginButton;
+        private TMP_Text _loginLabel;    // slot-login 的 label：未登录=「登录/登录中…」，已登录=用户名
+        private Button _logoutButton;
+        private Button _uploadButton;
+        private Button _downloadButton;
+        private bool _loggingIn;
+        private TipPromptHost _tips;     // 上传/下载结果与游客闸提示
 
-        private static GameObject _cloudEntryPrefab; // 进程级预制体句柄保活（同 TipPromptHost 口径）
-        private static GameObject _cloudPanelPrefab;
+        /// <summary>账号区节点名单（与 HotUpdate 侧 MainMenuScreen.BindSettingsPanel 的单机
+        /// 风味隐藏名单一致——两程序集不互相引用，名单各自维护）。</summary>
+        private static readonly string[] AccountAreaNodes =
+            { "lbl-account", "slot-login", "slot-logout", "up-cloud", "down-cloud" };
 
-        /// <summary>主菜单 Build 期：云存档入口实例化进设置面板账号区槽位+绑定（视觉烘焙在预制体，
-        /// 落位=槽位居中）。未启用平台/未配置凭证时置灰——状态文本仍可见（编辑器冒烟=「编辑器/PC 未启用」态）。</summary>
+        /// <summary>主菜单 Build 期：账号区四钮按名绑定+登录态刷新。不支持平台（编辑器/未配置）
+        /// 账号区整体隐藏；缺节点 LogError 不静默。</summary>
         public void Build(MainMenuScreen menu)
         {
             _menu = menu;
             _root = menu.Root;
             _tips = new TipPromptHost(() => _root);
-            _cloudPanel = null; // 上一任主菜单的面板已随屏销毁——引用归零防悬挂
-            _cloudStatusLine = null;
-            _cloudAccountLine = null;
-            _cloudLoginButton = null;
+            _loggingIn = false; // 上一任主菜单登录中途退屏的残留——防新屏登录钮永久禁用
 
-            var slot = menu.SettingsCloudSlot; // 设置面板账号区槽位（2026-11-22 登录迁移）
-            if (slot == null)
+            if (!SynergyUI.Online.TapAccountService.IsSupported)
             {
-                Debug.LogError("[MainMenu] 设置面板缺 slot-cloud 节点——云存档入口不显示"
-                               + "（检查 MainUI.prefab panel-settings）");
+                HideAccountArea(); // SDK 不可用——缺席即正确态（HotUpdate 侧 Module!=null 时由本类兜藏）
                 return;
             }
-            if (_cloudEntryPrefab == null)
-                _cloudEntryPrefab = HotUpdateAssets.Load<GameObject>("CloudSaveEntry", UiKit.PrefabPath("CloudSaveEntry"));
-            if (_cloudEntryPrefab == null)
-            {
-                Debug.LogError("[MainMenu] CloudSaveEntry.prefab 加载失败——云存档入口不显示"
-                               + "（检查 Assets/Art/Prefab/CloudSaveEntry.prefab 与 Yoo UI 组收集）");
-                return;
-            }
-            var entry = UnityEngine.Object.Instantiate(_cloudEntryPrefab, slot, false);
-            entry.name = "cloud-entry";
-            var rt = (RectTransform)entry.transform; // 预制体根原锚点=主菜单右下——落槽改居中（尺寸保持烘焙值）
-            rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 0.5f);
-            rt.anchoredPosition = Vector2.zero;
-            var btnNode = UiKit.FindDeep(rt, "btn-cloud");
-            _cloudButton = btnNode != null ? btnNode.GetComponentInChildren<Button>(true) : null;
-            if (_cloudButton != null) _cloudButton.onClick.AddListener(OpenCloudPanel);
-            var statusNode = UiKit.FindDeep(rt, "lbl-status");
-            _cloudStatusLabel = statusNode != null ? statusNode.GetComponentInChildren<TMP_Text>(true) : null;
+
+            _loginButton = BindAccountButton("slot-login", OnLoginClicked);
+            _loginLabel = _loginButton != null ? _loginButton.GetComponentInChildren<TMP_Text>(true) : null;
+            _logoutButton = BindAccountButton("slot-logout", Logout);
+            _uploadButton = BindAccountButton("up-cloud", () => UploadFromUi()); // UniTaskVoid 不直转 Action——lambda 舍返回值
+            _downloadButton = BindAccountButton("down-cloud", ConfirmCloudRestore);
+            RefreshAccountArea();
         }
 
-        /// <summary>主菜单进场：云侧事件订阅 + 入口状态刷新 + 启动链挂起询问补问。</summary>
+        /// <summary>主菜单进场：云侧事件订阅 + 账号区刷新 + 启动链挂起询问补问。</summary>
         public void OnEnter(MainMenuScreen menu)
         {
             if (_menu == null) Build(menu); // Build 未走过的兜底（正常链路 Show 必先 Build）
-            CloudSyncServiceRef.OnStateChanged += RefreshCloudEntry;
+            CloudSyncServiceRef.OnStateChanged += RefreshAccountArea;
             CloudSyncServiceRef.OnRestoreSuggested += OnCloudRestoreSuggested;
             CloudSyncServiceRef.OnRestored += OnCloudRestored;
-            TapAccountService.OnAccountChanged += RefreshCloudEntry;
-            SynergyUI.Online.TapAccountService.OnChanged += RefreshCloudEntry; // 昵称源（PUBLIC_PROFILE 侧）
-            RefreshCloudEntry();
+            TapAccountService.OnAccountChanged += RefreshAccountArea;
+            SynergyUI.Online.TapAccountService.OnChanged += RefreshAccountArea; // 用户名源（PUBLIC_PROFILE 侧）
+            RefreshAccountArea();
             if (CloudSyncServiceRef.PendingRestorePrompt) OnCloudRestoreSuggested(); // 启动链询问时主菜单未就绪——进场补问
         }
 
-        /// <summary>主菜单离场：退订 + 关面板。</summary>
+        /// <summary>主菜单离场：退订（无面板可关——旧 CloudSavePanel 弹窗链已退役）。</summary>
         public void OnExit(MainMenuScreen menu)
         {
-            CloudSyncServiceRef.OnStateChanged -= RefreshCloudEntry;
+            CloudSyncServiceRef.OnStateChanged -= RefreshAccountArea;
             CloudSyncServiceRef.OnRestoreSuggested -= OnCloudRestoreSuggested;
             CloudSyncServiceRef.OnRestored -= OnCloudRestored;
-            TapAccountService.OnAccountChanged -= RefreshCloudEntry;
-            SynergyUI.Online.TapAccountService.OnChanged -= RefreshCloudEntry;
-            CloseCloudPanel();
+            TapAccountService.OnAccountChanged -= RefreshAccountArea;
+            SynergyUI.Online.TapAccountService.OnChanged -= RefreshAccountArea;
         }
 
-        /// <summary>入口状态行+可点性刷新（OnStateChanged/账号变化/进场触发；面板开着同步刷）。
-        /// 文案（2026-11-09 登录迁移）=「昵称 · 同步态」；未登录只显示同步态（含「未登录」）。</summary>
-        private void RefreshCloudEntry()
+        /// <summary>账号区显隐/文案刷新（两侧账号服务任一登录即算已登录；Build/登录态事件/
+        /// 同步态事件触发）。门禁（2026-11-23 用户定案）：退出登录与两个存档钮登录后才显示，
+        /// 未登录只显示登录钮；登录后 slot-login 原地换用户名。云钮可点性=凭证就绪且非同步中。</summary>
+        private void RefreshAccountArea()
         {
-            if (_cloudStatusLabel != null) _cloudStatusLabel.text = EntryStatusText();
-            if (_cloudButton != null)
-                _cloudButton.interactable = TapSdkConfig.CloudSaveSupported && TapSdkConfig.IsCredentialsReady;
-            if (_cloudPanel != null) RefreshCloudPanel();
+            bool logged = TapAccountService.LoggedIn || SynergyUI.Online.TapAccountService.IsLoggedIn;
+            if (_loginLabel != null)
+            {
+                _loginLabel.text = _loggingIn ? "登录中…"
+                    : logged ? UsernameOrFallback() : "登录";
+            }
+            if (_logoutButton != null) _logoutButton.gameObject.SetActive(logged);
+            bool cloudReady = TapSdkConfig.CloudSaveSupported && TapSdkConfig.IsCredentialsReady
+                              && !CloudSyncServiceRef.Busy;
+            if (_uploadButton != null)
+            {
+                _uploadButton.gameObject.SetActive(logged);
+                _uploadButton.interactable = cloudReady;
+            }
+            if (_downloadButton != null)
+            {
+                _downloadButton.gameObject.SetActive(logged);
+                _downloadButton.interactable = cloudReady;
+            }
         }
 
-        /// <summary>入口一栏文案：已登录带昵称（联机侧 PUBLIC_PROFILE 昵称；云侧 basic_info 无昵称
-        /// 时回落「TapTap玩家」），未登录=纯状态（StatusText 已含「未登录」）。</summary>
-        private static string EntryStatusText()
+        /// <summary>用户名源（联机侧 PUBLIC_PROFILE 昵称；云侧 basic_info 无昵称回落「TapTap玩家」）。</summary>
+        private static string UsernameOrFallback()
         {
             var profile = SynergyUI.Online.TapAccountService.Current;
-            if (profile == null && !TapAccountService.LoggedIn) return CloudSyncServiceRef.StatusText;
-            string name = profile != null ? profile.Name : "TapTap玩家";
-            return $"{name} · {CloudSyncServiceRef.StatusText}";
+            return profile != null && !string.IsNullOrEmpty(profile.Name) ? profile.Name : "TapTap玩家";
         }
 
-        /// <summary>云存档面板：CloudSavePanel.prefab 实例化+接线（打开时建、关闭即毁）。
-        /// 状态/账号行 + 上传/恢复/退出登录/关闭（登录入口在设置面板账号区——2026-11-22 登录迁移）。</summary>
-        private void OpenCloudPanel()
+        /// <summary>不支持平台账号区整体隐藏（节点常驻烘焙后的缺席即正确态；隐藏名单与 HotUpdate
+        /// 侧 MainMenuScreen.BindSettingsPanel 的 Module=null 分支一致）。</summary>
+        private void HideAccountArea()
         {
-            // 游客闸（2026-11-22 用户定案：登录就在设置面板账号区，不再清栈回启动页）：
-            // 未登录点云存档=提示先在上方登录（登录成功云同步自动启动，原地再点即见面板）。
-            if (!TapAccountService.LoggedIn && !SynergyUI.Online.TapAccountService.IsLoggedIn)
+            foreach (var nodeName in AccountAreaNodes)
             {
-                _tips?.ShowAsync("登录 TapTap 后可使用云存档（在设置面板上方登录）", "知道了").Forget();
-                return;
+                var node = UiKit.FindDeep(_root, nodeName);
+                if (node != null) node.gameObject.SetActive(false);
             }
-            CloseCloudPanel();
-            CloudSyncServiceRef.EnsureHost(); // 首次交互保底宿主（自动上传轮询常驻）
-            if (_cloudPanelPrefab == null)
-                _cloudPanelPrefab = HotUpdateAssets.Load<GameObject>("CloudSavePanel", UiKit.PrefabPath("CloudSavePanel"));
-            if (_cloudPanelPrefab == null)
-            {
-                Debug.LogError("[MainMenu] CloudSavePanel.prefab 加载失败——云存档面板打不开"
-                               + "（检查 Assets/Art/Prefab/CloudSavePanel.prefab 与 Yoo UI 组收集）");
-                return;
-            }
-            var panel = UnityEngine.Object.Instantiate(_cloudPanelPrefab, _root, false);
-            panel.name = "cloud-panel";
-            _cloudPanel = panel;
-            var rt = (RectTransform)panel.transform;
-            var statusNode = UiKit.FindDeep(rt, "lbl-status");
-            _cloudStatusLine = statusNode != null ? statusNode.GetComponentInChildren<TMP_Text>(true) : null;
-            var accountNode = UiKit.FindDeep(rt, "lbl-account");
-            _cloudAccountLine = accountNode != null ? accountNode.GetComponentInChildren<TMP_Text>(true) : null;
-            BindPanelButton(rt, "btn-upload", () => CloudSyncServiceRef.UploadAsync("manual").Forget());
-            BindPanelButton(rt, "btn-restore", ConfirmCloudRestore);
-            _cloudLoginButton = BindPanelButton(rt, "btn-login", LogoutFromPanel); // 2026-11-09 登录迁移：改固定「退出登录」
-            BindPanelButton(rt, "btn-close", CloseCloudPanel);
-            RefreshCloudPanel();
         }
 
-        /// <summary>面板按钮绑定：找节点→清监听→挂回调；缺节点 LogError（不静默）。</summary>
-        private Button BindPanelButton(RectTransform panel, string name, Action onClick)
+        /// <summary>账号区按钮绑定：panel-settings 烘焙节点按名查找→挂回调；缺节点 LogError（不静默）。</summary>
+        private Button BindAccountButton(string name, Action onClick)
         {
-            var node = UiKit.FindDeep(panel, name);
+            var node = UiKit.FindDeep(_root, name);
             var btn = node != null ? node.GetComponentInChildren<Button>(true) : null;
             if (btn == null)
             {
-                Debug.LogError($"[MainMenu] 云存档面板缺按钮：{name}（检查 CloudSavePanel.prefab）");
+                Debug.LogError($"[MainMenu] 设置面板账号区缺按钮：{name}（检查 MainUI.prefab panel-settings）");
                 return null;
             }
             btn.onClick.RemoveAllListeners();
@@ -169,66 +145,109 @@ namespace CloudSave
             return btn;
         }
 
-        private void RefreshCloudPanel()
+        // ======================================== 登录/退出登录 ========================================
+
+        /// <summary>登录钮：未登录才拉起授权（已登录时本钮只是用户名行，点击无操作）。</summary>
+        private void OnLoginClicked()
         {
-            if (_cloudPanel == null) return;
-            if (_cloudStatusLine != null) _cloudStatusLine.text = CloudSyncServiceRef.StatusText;
-            if (_cloudAccountLine != null) _cloudAccountLine.text = CloudAccountText();
-            if (_cloudLoginButton != null) // 面板只在已登录态可开（游客闸拦在 OpenCloudPanel）
+            if (_loggingIn) return;
+            if (TapAccountService.LoggedIn || SynergyUI.Online.TapAccountService.IsLoggedIn) return;
+            LoginFlow().Forget();
+        }
+
+        /// <summary>登录流程（原 TapLoginBadge.LoginFlow 迁入，2026-11-23 注入链退役）：
+        /// 联机侧拉起授权（PUBLIC_PROFILE——拿昵称头像）；云侧（basic_info 静默）随后补登录
+        /// 并启动云同步（LoginFromUiAsync=UniTaskVoid 火 Forget——登录态经事件回报，
+        /// OnAccountChanged→原地刷新账号区，玩家就在账号区无需跳页）。失败经 toast 提示并回落
+        /// 登录钮态（**原地停留**——云存档入口状态随事件自刷）。</summary>
+        private async UniTaskVoid LoginFlow()
+        {
+            _loggingIn = true;
+            if (_loginButton != null) _loginButton.interactable = false;
+            if (_loginLabel != null) _loginLabel.text = "登录中…";
+            try
             {
-                var lbl = _cloudLoginButton.GetComponentInChildren<TMP_Text>(true);
-                if (lbl != null) lbl.text = "退出登录";
+                if (SynergyUI.Online.TapAccountService.IsLoggedIn)
+                {
+                    TapAccountService.LoginFromUiAsync(); // 罕见态兜底：联机侧已登录、云侧掉队
+                }
+                else
+                {
+                    var error = await SynergyUI.Online.TapAccountService.LoginAsync();
+                    if (error != null)
+                    {
+                        if (_tips != null) await _tips.ShowAsync(error, "知道了"); // 成功态经 OnChanged→原地刷新
+                        return;
+                    }
+                    TapAccountService.LoginFromUiAsync();
+                }
+            }
+            finally
+            {
+                _loggingIn = false;
+                if (_loginButton != null) _loginButton.interactable = true;
+                RefreshAccountArea(); // 授权未完成/失败时回落登录钮态（成功则事件已刷过，幂等）
             }
         }
 
-        private void CloseCloudPanel()
+        /// <summary>退出登录：双侧登出——先联机侧（清 PUBLIC_PROFILE 态+SDK 账号缓存；云侧
+        /// OnAccountChanged 桥只清内存不清 SDK 缓存，顺序反了会残留缓存导致下次「静默续登」复活），
+        /// 后云侧（清云端档案引用）→ 原地刷新（事件自动回落登录钮态）。</summary>
+        private void Logout()
         {
-            if (_cloudPanel != null)
-            {
-                UnityEngine.Object.Destroy(_cloudPanel);
-                _cloudPanel = null;
-            }
-            _cloudStatusLine = null;
-            _cloudAccountLine = null;
-            _cloudLoginButton = null;
-        }
-
-        private static string CloudAccountText()
-        {
-            var online = SynergyUI.Online.TapAccountService.Current; // 昵称源（PUBLIC_PROFILE）
-            var account = TapAccountService.Current;                  // 云侧 openId（basic_info 静默）
-            if (online == null && account == null) return "未登录";
-            string openId = account != null ? (account.openId ?? "")
-                : (online != null ? (online.OpenId ?? "") : "");
-            string name = online != null ? online.Name : "TapTap玩家";
-            return $"{name}（openId {(openId.Length > 8 ? openId.Substring(0, 8) + "…" : openId)}）";
-        }
-
-        /// <summary>退出登录（2026-11-09 用户定案：面板内唯一账号操作；2026-11-22 起原地停留——
-        /// 登录就在设置面板账号区，无需回启动页）：双侧登出——先联机侧（清 PUBLIC_PROFILE 态+SDK
-        /// 账号缓存；云侧 OnAccountChanged 桥只清内存不清 SDK 缓存，顺序反了会残留缓存导致下次
-        /// 「静默续登」复活），后云侧（清云端档案引用）→ 关面板原地刷新（账号区事件自动回落登录按钮态）。</summary>
-        private void LogoutFromPanel()
-        {
-            CloseCloudPanel();
             SynergyUI.Online.TapAccountService.Logout();
             TapAccountService.Logout();
-            RefreshCloudEntry(); // 入口状态行回「未登录」（账号区徽章经 OnAccountChanged 自刷）
+            RefreshAccountArea();
         }
 
-        /// <summary>手动「从云端恢复」：二次确认后执行（覆盖本地内容属破坏性操作）。</summary>
-        private void ConfirmCloudRestore()
+        // ======================================== 存档上传/云存档下载 ========================================
+
+        /// <summary>「本地存档上传」：手动上传（自动轮询外的兜底口）。未登录闸兜底（按钮登录后才
+        /// 显示，正常不可达）；完成经 toast 反馈（旧面板状态行退役）。</summary>
+        private async UniTaskVoid UploadFromUi()
         {
-            if (!CloudSyncServiceRef.HasCloudArchive)
+            if (!TapAccountService.LoggedIn && !SynergyUI.Online.TapAccountService.IsLoggedIn)
             {
-                if (_cloudStatusLine != null) _cloudStatusLine.text = "云端暂无存档——先「上传到云端」";
+                if (_tips != null) await _tips.ShowAsync("登录 TapTap 后可使用云存档（在上方登录）", "知道了");
                 return;
             }
-            UiKit.ConfirmBox(_root, "从云端恢复",
+            CloudSyncServiceRef.EnsureHost(); // 首次交互保底宿主（自动上传轮询常驻）
+            bool ok = await CloudSyncServiceRef.UploadAsync("manual");
+            if (_tips != null)
+                await _tips.ShowAsync(ok ? "已上传到云端" : $"上传失败（{CloudSyncServiceRef.StatusText}）", "知道了");
+            RefreshAccountArea();
+        }
+
+        /// <summary>「云存档下载」：二次确认后用云端覆盖本地（破坏性操作）。2026-11-22 定案恢复=
+        /// 原地刷新——文案不再提「回启动页重进」（旧口径已废）。</summary>
+        private void ConfirmCloudRestore()
+        {
+            if (!TapAccountService.LoggedIn && !SynergyUI.Online.TapAccountService.IsLoggedIn)
+            {
+                if (_tips != null) _tips.ShowAsync("登录 TapTap 后可使用云存档（在上方登录）", "知道了").Forget();
+                return;
+            }
+            if (!CloudSyncServiceRef.HasCloudArchive)
+            {
+                if (_tips != null) _tips.ShowAsync("云端暂无存档——先「本地存档上传」", "知道了").Forget();
+                return;
+            }
+            UiKit.ConfirmBox(_root, "云存档下载",
                 "将用云端存档覆盖本机内容（教学/挑战进度、卡组与自建卡效果、对局记录），"
-                + "恢复后回到启动页重新进入。确认恢复？",
+                + "恢复完成后原地刷新生效（无需重进）。确认下载覆盖？",
                 "覆盖恢复", () => CloudSyncServiceRef.RestoreFromCloudAsync().Forget(),
                 "取消", null, danger: true);
+        }
+
+        /// <summary>云存档已还原（2026-11-22 用户定案：**原地刷新、不走重进**）：数据已由
+        /// GameDataReload 全量失效——向新教学单例重订事件并刷门槛（RebindTutorialProgressEvents
+        /// 自带补订+RefreshTutorialGates）+ toast 反馈；其余屏（卡组/构筑等）层级每进屏重建、
+        /// 重建即读新数据。</summary>
+        private void OnCloudRestored()
+        {
+            _menu?.RebindTutorialProgressEvents(); // 新 TutorialProgressManager 补订 + 门槛刷新
+            RefreshAccountArea();
+            if (_tips != null) _tips.ShowAsync("云存档已恢复到本机", "知道了").Forget();
         }
 
         /// <summary>启动同步发现「云端较新」或「设备变更」（启动时主菜单未就绪则进场补问）——
@@ -251,17 +270,6 @@ namespace CloudSave
                 + "是否恢复到本机？本机当前进度将被覆盖。",
                 "恢复云端", () => CloudSyncServiceRef.AnswerRestorePrompt(true),
                 "暂不恢复", () => CloudSyncServiceRef.AnswerRestorePrompt(false), danger: true);
-        }
-
-        /// <summary>云存档已还原（2026-11-22 用户定案：**原地刷新、不走重进**）：数据已由
-        /// GameDataReload 全量失效——关面板 + 向新教学单例重订事件并刷门槛（RebindTutorialProgressEvents
-        /// 自带补订+RefreshTutorialGates）+ 入口状态行回「已恢复」即读新数据；其余屏（卡组/构筑等）
-        /// 层级每进屏重建、重建即读新数据。旧「清栈回启动页+PendingNotice 停留提示」链退役。</summary>
-        private void OnCloudRestored()
-        {
-            CloseCloudPanel();
-            _menu?.RebindTutorialProgressEvents(); // 新 TutorialProgressManager 补订 + 门槛刷新
-            RefreshCloudEntry();
         }
 
         private static string FormatCloudTime(long unixSeconds)

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -60,6 +60,15 @@ namespace CardCore.AI.NeuralEnv
         public int ModelBomb;
         /// <summary>是否有过「同回合血偿+炸弹都打出」的斩杀尝试（1=有）。</summary>
         public int ModelCombo;
+        // ---- 2026-11-23 考察项：攻击目标是否理解「打已横置单位不吃反击」----
+        /// <summary>模型攻击「已横置且无警戒」单位次数（不吃反击 = 安全伤害）。</summary>
+        public int ModelAtkSafe;
+        /// <summary>模型攻击「未横置 / 有警戒」单位次数（会吃反击伤害）。</summary>
+        public int ModelAtkRisky;
+        /// <summary>模型攻击角色（打脸）次数。</summary>
+        public int ModelAtkFace;
+        /// <summary>攻击宣言事件全量（排查用）</summary>
+        public int ModelAtkAny;
     }
 
     /// <summary>
@@ -173,6 +182,11 @@ namespace CardCore.AI.NeuralEnv
         // 2026-11-23 战斗伤害计价：本步内「打到我 / 打到对手」的战斗伤害点数（Φ 已按生命 1.0 计过，
         // 末尾按 −0.5 修正到用户口径的 0.5 费/点；法术/效果伤害不在此列，保持 1.0）
         private int _combatDmgSelfStep, _combatDmgOppStep;
+        // 2026-11-23 考察项：模型侧攻击目标分类（safe=打已横置且无警戒的单位→不吃反击；
+        // risky=未横置或有警戒→吃反击；face=打角色）
+        private int _mAtkSafe, _mAtkRisky, _mAtkFace;
+        /// <summary>攻击宣言事件全量计数（排查用：0=事件没发/没订阅上；&gt;0 但另三项=0 → 归属判定问题）。</summary>
+        private int _mAtkAny;
 
         // ---- 2026-11-23 追加（用户口径：红/绿的「招牌操作」是否真的学到）----
         // 绿：成长 = 沃土打出（PlayCard，不是地落）+ 全局 T1/T3 的地数快照；
@@ -310,6 +324,39 @@ namespace CardCore.AI.NeuralEnv
             // 2026-11-23 战斗伤害计价（用户口径）：战斗伤害按 0.5 费/点计（法术/效果伤害仍 1.0）。
             // 势能里生命是 1.0/点一刀切，故本步末尾对「战斗伤害」做 −0.5 修正（见 Step）。
             EventManager.Instance.Subscribe<CombatDamageEvent>(OnCombatDamage);
+            // 2026-11-23 考察项（用户口径）：与**已横置**单位战斗时不吃反击伤害
+            //（规则出处 `CardPipelineVerifier.Combat.cs` 8c：「普通横置不反击」；
+            //  警戒 Vigilance 例外——已横置仍反击，故仍算 risky）。
+            // 这一项反映模型是否理解「先横置、再打」——安全伤害 vs 挨反伤。
+            EventManager.Instance.Subscribe<AttackDeclarationEvent>(OnAttackDeclared);
+        }
+
+        /// <summary>2026-11-23：攻击宣言记账（**先记全量**再分流，便于排查"事件到底有没有发"）。
+        /// safe = 目标已横置且无警戒（不吃反击）；risky = 未横置/有警戒（吃反击）；face = 打角色。
+        /// 归属判定用 `Attacker.GetController()`（比 AttackingPlayer 引用更稳，2026-11-23 实测后者恒 0）。</summary>
+        private void OnAttackDeclared(AttackDeclarationEvent e)
+        {
+            if (e == null) return;
+            _mAtkAny++;                       // 全量计数：0 = 事件没发/没订阅上
+            if (_debugB4)
+                Console.WriteLine($"[B4-atk] target={(e.Target is Card c0 ? c0.ID : (e.Target is Player pl ? "P:" + pl.Name : "?"))} "
+                    + $"atk={(e.Attacker as Card)?.ID ?? "?"} ctrl={(e.AttackingPlayer != null ? e.AttackingPlayer.Name : "null")} "
+                    + $"mine={(e.Attacker is Card ac && _modelPlayer != null && ReferenceEquals(ac.GetController(), _modelPlayer))}");
+            bool mine = e.Attacker is Card ac2
+                        && _modelPlayer != null && ReferenceEquals(ac2.GetController(), _modelPlayer);
+            if (!mine)
+            {
+                // 兼容：Attacker 非卡（角色直攻）时退回 AttackingPlayer 判定
+                if (!(e.AttackingPlayer != null && ReferenceEquals(e.AttackingPlayer, _modelPlayer))) return;
+            }
+            if (e.Target is Card tc)
+            {
+                bool tapped = tc.IsTapped();
+                bool vigilant = tc.HasKeyword(CardCore.Attribute.KeywordRules.Vigilance);
+                if (tapped && !vigilant) _mAtkSafe++;
+                else _mAtkRisky++;
+            }
+            else if (e.Target is Player) _mAtkFace++;
         }
 
         /// <summary>2026-11-23：本步战斗伤害记账（区分打到我/打到对手，用于 0.5 计价修正）。</summary>
@@ -470,6 +517,8 @@ namespace CardCore.AI.NeuralEnv
             _mLandT1 = _mLandT3 = -1;
             _mSpellTurn = -1;
             _mBloodThisTurn = _mBombThisTurn = false;
+            // 2026-11-23 考察项：攻击目标分类（safe/risky/face）每局清零
+            _mAtkSafe = _mAtkRisky = _mAtkFace = _mAtkAny = 0;
             // P3（2026-11-19 §4.1）：模型座手牌上限弃牌改停靠决策（DiscardChoice 行）——
             // 自对弈（_modelPlayer=null）双座皆模型；vs 模式仅模型座
             HandLimitDiscardGate.Reset();
@@ -1228,6 +1277,10 @@ namespace CardCore.AI.NeuralEnv
                 ModelBlood = _mBlood,
                 ModelBomb = _mBomb,
                 ModelCombo = _mCombo,
+                ModelAtkSafe = _mAtkSafe,
+                ModelAtkRisky = _mAtkRisky,
+                ModelAtkFace = _mAtkFace,
+                ModelAtkAny = _mAtkAny,
             };
         }
 

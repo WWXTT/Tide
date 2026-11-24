@@ -21,8 +21,9 @@ namespace Tide.HotUpdate
         void InitOnStartup();
 
         /// <summary>主菜单 Build 期挂件（2026-11-22 登录迁移定案：TapTap 登录/云存档/退出登录
-        /// 全部迁入主菜单设置面板账号区）：TapLoginBadge 注入 SettingsLoginSlot +
-        /// 云存档入口注入 SettingsCloudSlot。</summary>
+        /// 全部迁入主菜单设置面板账号区；2026-11-23 烘焙改版：slot-login/slot-logout/up-cloud/
+        /// down-cloud 四钮烘焙在 MainUI.prefab——实现侧按名绑定接线，TapLoginBadge/CloudSaveEntry
+        /// 注入链退役）。</summary>
         void OnMainMenuBuilt(MainMenuScreen menu);
 
         /// <summary>主菜单进场：静默续登 Warmup + 云存档事件订阅 + 挂起恢复询问补问。</summary>

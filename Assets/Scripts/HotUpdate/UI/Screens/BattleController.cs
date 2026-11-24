@@ -89,6 +89,14 @@ namespace SynergyUI
                 AttachBoard(); // 棋盘先于注入：单位显式落位（PinCard 钉子）需要 BoardState 在场
                 TutorialScenarioSeeder.Apply(GameCore.Instance, scenario, _board);
                 GameCore.Instance.StartGame(); // TurnEngine 已预置起跳回合 → StartNewTurn 落到 startTurn/Main
+                // 后手护甲补偿（2026-11-23 验收修复：场景路径此前整链漏发——basics 步 9 文案「对手
+                // 额外获得5点护甲」与画面不符；置于 StartGame 后同普通局口径=Reset 清指示物窗口已过）
+                if (secondArmorBonus > 0)
+                {
+                    var second = scenario.firstPlayer == "P1" ? GameCore.Instance.Player2 : GameCore.Instance.Player1;
+                    second?.AddCounters(CardCore.Attribute.KeywordRules.ArmorCounter, secondArmorBonus, second);
+                    TideLog.Info($"[Battle] 后手 {second?.Name} 开局护甲 +{secondArmorBonus}（硬币补偿·教学场景路径）");
+                }
                 _board?.Resync(); // 首铺落位兜底（2026-10-19 实测根因）：SeedSide 未钉格/越区单位按序填空
                                   // ——重置与换场路径均显式 Resync（生物正常出场），本路径漏调致教学直入局
                                   // 单位恒 X=-1 不渲染（对账 敌3 新建0）；无待落位单位时零成本。

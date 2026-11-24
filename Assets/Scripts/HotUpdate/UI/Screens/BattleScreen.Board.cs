@@ -62,8 +62,8 @@ namespace SynergyUI
         /// 悬停路由（单位格=四段卡信息/特殊格与功能地块=hover-info 文本），左键点击路由
         /// （功能地块/特殊格 Region 面板/角色格角色与技能详情/地牌信息）。
         /// UI 命中让路且不收钮（销毁按钮会吞掉 onClick，原口径）；单位模型 collider 已拆，
-        /// 打格反查是既定通路。2026-10-26 头顶 3D 钮定案：点有可行动作的己方单位/
-        /// 角色格在头顶弹 BattleUnitActionButtons（位图=ReconcileTileButtons；钮名 unit-act-* 前置路由）。
+        /// 打格反查是既定通路。2026-11-23 图标改版：头顶能力图标常驻（BattleUnitAbilityIcons，
+        /// 可用态开点击面；命中名 unit-act-* 前置路由=TryUnitActionIcon，位图=ReconcileTileButtons）。
         /// 2026-10-18 安卓滑动输入：鼠标/触摸统一走 BattlePointer（触摸点击=抬起裁决、
         /// 落点=手指原始点位；PC 口径零变化）。</summary>
         private void PollFieldPointer()
@@ -137,14 +137,12 @@ namespace SynergyUI
             bool hasHit = Physics.Raycast(cam.ScreenPointToRay(aim), out hit, 300f);
             var hitCollider = hasHit ? hit.collider : null;
             var hitName = hitCollider != null ? hitCollider.gameObject.name : "";
-            // 守卫窗口：点守卫者/角色/攻击者全归决策中枢——可守卫的己方格先弹头顶 3D 动作钮（守卫钮=选守卫者，
-            // v4 §10.2 两段式），攻击者/无动作格原口直进（悬停帧 btnKind 空照常路由）。
-            // 按钮组开着时其他 3D 点击（点攻击者确认等）同口径先收钮（2026-10-24 关闭钮退役定案随迁）
+            // 守卫窗口：点守卫者/角色/攻击者全归决策中枢——候选单位的守卫图标点亮可点（守卫图标
+            // =选守卫者，v4 §10.2 两段式随迁），攻击者/无动作格原口直进（悬停帧 btnKind 空照常路由）。
+            // 2026-11-23 改版：图标=常驻（无「弹钮组/收钮」动作）——灰图标碰撞体关=点击穿透原路由
             if (_decision != null && _decision.GuardWindowOpen)
             {
-                if (BattlePointer.ConfirmPressed && TryUnitActionButton(hitName)) return; // 3D 动作钮前置路由（先于格点击）
-                if (BattlePointer.ConfirmPressed && TryOpenUnitActions(hitName)) return;
-                if (BattlePointer.ConfirmPressed) _unitButtons.Close();
+                if (BattlePointer.ConfirmPressed && TryUnitActionIcon(hitName)) return; // 守卫图标前置路由（先于格点击）
                 _decision.HandlePointer(hitName, cam);
                 return;
             }
@@ -186,20 +184,16 @@ namespace SynergyUI
 
         // ---- 点击路由 ----
 
-        /// <summary>左键点击路由（2026-10-26 定案：格前/弹窗两代入口退役——点有可行动作的己方单位/
-        /// 角色格在头顶弹 3D 动作按钮组 BattleUnitActionButtons，动作处理器经 OnUnitActionButton
-        /// 沿用既有入口；其余落点=收钮后走原信息展示语义）。功能地块/特殊格/地牌/施放图标路由不变。
+        /// <summary>左键点击路由（2026-11-23 改版：格前/弹窗/文字钮组三代入口退役——点头顶能力图标
+        /// （常驻，可用态才开点击面）执行动作，处理器经 OnUnitActionButton 沿用既有入口；其余落点走
+        /// 原信息展示语义）。功能地块/特殊格/地牌/施放图标路由不变。
         /// 2026-11-15 地牌 UI 回退：恢复 5 个六边形格（4 色地牌格 + Any），点地牌格开该格 Information。</summary>
         private void HandleFieldClick(string hitName, Vector3 hitPoint = default)
         {
             CloseDeckPreview(); // 旧牌库预览条随 2026-11-03 牌组进 Information 退役——留收口兜底（恒空转）
 
-            // 3D 动作钮命中前置（2026-10-26）：执行该动作即收钮——先于「关钮」防点击被吞
-            if (TryUnitActionButton(hitName)) return;
-            // 点单位弹可用动作（§10.2 语义随迁）：命中格在位图中且有任一可用项=开钮组（换目标即重开）；
-            // 其余任何落点（含点空白/无动作格/无命中）=收钮
-            if (TryOpenUnitActions(hitName)) return;
-            _unitButtons.Close();
+            // 头顶能力图标命中前置（2026-11-23）：可用态才开点击面——命中即可用，执行动作
+            if (TryUnitActionIcon(hitName)) return;
 
             // 功能地块（BattleHudRow 中线状态行：结束回合格可点；两时间/连锁速度格纯展示——
             // 未认领名走 TryParseTile 失败分支收弹窗，无需另接点击）
@@ -338,10 +332,6 @@ namespace SynergyUI
         private struct CellActions { public int X, Z; public bool Attack, Guard, Activate; }
 
         private readonly List<CellActions> _cellActions = new List<CellActions>();
-        private readonly BattleUnitActionButtons _unitButtons = new BattleUnitActionButtons();
-        private bool _actBtnMyTurn;         // 开按钮组时的回合/阶段印章（变化=关，§10.2 关闭条件随迁）
-        private PhaseType _actBtnPhase;
-        private int _actBtnTurnNo;
 
         // 三键效果缓存（2026-10-18 性能）：UnitActivatedEffects/HeroHasActivatableSkill 每次跑完整效果
         // 定义转换（ConvertAll+LINQ），改事件级重算、帧间复用；SelfUnits 每次 RefreshField 重建，
@@ -353,8 +343,8 @@ namespace SynergyUI
         private bool _heroActivateFlag;
 
         /// <summary>可用动作位图每帧对账（2026-10-26 头顶 3D 钮改版：位图落 _cellActions 单源——
-        /// 点单位弹按钮组的触发/内容/关闭都吃这里）：编舞选目标/放格选格/
-        /// 网络局/反问在身=清空+收钮；守卫窗口=守卫候选亮（窗口独占）；常态=己方单位格——
+        /// 2026-11-23 改版：图标簇状态推送消费同一位图，点击弹出文字钮组退役）：编舞选目标/放格选格/
+        /// 网络局/反问在身=清空（图标全灰）；守卫窗口=守卫候选亮（窗口独占）；常态=己方单位格——
         /// 攻击=生物未横置攻&gt;0 且我方主阶段、发动=有主动效果且我方主阶段、守卫=仅窗口内。
         /// 角色格：攻击=有弹药且我方主阶段、发动=技能挂主动效果、守卫=窗口内且角色在候选。
         /// 深判定（费用/横置代价/耐久/每回合一次）留引擎裁决，位图不预判，拒绝走点击 toast。</summary>
@@ -366,7 +356,7 @@ namespace SynergyUI
                 || NetActive || IsTargetSelecting())
             {
                 _cellActions.Clear();
-                _unitButtons.Close();
+                PushAbilityIconStates(); // 抑制期图标全灰（位图清空=无可用项；点击面随灰关闭）
                 return;
             }
 
@@ -437,80 +427,94 @@ namespace SynergyUI
                 _cellActions.Add(hero);
             }
 
-            // 按钮组随行对账（§10.2 关闭条件随迁）：阶段或回合变化（印章对拍）——选目标/网络局在方法头已收
-            if (_unitButtons.IsOpen
-                && (_view.MyTurn != _actBtnMyTurn || _view.Phase != _actBtnPhase || _view.TurnNumber != _actBtnTurnNo))
-                _unitButtons.Close();
-            // 绑定格位图对账（2026-10-26 新增）：仍在位图=刷新可用项（守卫窗翻转/横置降档自适应）；
-            // 失位（单位死亡/离场/格位变动）=收钮——位图单源裁决，钮组不自持可用性
-            if (_unitButtons.IsOpen)
+            // 头顶能力图标状态推送（2026-11-23 改版：替文字钮组随行对账——位图单源喂常驻图标）
+            PushAbilityIconStates();
+        }
+
+        /// <summary>头顶能力图标状态推送（2026-11-23 改版）：图标=常驻按钮（替退役的点击弹出文字
+        /// 钮组 BattleUnitActionButtons）——**存在=能力在身**（无攻击能力不显攻击图标；发动=有主动
+        /// 效果或待发奖励；守卫=卡面守卫资格）、**可用**=位图点亮（彩色+外圈高亮+点击面开）、
+        /// **不可用**=灰（点击穿透到格面原路由）。位图单源同旧钮组口径（主阶段/守卫窗/横置闸）。
+        /// 角色格：攻击/发动常驻存在（能力随弹药/技能在身），守卫=窗口内且角色在候选才显。</summary>
+        private void PushAbilityIconStates()
+        {
+            var units = _view != null ? _view.SelfUnits : null;
+            if (units != null)
             {
-                bool found = false, a = false, g = false, c = false;
-                for (int i = 0; i < _cellActions.Count; i++)
-                    if (_cellActions[i].X == _unitButtons.BoundX && _cellActions[i].Z == _unitButtons.BoundZ)
-                    {
-                        found = true;
-                        a = _cellActions[i].Attack; g = _cellActions[i].Guard; c = _cellActions[i].Activate;
-                        break;
-                    }
-                if (found) _unitButtons.SetBits(a, g, c);
-                else _unitButtons.Close();
+                foreach (var c in units)
+                {
+                    if (c == null || c.CoreCard == null || c.IsDead || c.X < 0 || c.Z < 0) continue;
+                    CellActionsOf(c.X, c.Z, out var a, out var g, out var act);
+                    bool fxPresent = (_unitActivateFlags.TryGetValue(c, out var hasDef) && hasDef)
+                                     || (_unitPendingFlags.TryGetValue(c, out var hasPend) && hasPend);
+                    _field.SetUnitIconStates(c.RuntimeId,
+                        c.AttackAbility && IsCreatureCard(c), a,
+                        fxPresent, act,
+                        c.GuardAbility, g);
+                }
+            }
+            if (P1 != null)
+            {
+                var hc = BoardLayout.CharacterCell(0);
+                CellActionsOf(hc.x, hc.z, out var a, out var g, out var act);
+                // 角色守卫图标：仅守卫窗口且角色在候选时出现（瞬态存在=点亮；其余时段无此图标）
+                _field.SetHeroIconStates(true, a, _heroActivateFlag, act, g, g);
             }
         }
 
-        /// <summary>§10.2（随迁 2026-10-26）：命中的格有可用动作（位图单源=_cellActions）→ 头顶弹
-        /// 3D 动作按钮组。网络/无动作=false（调用方走原路由=收钮）。守卫窗口内同样先弹（守卫钮→PickGuarderAt）。</summary>
-        private bool TryOpenUnitActions(string hitName)
+        /// <summary>位图格查询（无记录=全灭——守卫窗外/抑制期）。</summary>
+        private void CellActionsOf(int x, int z, out bool attack, out bool guard, out bool activate)
         {
-            if (NetActive) return false; // 网络局不弹（§10.2 关闭条件）
-            int x, z;
-            if (!TryParseTile(hitName, out x, out z)) return false;
+            attack = guard = activate = false;
             for (int i = 0; i < _cellActions.Count; i++)
+                if (_cellActions[i].X == x && _cellActions[i].Z == z)
+                {
+                    attack = _cellActions[i].Attack;
+                    guard = _cellActions[i].Guard;
+                    activate = _cellActions[i].Activate;
+                    return;
+                }
+        }
+
+        /// <summary>头顶能力图标点击路由（2026-11-23 改版替文字钮组）：命中名 unit-act-{kind}-{rid|hero}
+        /// → 位图复核（碰撞体只在可用态开=命中即可用，复核防一帧陈旧）→ OnUnitActionButton 既有处理器。
+        /// 其余=false（调用方走原格点击路由；灰图标碰撞体关=射线穿透落到格面）。</summary>
+        private bool TryUnitActionIcon(string hitName)
+        {
+            if (!BattleUnitAbilityIcons.TryParseHit(hitName, out var kind, out var rid, out var isHero)) return false;
+            if (NetActive) return false; // 网络局图标纯状态（碰撞体本就恒关——防御同旧钮组口径）
+            if (isHero)
             {
-                if (_cellActions[i].X != x || _cellActions[i].Z != z) continue;
-                if (!_cellActions[i].Attack && !_cellActions[i].Guard && !_cellActions[i].Activate) return false;
-                OpenUnitActions3D(x, z, _cellActions[i]);
+                var hc = BoardLayout.CharacterCell(0);
+                if (!CellBit(hc.x, hc.z, kind)) return false;
+                OnUnitActionButton(kind, true, null, hc.x, hc.z);
                 return true;
             }
-            return false;
-        }
-
-        /// <summary>3D 动作钮点击路由（2026-10-26）：命中名=本钮（unit-act-*）且钮组在开=执行动作
-        /// （Fire 先关再回调）；其余=false（调用方走原格点击路由）。</summary>
-        private bool TryUnitActionButton(string hitName)
-        {
-            if (!_unitButtons.IsOpen || !BattleUnitActionButtons.IsActionButton(hitName)) return false;
-            _unitButtons.Fire(hitName);
+            var unit = (_view.SelfUnits ?? new List<BattleCardView>())
+                .FirstOrDefault(c => c != null && c.RuntimeId == rid && !c.IsDead);
+            if (unit == null || unit.X < 0 || unit.Z < 0) return false;
+            if (!CellBit(unit.X, unit.Z, kind)) return false;
+            OnUnitActionButton(kind, false, unit, unit.X, unit.Z);
             return true;
         }
 
-        /// <summary>开/换钮组：锚=单位头顶位（2026-10-26 迁格后 BattleFieldView 头顶锚=模型头顶高
-        /// +0.25——按钮组落旧读数正上方；角色=柱顶读数位；未建件回落格上 2.0），动作为零分配转发到既有入口。</summary>
-        private void OpenUnitActions3D(int x, int z, CellActions e)
+        /// <summary>位图位查询（图标点击复核）。</summary>
+        private bool CellBit(int x, int z, BattleUnitAbilityIcons.Kind kind)
         {
-            bool isHero = x == BoardLayout.P1CharX && z == BoardLayout.P1CharZ;
-            BattleCardView unit = null;
-            if (!isHero)
-                unit = (_view.SelfUnits ?? new List<BattleCardView>())
-                    .FirstOrDefault(c => c != null && c.X == x && c.Z == z && !c.IsDead);
-            var statsAnchor = _field != null
-                ? (isHero ? _field.HeroStatsAnchor(0)
-                          : (unit != null ? _field.StatsAnchorOf(unit.RuntimeId) : null))
-                : null;
-            var anchor = statsAnchor ?? (BattleBoardGrid.WorldPositionOf(x, z) + Vector3.up * 2.0f);
-            _actBtnMyTurn = _view.MyTurn; // 关闭印章（ReconcileTileButtons 对拍）
-            _actBtnPhase = _view.Phase;
-            _actBtnTurnNo = _view.TurnNumber;
-            _unitButtons.Show(anchor, x, z, e.Attack, e.Guard, e.Activate,
-                              kind => OnUnitActionButton(kind, isHero, unit, x, z));
+            for (int i = 0; i < _cellActions.Count; i++)
+                if (_cellActions[i].X == x && _cellActions[i].Z == z)
+                    return kind == BattleUnitAbilityIcons.Kind.Attack ? _cellActions[i].Attack
+                         : kind == BattleUnitAbilityIcons.Kind.Guard ? _cellActions[i].Guard
+                         : _cellActions[i].Activate;
+            return false;
         }
 
-        /// <summary>钮组动作分流（§10.2：处理器全沿用三键/弹窗时代的现有入口）：
+        /// <summary>图标动作分流（§10.2 口径随迁：处理器全沿用三键/弹窗/钮组时代的现有入口）：
         /// 攻击=单位 ShowUnitActions/角色 OnClickSelfHero；发动=单位主动效果/角色技能；
         /// 守卫=守卫窗口专属（PickGuarderAt=原点格选守卫者同口）。</summary>
-        private void OnUnitActionButton(BattleUnitActionButtons.Kind kind, bool isHero, BattleCardView unit, int x, int z)
+        private void OnUnitActionButton(BattleUnitAbilityIcons.Kind kind, bool isHero, BattleCardView unit, int x, int z)
         {
-            if (kind == BattleUnitActionButtons.Kind.Guard)
+            if (kind == BattleUnitAbilityIcons.Kind.Guard)
             {
                 if (_decision != null && _decision.GuardWindowOpen) _decision.PickGuarderAt(x, z);
                 else _toast.Show("守卫在对手攻击宣言后的守卫窗口内可用");
@@ -519,12 +523,12 @@ namespace SynergyUI
             CloseRegion();
             if (isHero)
             {
-                if (kind == BattleUnitActionButtons.Kind.Attack) OnClickSelfHero();
+                if (kind == BattleUnitAbilityIcons.Kind.Attack) OnClickSelfHero();
                 else OnClickHeroZone();
                 return;
             }
             if (unit == null) return; // 单位已离场（对账竞态）
-            if (kind == BattleUnitActionButtons.Kind.Attack) ShowUnitActions(unit, x, z);
+            if (kind == BattleUnitAbilityIcons.Kind.Attack) ShowUnitActions(unit, x, z);
             else OnClickUnitEffectButton(unit).Forget();
         }
 

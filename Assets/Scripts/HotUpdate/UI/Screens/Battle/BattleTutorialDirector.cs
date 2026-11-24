@@ -410,7 +410,58 @@ namespace SynergyUI
                    || (_presentationBusy != null && _presentationBusy()))
                 await Cysharp.Threading.Tasks.UniTask.Yield();
             if (TutorialGuide.StepIndex != stepIndex) return;
+            // 掷币演出（2026-11-23 验收定案）：coinToss 步解说卡**弹出前**先播——文本时序=投币
+            // 演出完了才讲对应步；旧「开局先掷」早于全部讲解=演出无上下文，已废。
+            if (step.coinToss)
+            {
+                await PlayCoinTossAsync();
+                if (TutorialGuide.StepIndex != stepIndex) return; // 演出期间步骤被推进（横幅点击）=放弃本次弹卡
+            }
+            // 起手发牌（2026-11-23 验收定案）：dealOpening 步——解说卡弹出前把起手实抽出来
+            //（玩家 7 张一张一张+准备阶段第 8 张；AI 静默同铺），播完才弹卡讲「抽7张/又抽1张」。
+            if (step.dealOpening)
+            {
+                await DealOpeningAsync();
+                if (TutorialGuide.StepIndex != stepIndex) return; // 发牌期间步骤被推进=放弃本次弹卡
+            }
             ShowIntroPanel(step);
+        }
+
+        /// <summary>起手发牌序列（dealOpening 步专用，2026-11-23 验收定案）：scenario 手牌清空、
+        /// deck 序=摸牌序（锁牌库序不洗）——玩家 7 张一张一张实抽（引擎 DrawCard→DrawFlyIn 表现，
+        /// 每张等表现收口），AI 静默同铺 7 张，末尾第 8 张=「准备阶段又抽 1 张」（basics_11 文案
+        /// 「又抽1张」全覆盖；真准备阶段的自动化在场景起跳时被跳过，此张即其叙事替身）。
+        /// 空库防线：scenario.deck 携 10 张（发 8+回合 3 抽 1+备用 1）。</summary>
+        private async Cysharp.Threading.Tasks.UniTask DealOpeningAsync()
+        {
+            var core = Core;
+            if (core?.ZoneManager == null || core.Player1 == null || core.Player2 == null) return;
+            for (int i = 0; i < 7; i++)
+            {
+                core.ZoneManager.DrawCard(core.Player1);
+                if (Field != null) await Field.WaitVisualsIdleAsync(); // 一张一张：上一张飞入收口再抽下一张
+            }
+            for (int i = 0; i < 7; i++)
+                core.ZoneManager.DrawCard(core.Player2); // AI 手牌不可见=静默同铺（「双方各抽7张」）
+            if (Field != null) await Field.WaitVisualsIdleAsync();
+            core.ZoneManager.DrawCard(core.Player1); // 第 8 张=「准备阶段又抽 1 张」（文案时序对齐）
+            if (Field != null) await Field.WaitVisualsIdleAsync();
+            Debug.Log("[Tutorial] 起手发牌完成：玩家 7+1、AI 7");
+        }
+
+        /// <summary>教学掷币演出（coinToss 步专用，2026-11-23 验收定案）：BattleCoinToss 与五段式段三
+        /// 同款（rest=HUD 链速格/板心兜底），结果钉蓝=我方先手（教学剧本按 P1 先手编排；后手 +5 护甲
+        /// 补偿仍归 GameCore.SecondPlayerArmorBonus 单源，scenario firstPlayer=P1）。**无快进**
+        ///（skipRequested 恒 false——教学不需要点击快进功能）。纯演出——不触碰引擎先后手。</summary>
+        private async Cysharp.Threading.Tasks.UniTask PlayCoinTossAsync()
+        {
+            var tile = BattleHudRow.ChainSpeedTile;
+            var rest = tile != null ? tile.position
+                : BattleBoardGrid.Root != null
+                    ? BattleBoardGrid.Root.TransformPoint(BattleBoardGrid.LocalBounds().center)
+                    : Vector3.zero;
+            bool playerFirst = await BattleCoinToss.PlayAsync(rest, () => false, true); // 教学不设快进（2026-11-23 验收定案：点击快进功能不需要）
+            Debug.Log("[Tutorial] 掷币演出落定 playerFirst=" + playerFirst + "（钉蓝=我方先手）");
         }
 
         /// <summary>新步骤成为当前步时的演出指令消费（2026-10-17 语音联动地块显隐定案）：
@@ -491,7 +542,11 @@ namespace SynergyUI
             }
             var panel = UnityEngine.Object.Instantiate(_tipPanelPrefab, Root, false);
             panel.name = "tip-panel";
-            panel.transform.SetAsLastSibling(); // 抬到 mask-img 之上（2026-11-21 遮罩：解说卡/确定钮在遮罩外可读可点）
+            // 弹窗在 mask 下面（2026-11-23 用户定案，Hierarchy 列表序）：遮罩图由 TutorialMaskController
+            // 代码创建且此刻已是末位兄弟（BattleUI 层级最下面·盖全部烘焙 UI），本面板 SetAsLastSibling
+            // 排到遮罩之后=视觉在遮罩之上——解说文案/确定钮不被糊、可读可点（intro 步先 ApplyStep
+            // 挂遮罩再走到这里，次序天然成立）。
+            panel.transform.SetAsLastSibling();
             var rt = panel.transform as RectTransform;
             var msgTmp = UiKit.FindDeep(rt, "msg")?.GetComponent<TMP_Text>();
             if (msgTmp != null) msgTmp.text = step.hint;
@@ -634,7 +689,8 @@ namespace SynergyUI
                 //——段六对手回合六连召唤依次弹选依赖此等待；其余段 AI 回合仅 end 零感知）。
                 MakePacedScriptedAi(tutorial);
                 ctrl.StartNewGame(playerCards, aiCards, _scriptedAi,
-                    rngSeed: matchSeed, scenario: tutorial.scenario);
+                    rngSeed: matchSeed, scenario: tutorial.scenario,
+                    secondArmorBonus: GameCore.SecondPlayerArmorBonus); // 后手护甲补偿（2026-11-23 验收修复）
                 ctrl.EnablePassiveAiResponder();
                 // 语音联动显隐（2026-10-19 建；2026-11-21 时序修复）：guide 以 intro 开头=介绍段
                 // 模式——**先于 Begin 上闸**：Begin 内发射 OnStepAdvanced(0) 会立刻消费首步 reveal

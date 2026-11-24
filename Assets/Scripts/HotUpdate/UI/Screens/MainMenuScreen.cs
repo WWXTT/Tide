@@ -34,14 +34,12 @@ namespace SynergyUI
         private TMP_Text _musicValueLabel;                // lbl-music-value（「60%」）
         private TMP_Text _sfxValueLabel;                  // lbl-sfx-value（「80%」）
         private TMP_Text _muteLabel;                      // btn-mute 的 label（静音开关文案）
+        private Toggle _muteToggle;                       // btn-mute（2026-11-23 重排改版：纯 Toggle，isOn↔MuteOn 同步）
 
-        /// <summary>设置面板·账号区登录槽（slot-login，2026-11-22 登录迁移定案：TapTap 登录/云存档/
-        /// 退出登录从启动页与主菜单右下角迁入设置面板）。public=跨程序集（Tide.TapTap 经 TapBridge
-        /// 注入 TapLoginBadge；单机风味空置）。</summary>
-        public RectTransform SettingsLoginSlot { get; private set; }
-
-        /// <summary>设置面板·云存档入口槽（slot-cloud）：CloudSaveEntry.prefab 注入点（同上口径）。</summary>
-        public RectTransform SettingsCloudSlot { get; private set; }
+        // 账号区（2026-11-23 烘焙改版）：登录/退出登录/存档上传/云存档下载四钮（slot-login/
+        // slot-logout/up-cloud/down-cloud）烘焙在 MainUI.prefab panel-settings，接线与登录态
+        // 显隐在 Tide.TapTap 侧 CloudSaveMenuController——旧跨程序集槽位（SettingsLoginSlot/
+        // SettingsCloudSlot）与 TapLoginBadge/CloudSaveEntry 注入链退役。
 
         protected override void Build()
         {
@@ -79,13 +77,11 @@ namespace SynergyUI
             var teachingLabel = _teachingNode != null ? FindUnder(_teachingNode, "label") : null;
             _teachingLabel = teachingLabel != null ? teachingLabel.GetComponentInChildren<TMP_Text>(true) : null;
 
-            // TapTap 挂件（2026-10-24 预编译隔离；2026-11-09 登录迁移改版）：右下云存档入口经桥装段
-            // 挂接（入口文案含昵称/退出登录在面板）——登录入口已迁启动页 LaunchScreen。
+            // 设置面板（2026-11-22 音效系统 B4；2026-11-23 账号区烘焙改版）：音乐/音效两条滑条+
+            // 静音+关闭，主音量不单列（§4.5 定案）；账号区（登录/退出登录/存档上传/云存档下载）
+            // 四钮烘焙在预制体，接线在 Tide.TapTap 侧——必须先于下方 TapBridge 挂件。
             //（TapBridge.Module 由 HotUpdateEntry.Start 扫域安装；本地单机风味无 Tide.TapTap
-            // 程序集=Module null，云存档入口整体缺席，主菜单只剩本地方案）。
-            // 设置面板（2026-11-22 音效系统 B4）：音乐/音效两条滑条+静音+关闭，主音量不单列（§4.5 定案）。
-            // 必须先于下方 TapBridge 挂件——账号区槽位（slot-login/slot-cloud）在此赋值，
-            // TapLoginBadge/CloudSaveEntry 注入晚于此=槽位就绪。
+            // 程序集=Module null，账号区在 BindSettingsPanel 整体隐藏，主菜单只剩本地方案）。
             BindSettingsPanel();
 
             TapBridge.Module?.OnMainMenuBuilt(this);
@@ -108,7 +104,12 @@ namespace SynergyUI
 
         /// <summary>按名绑定设置面板（节点烘焙在 MainUI.prefab：btn-settings/panel-settings/
         /// slider-music/lbl-music-value/slider-sfx/lbl-sfx-value/btn-mute/btn-settings-close）。
-        /// 滑条 onValueChanged → AudioService.SetBusVolume（实时生效+防抖持久化）；静音 → SetMute。</summary>
+        /// 滑条 onValueChanged → AudioService.SetBusVolume（实时生效+防抖持久化）；静音=btn-mute
+        /// Toggle（2026-11-23 重排改版：无 Button——onValueChanged → SetMute，isOn 回填同步勾选态）。
+        /// 账号区四钮（slot-login/slot-logout/up-cloud/down-cloud）由 Tide.TapTap 侧
+        /// CloudSaveMenuController 按名接线（TapModule.OnMainMenuBuilt）；单机风味 Module=null
+        /// 时此处整体隐藏账号区（缺席即正确态——节点常驻烘焙后必须主动藏；隐藏名单与 TapTap 侧
+        /// CloudSaveMenuController.HideAccountArea 一致，两程序集不互相引用各自维护）。</summary>
         private void BindSettingsPanel()
         {
             BindButton("btn-settings", () => ShowSettingsPanel(true));
@@ -120,27 +121,35 @@ namespace SynergyUI
 
             var muteNode = Find("btn-mute");
             _muteLabel = muteNode != null ? muteNode.GetComponentInChildren<TMP_Text>(true) : null;
-            BindButton("btn-mute", ToggleMute);
+            _muteToggle = muteNode != null ? muteNode.GetComponentInChildren<Toggle>(true) : null;
+            if (_muteToggle != null)
+            {
+                _muteToggle.SetIsOnWithoutNotify(AudioService.MuteOn); // 初值不带通知（防绑定期误触发写盘）
+                _muteToggle.onValueChanged.AddListener(on =>
+                {
+                    AudioService.SetMute(on); // Master 闸（§4.2 SetMute；防抖持久化）
+                    RefreshMuteLabel();
+                });
+            }
 
             _musicSlider = BindVolumeSlider("slider-music", "lbl-music-value", AudioBus.Music);
             _sfxSlider = BindVolumeSlider("slider-sfx", "lbl-sfx-value", AudioBus.Sfx);
 
-            // 账号区槽位（2026-11-22 登录迁移）：TapLoginBadge/CloudSaveEntry 由 Tide.TapTap 侧注入
-            //（TapModule.OnMainMenuBuilt 实例化——单机风味 Module=null 槽位空置）。
-            SettingsLoginSlot = Find("slot-login");
-            SettingsCloudSlot = Find("slot-cloud");
+            // 账号区（2026-11-23 烘焙改版）：接线在 Tide.TapTap 侧（CloudSaveMenuController——
+            // 旧 SettingsLoginSlot/SettingsCloudSlot 槽位注入链退役）；单机风味整体隐藏。
+            bool hasTap = TapBridge.Module != null;
+            foreach (var nodeName in new[] { "lbl-account", "slot-login", "slot-logout", "up-cloud", "down-cloud" })
+            {
+                var node = FindOptional(nodeName);
+                if (node != null) node.gameObject.SetActive(hasTap);
+            }
+
             RefreshMuteLabel();
         }
 
         private void ShowSettingsPanel(bool open)
         {
             if (_settingsPanel != null) _settingsPanel.gameObject.SetActive(open);
-        }
-
-        private void ToggleMute()
-        {
-            AudioService.SetMute(!AudioService.MuteOn); // Master 闸（§4.2 SetMute；防抖持久化）
-            RefreshMuteLabel();
         }
 
         private void RefreshMuteLabel()

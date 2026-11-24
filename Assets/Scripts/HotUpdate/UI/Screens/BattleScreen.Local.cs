@@ -82,6 +82,9 @@ namespace SynergyUI
                 return;
             }
 
+            // 教学掷币段已迁引导链（2026-11-23 验收定案）：basics_09 确认后、basics_10 解说卡弹出前
+            // 播掷币演出（BattleTutorialDirector.ShowIntroPanelAfterCombatAsync 内 coinToss 步标记消费）
+            // ——开局先掷与文本时序不符（步 10 才讲投币），此处还原直入。
             EngageLocalBattle(mirrorDeck, mirrorSkill, challengeDeck, challengeSkill, testScenario);
         }
 

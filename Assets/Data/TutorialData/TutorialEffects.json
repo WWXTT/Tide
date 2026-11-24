@@ -4765,6 +4765,29 @@
           }
         }
       ]
+    },
+    {
+      "id": "99725E71",
+      "name": "登场时，若它是本回合使用的第一张卡，召唤1个教学生物2衍生物",
+      "hash": "E5F69742",
+      "steps": [
+        {
+          "kind": 0,
+          "atom": {
+            "refId": "1dae71b7",
+            "branch": {
+              "settle": 1,
+              "gateId": "FirstCardThisTurn",
+              "then": [
+                {
+                  "refId": "f3ca462e",
+                  "str": "C_7EC71003"
+                }
+              ]
+            }
+          }
+        }
+      ]
     }
   ]
 }

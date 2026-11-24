@@ -31,6 +31,17 @@ namespace SynergyUI
             error = null;
             if (string.IsNullOrEmpty(token)) { error = "空 token"; Warn(verbose, error); return false; }
 
+            if (token == "hud:phase")
+            {
+                // 中线 HUD 阶段显示格（2026-11-23 验收：basics 步 10 讲解回合阶段只显该地块）——
+                // HUD 行=世界空间 3D tile（MeshRenderer 在场），剪影/包围盒与棋盘格同机制
+                var tile = BattleHudRow.PhaseTile;
+                var r = tile != null ? tile.GetComponentInChildren<Renderer>() : null;
+                if (r == null) { error = "阶段显示格未建"; Warn(verbose, error); return false; }
+                bounds = r.bounds;
+                return true;
+            }
+
             if (token == "hero" || token == "oppHero")
                 return HeroBounds(token == "hero" ? 0 : 1, out bounds, out error, verbose);
 
@@ -66,6 +77,14 @@ namespace SynergyUI
             renderers = null;
             error = null;
             if (string.IsNullOrEmpty(token)) { error = "空 token"; Warn(verbose, error); return false; }
+
+            if (token == "hud:phase")
+            {
+                var tile = BattleHudRow.PhaseTile;
+                if (tile == null) { error = "阶段显示格未建"; Warn(verbose, error); return false; }
+                renderers = tile.GetComponentsInChildren<Renderer>().Where(r => r != null).ToList();
+                return renderers.Count > 0;
+            }
 
             if (token == "hero" || token == "oppHero")
             {

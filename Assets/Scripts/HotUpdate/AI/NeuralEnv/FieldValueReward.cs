@@ -43,8 +43,11 @@ namespace CardCore.AI.NeuralEnv
         public static float ManaWeight = 1.0f;
         /// <summary>万用元素（Any）权重（= 1 费，不溢价）</summary>
         public static float WildManaWeight = 1.0f;
-        /// <summary>地牌权重（2026-11-23：0.6 → 1.0；横置不打折——横置的收益在产出元素那一项）</summary>
-        public static float LandTokenWeight = 1.0f;
+        /// <summary>地牌权重（2026-11-23 用户定案：1.0 → **3.0** = 复利资本化：一块地 ≈ 3 费，
+        /// 相当于"未来 3 回合的产出"折现。横置不打折 → 横置仍净 +1（地不变 + 元素 1.0）。
+        /// 由此：沃土（实际费 9，铺 3 地）= −9 + 3×3 = 0 打平，第 4 块起净赚；
+        /// 归根（8 费，回 3 张手牌）= −8 + 3×3 = +1 小赚，4 张 +4）</summary>
+        public static float LandTokenWeight = 3.0f;
         /// <summary>手牌权重（2026-11-23：改为「卡面标价 × 1.0」语义——3 费卡在手 = 3）</summary>
         public static float HandWeight = 1.0f;
         /// <summary>护甲权重（2026-11-23 新增：1 层护甲 = 1 费，此前护甲完全不在 Φ 里）</summary>
@@ -134,10 +137,12 @@ namespace CardCore.AI.NeuralEnv
             return Math.Max(0f, finalValue); // 保底 0（负面极端情况不拖累总势能）
         }
 
-        /// <summary>单卡基础价 = **卡面标价**（`DerivedTier`：玩家实际支付的卡费；2026-11-23 修正）。
-        /// 旧口径用 `DerivedTotal`（推导价 D，已含代价价 P），会让「代价」被收两遍——
-        /// 一次在手牌价值里、一次在代价结算后的盘面损失里（血偿因此算成 −2 而永不出手）。
-        /// 代价本身由结算后的 Φ 变化体现（消灭生物 → 盘面值下降），不再进卡面价。</summary>
+        /// <summary>单卡基础价 = **实际费用** = 卡面费 `DerivedTier` + 代价价 `PayloadApplied`
+        /// （2026-11-23 用户定案："把代价视为费用，只是支付方式不是横置地牌"）。
+        /// 例：沃土 6 卡面 + 3 代价 = **9**。
+        /// 注意：代价价只在这里计一次；代价的**实物支付**（生物进墓等）不再额外扣，
+        /// 因为那一份价值已经由本价代表（旧版先按 DerivedTotal 计价、又在盘面扣一次 = 收两遍，
+        /// 血偿因此被算成 −2 永不出手，2026-11-23 已修）。</summary>
         private static float CardBaseValue(Card card)
         {
             if (card == null) return 0f;
@@ -147,7 +152,7 @@ namespace CardCore.AI.NeuralEnv
                 if (data != null)
                 {
                     var cost = CardCostService.Derive(data);
-                    return cost.DerivedTier; // 卡面费（净支付），不含代价抵扣面
+                    return cost.DerivedTier + cost.PayloadApplied; // 卡面费 + 代价价 = 实际费用
                 }
             }
             // 裸 Card（token/复制）：回退声明费用和

@@ -428,6 +428,15 @@ namespace CardCore
         /// 只管入账与钳；事件发布由调用方按各自路由口径发布（AddMana=ElementPoolGainEvent
         /// 本口 / 生物产色=core.PublishEvent / 三连三=EventManager 直发 AddManaEvent），
         /// Amount 均写实发量。快照恢复/测试播种的直写不走此口（存量来源恒已钳）。</summary>
+        /// <summary>临时钱包只读口（2026-11-23 教学验收：basics_07 池环亮/灰判据——可用=未横置
+        /// 地牌+该色临时余额，教学表现层与地牌行读数同源消费）。</summary>
+        public int TempWalletOf(Player player, ManaType type)
+        {
+            if (player == null) return 0;
+            GetPool(player).TempElements.TryGetValue(type, out int cur);
+            return cur;
+        }
+
         public int CreditTempWallet(Player player, ManaType type, int amount)
         {
             if (player == null || amount <= 0) return 0;
