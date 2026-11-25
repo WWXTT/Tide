@@ -7,7 +7,7 @@
   - 18 格 = 模型执色(3) × 对手主题(3) × 座位(2)；Δ = 模型胜率 − 同格脚本基线；
   - **认证达标** = 17 常规格每格 Δ ≥ 0（点估计先看；某格 95% 区间跨 0 → **先加测该格**
     （+200 局）再判，不直接算输）+ 17 格中位数 ≥ +15pp；
-  - **饱和格**（基线 +15pp > 100%，现只有绿镜先手 0.978）：不退步判——模型胜率 ≥ 基线 −5pp；
+  - **饱和格**（基线 +15pp > 100%，现只有绿镜先手 0.965——表值 193/200，见 SCRIPT_MATRIX_BASELINES）：不退步判——模型胜率 ≥ 基线 −5pp；
   - **best 选点** = 17 格 Δ 的**最小 Wilson 下界**（不是最小点估计：每格 24 局时 σ_Δ≈14pp，
     取最小点估计=在噪声格里挑最幸运的那个）；
   - **训练内候选门**（每格 24 局，432 局/次）：常规格 Δ ≥ −5pp——只用于选点与预警，
@@ -171,17 +171,28 @@ def judge(cells):
 
 
 def select_value(cells):
-    """best 选点值 = 常规格 Δ 的最小 Wilson 下界（wilson_lower(w,n) − base；基线视作常数——
-    选点只比大小，同向保守不改变排序语义）。返回 (value, worst_key)；无常规格 → (None, None)。"""
-    vals = []
+    """best 选点值（P1 2026-11-25 改版）= 17 常规格 Δ 的**中位数**（副判 robust 格数
+    Δ≥TRAIN_GATE_TOL 在 training_gate——早停门口径，不进选点值）。返回
+    (median_delta, worst_key)；常规格未满 17（覆盖不齐）或空表 → (None, None)，
+    调用方回落旧链（总胜率）。
+
+    旧口径（A2 2026-11-24 ~ P1 前）= 常规格 Δ 的最小 Wilson 下界——结构性零格
+    （green|red/P1 长期 0 胜 → wilson_lower(0,n)=0 → 选点值恒 = −base）把 best
+    钉死，冻结在 step 49,920（F1，试点 run 复现）。中位数 = 17 格第 9 小值，
+    单格（含结构性零格）不拖动——P1 定案「结构性零格不拖死 best」。
+    judge()/training_gate() 不动（P1：不改 judge，不重算历史 best）。"""
+    ds, worst = [], None
+    expected = len(SCRIPT_MATRIX_BASELINES) - len(SATURATED_CELLS)
     for key, w, n, base in _iter_cells(cells):
         if is_saturated(base):
             continue
-        vals.append((wilson_lower(w, n) - base, key))
-    if not vals:
+        d = w / n - base
+        ds.append(d)
+        if worst is None or d < worst[1]:
+            worst = (key, d)
+    if len(ds) != expected:
         return None, None
-    val, key = min(vals, key=lambda vk: vk[0])
-    return val, key
+    return statistics.median(ds), worst
 
 
 def candidate_gate(cells):
@@ -220,8 +231,9 @@ def training_gate(cells):
 # ==================== 兼容门槛（旧调用方） ====================
 
 def matrix_cell_threshold(model_preset, opp_theme, seat):
-    """18 格 legacy margin 门槛（基线 +15pp）——A2（2026-11-24）起 selector 改用
-    select_value 的 Wilson 下界 Δ，本函数仅供旧报表/对账口径保留。未覆盖格返回 None。"""
+    """18 格 legacy margin 门槛（基线 +15pp）——A2（2026-11-24）起 selector 不再消费
+    本门槛（P1 2026-11-25 起改用 select_value 的 17 格中位 Δ），本函数仅供旧报表/
+    对账口径保留。未覆盖格返回 None。"""
     base = SCRIPT_MATRIX_BASELINES.get((model_preset, opp_theme, seat))
     return None if base is None else base + MARGIN_TARGET
 

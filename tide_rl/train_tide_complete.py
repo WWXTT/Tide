@@ -4,14 +4,16 @@ Tide 完整 PPO 训练脚本（TCP batchmode 桥接；旧 stdio 口径 2026-10 �
 目标：主题自对弈训练（默认 opponent="selfplay"——双方同一策略驱动，obs/reward 按
 「当前行动方」视角轮换；卡组口径 2026-09-21 主题卡组迁移：一侧随机用三套主题卡组
 之一整组，另一侧 Cards.json 全池随机抽 30 张，随机换座）。
-奖励（2026-09-22 修复）：塑形 λ 经 reset 协议下发（默认 0.005）且 Unity 侧势能剔除
-手牌——旧口径（λ=0.05 硬编码 + 势能含手牌）塑形累计淹没终局 ±1，学成拖局；
+奖励（塑形口径沿革）：λ 经 reset 协议下发（默认 0.005）。势能口径现为 **含手牌**
+（2026-11-23 v2 定案 includeHand:true；手牌每张固定 3 费、地牌每块 2 费——A4 2026-11-24
+定案值，详见 FieldValueReward 权重表）；更早 2026-09-22 曾「剔除手牌」，该口径已废弃；
+λ=0.05 旧口径塑形累计淹没终局 ±1 学成拖局的教训由 λ=0.005 承担抑制；
 自对弈 GAE 按 info.toPlay 行动方座次做零和符号修正（对手步价值/奖励反号）。
 评估双口径（自对弈模式每次评估都跑两组）：
 - 自对弈先手座次胜率：P1 恒先手，偏离 50% 的幅度 = 先后手失衡度量（非棋力）；
 - vs 脚本主题卡组模型胜率（模型 Cards 随机 30 vs SimpleAI+AutoMatch 主题整组，座次随机、
   按 info.modelSeat 判）——真实棋力指标，另按 info.theme（red/green/blue）分主题统计；
-  best 保存与早停按选择口径（2026-11-22 B4 起=18 格矩阵最小 margin，见下方选择口径注释）。
+  best 保存与早停按选择口径（P1 2026-11-25 起=17 格矩阵 Δ 中位数，见下方选择口径注释）。
 opponent="simpleai" 可切回「打脚本主题」训练（评估只剩单一口径）。
 
 对手池（2026-11-02 C 期，--opponent-pool，默认 current=旧行为不变）：只改「和谁打」，
@@ -20,8 +22,8 @@ opponent=simpleai+theme，Unity 零改）；checkpoints=历史快照池当对手
 驱动，对手步经 learner 掩码剔除出 PPO 批次）；mixed=按 --pool-weights 加权混合
 （默认 0.5/0.25/0.25）。--fsp=FSP 口径（快照池均匀随机旧策略、排除最新）。采样点=
 每次 reset()，info.opponentSource 标注。评估扩三主题（--eval-theme，默认空=三主题
-各 50 局，分主题胜率必印，早停/best 按选择口径：B4（2026-11-22）起默认 18 格矩阵
-最小 margin，矩阵无数据回落 6 格/总胜率）。
+各 50 局，分主题胜率必印，早停/best 按选择口径：P1（2026-11-25）起默认 17 格矩阵
+Δ 中位数，矩阵无数据回落 6 格/总胜率）。
 评估模型侧卡组由 --eval-model-theme 决定（2026-11-21 起**与 --model-theme 解耦**；默认
 "all"=三预组都要评一遍 → 6 格标尺全填，绿 bootcamp 这类单主题训练也出 6 格；这类 run 的
 红/蓝格 = 未训练 floor，只作参照、不作验收）。
@@ -83,7 +85,8 @@ from opponent_pool import (
 # ---- 判据单源（A2 2026-11-24 回到一期训练目标）：基线表/纪元/判定/选点全部迁至
 # phase1_criterion.py（纯标准库，训练/评估/认证三方共用）；本文件 import 转发旧名，
 # eval_checkpoint 等调用方不受影响。口径详见该文件头注（认证=每格 Δ≥0+中位数≥+15pp+
-# 饱和格不退步；best 选点=Δ 最小 Wilson 下界；训练内候选门 Δ≥−5pp 只作预警）。----
+# 饱和格不退步；best 选点=17 格 Δ 中位数〔P1 2026-11-25，旧 Wilson 下界被结构性
+# 零格钉死见 F1〕；训练内候选门 Δ≥−5pp 只作预警）。----
 from phase1_criterion import (  # noqa: F401 —— 再导出旧名（外部脚本引用不变）
     PRESET_SEAT_BASELINES, RED_CELL_BASELINES, SCRIPT_MATRIX_BASELINES, BASELINE_ERA,
     matrix_cell_threshold, cell_threshold, judge, select_value, candidate_gate, training_gate,
@@ -227,7 +230,10 @@ class Args:
 
     total_timesteps: int = 2_000_000
     eval_interval: int = 50_000  # 每 5 万步评估
-    eval_episodes: int = 50  # 每次评估局数（2026-09-22 20→50：20 局二项噪声 σ≈0.11，best 选点运气成分过大）
+    eval_episodes: int = 288  # 每次评估局数（P1 2026-11-25 50→288：三模型主题 per_combo
+    # =288//3=96 → 每格 96 局 σ_Δ≈7pp（旧 48 局/格 σ≈10pp）——「训练内评估每格 ≥96 局」
+    # 口径；沿革 2026-09-22 20→50。单模型主题 per_combo=288 → 每格 288 局更稳但时长×2
+    # （绿/红/蓝专精 run 的 TIDE_TRAIN_OVERRIDE 已显式钉 48，不受本默认影响；P3 用本默认）。
     # 每 2 万步保存（2026-11-18 循环治理 §6：run 1794909970 一次崩溃丢 88k 步 ≈2.6h——
     # 10 万间隔过大；2 万=崩溃损失上限 ~35min，保存开销占比可忽略）
     save_interval: int = 20_000
@@ -238,7 +244,8 @@ class Args:
     max_episode_steps: int = 2000  # 单局步数上限（超时判负）
     # 塑形 λ（2026-09-22 起经 reset 协议真正下发到 Unity）。旧口径 λ=0.05 且势能含手牌：
     # 双方各自整局塑形累计 ≈ +3.1 淹没终局 ±1，自对弈收敛到拖局（局长 90→267、
-    # 对脚本胜率 0.35→0.1）——现降 10 倍，且 Unity 侧奖励势能已剔除手牌。
+    # 对脚本胜率 0.35→0.1）——λ 现降 10 倍。势能口径 2026-11-23 v2 起改回**含手牌**
+    #（includeHand:true；手牌每张固定 3 费/地牌每块 2 费，A4 2026-11-24），「剔除手牌」旧口径已废弃。
     reward_lambda: float = 0.005
     # 对手位口径（A1 2026-11-24 回到一期训练目标起 CLI --opponent 显式指定、优先于 TIDE_TRAIN_OVERRIDE）：
     # selfplay = 主题自对弈（**非一期验收口径**，诊断/掺卡实验用）；simpleai = 模型 vs 脚本主题卡组
@@ -302,7 +309,12 @@ class Args:
 
 def evaluate_greedy(agent_apply, params, env, args, num_episodes=20, opponent=None, theme=None,
                     model_theme=None, seat=None, seed_base=None):
-    """贪心策略评估（复用训练 env——TCP 桥接一进程一局，不能另开）。
+    """策略评估（复用训练 env——TCP 桥接一进程一局，不能另开）。函数名保留 greedy
+    历史（外部多处引用不变）；P1（2026-11-25）起**动作=采样**（jax.random.categorical，
+    与训练 rollout 同式）——采样为主口径，argmax 仅离线对照（U5/E2 验收：到达率类读数
+    argmax 系统性高于采样、两口径不可互换；胜率口径 |Δ|≤10pp）。采样 rng 每局由局种子
+    派生（seed_base+ep，与评估协议 v2 配对种子同源）→ 同局种子跨评估点重播同一批
+    采样噪声，配对性保持。
 
     opponent=None 时用 args.opponent（训练口径）；自对弈训练中途可传 "simpleai"
     切换评估对手（reset 协议按次传 opponent，无需另开 env）。
@@ -331,7 +343,7 @@ def evaluate_greedy(agent_apply, params, env, args, num_episodes=20, opponent=No
     label = "vs 脚本主题卡组（模型胜率）" if vs_script else "self-play（先手座次胜率）"
 
     print(f"\n{'='*60}")
-    print(f"Evaluating {num_episodes} episodes (greedy, {label}"
+    print(f"Evaluating {num_episodes} episodes (sampled, {label}"
           + (f", theme={theme}" if theme else "") + ")")
     print(f"{'='*60}")
 
@@ -363,13 +375,20 @@ def evaluate_greedy(agent_apply, params, env, args, num_episodes=20, opponent=No
             options["seed"] = int(seed_base) + ep
         obs, info = env.reset(options=options)
         rstate = init_rstate(args.rnn_type)
+        # P1（2026-11-25）：评估采样 rng 按局种子派生（0xE0A1 基 + ep 折叠；seed_base
+        # 存在时并入）——跨评估点同局种子=同 rng 流，配对重播语义与协议 v2 一致
+        rng = jax.random.fold_in(jax.random.PRNGKey(0xE0A1),
+                                 ((seed_base or 0) + ep) & 0xFFFFFFFF)
         done = False
         step_count = 0
 
         while not done and step_count < args.max_episode_steps:
             obs_batch = jax.tree.map(lambda x: x[None, ...] if x is not None else None, obs)
             rstate, logits, _ = agent_apply(params, rstate, obs_batch)
-            action = int(jnp.argmax(logits[0]))  # 贪心（logits 已屏蔽非法动作）
+            # P1（2026-11-25）：采样主口径（argmax 旧口径废弃——到达率读数系统性偏高，
+            # 见 e2_sample_vs_greedy.json）；logits 已屏蔽非法动作，categorical 直接用。
+            rng, sub = jax.random.split(rng)
+            action = int(jax.random.categorical(sub, logits[0]))
             obs, reward, done, truncated, info = env.step(action)
             step_count += 1
             done = done or truncated
@@ -485,9 +504,10 @@ def evaluate_greedy_multi(agent_apply, params, env, args, num_episodes, opponent
         model_themes = eval_model_themes(args)
     per_combo = num_episodes
     if len(model_themes) > 1:
-        # C3（2026-11-22 红绿0胜归因计划）：每 (模型卡组×对手主题) 组合局数下限 10→48——
-        # 18 格矩阵每格（=对×座位）≈24 局，B4 selector 的 margin 不再被 ±17pp 单格噪声抖动；
-        # 默认 eval_episodes=50 下实际取 48（3×3×48=432 局/次评估，时长约 3× 旧 144 局口径）。
+        # C3（2026-11-22 红绿0胜归因计划）：每 (模型卡组×对手主题) 组合局数下限 48——
+        # 旧口径 18 格每格（=对×座位）≈24 局被 ±17pp 单格噪声抖动；P1（2026-11-25）
+        # 默认 eval_episodes=288 下 per_combo=96 → 每格 96 局（3×3×96=864 局/次评估），
+        # 「每格 ≥96 局」σ_Δ≈7pp；override 钉 48 的专精 run 维持 48 局/格。
         per_combo = max(48, num_episodes // len(model_themes))
     total_games = wins = losses = draws = 0
     all_lengths = []
@@ -534,9 +554,10 @@ def evaluate_greedy_multi(agent_apply, params, env, args, num_episodes, opponent
     print(f"  TOTAL Win Rate: {win_rate*100:.1f}% ({wins}/{total_games}) "
           f"(losses {losses}, draws/timeouts {draws})")
     print(f"  Avg Episode Length: {avg_length:.1f}")
-    # 6 格口径块（2026-11-17 一期课程，AI训练说明 §0.2）：模型执三套预组 × 先/后手，逐格对基线+15pp
+    # 6 格口径块（2026-11-17 一期课程；A2 2026-11-24 起 Δ 口径：门槛=同格脚本基线=Δ≥0，
+    # 旧「基线+15pp」随「每格 +15pp」口径废弃——单源 phase1_criterion.cell_threshold）
     if cell_stats:
-        print("  6 格口径（模型执该预组 × 该座位；Δ 口径：门槛=同格脚本基线+15pp 不封顶，AI训练说明 §0.2）:")
+        print("  6 格口径（模型执该预组 × 该座位；Δ 口径：门槛=同格脚本基线（Δ≥0，A2 2026-11-24），见 phase1_criterion）:")
         for (tk, seat), c in sorted(cell_stats.items()):
             if c[1] == 0:
                 continue
@@ -1150,13 +1171,17 @@ def train(args: Args):
                     obs, info = e.reset()
                     carries[env_id] = [obs, init_rstate(args.rnn_type), 0.0, 0, 0.0, _seat_of(info)]
 
-                # 选择口径（A2 2026-11-24 判据单源 phase1_criterion；沿革见该文件头注）：
-                # **18 格矩阵 Δ 的最小 Wilson 下界**（best 选点——旧「最小 margin=点估计差」
-                # 在 24 局/格 σ_Δ≈14pp 下等于在噪声格里挑最幸运的，2026-11-24 用户口径改下界）；
+                # 选择口径（判据单源 phase1_criterion；沿革见该文件头注）：
+                # **17 格矩阵 Δ 的中位数**（P1 2026-11-25 best 选点——旧「最小 Wilson 下界」
+                # 被 green|red/P1 结构性零胜格钉死致 best 冻结〔F1〕；更早「最小 margin=
+                # 点估计差」在 24 局/格 σ_Δ≈14pp 下等于在噪声格里挑最幸运的〔A2 2026-11-24〕）；
                 # 早停门 = training_gate（2026-11-22 稳健版原值迁入：覆盖齐 18 格且 Δ 中位数
                 # ≥+5pp 且 Δ≥−5pp 格数 ≥16/18）；候选门 Δ≥−5pp 只作预警（extra.candidate_below）。
                 # 认证口径（每格 Δ≥0+中位数≥+15pp+饱和格不退步）不在训练内跑——停训后
                 # certify_phase1 按 200 局/格走 judge()。
+                # best 选点（P1 2026-11-25）= select_value 的 17 常规格 Δ 中位数——旧口径
+                # 最小 Wilson 下界被结构性零格（green|red/P1 恒 0 胜）钉死致 best 冻结（F1）；
+                # 中位数单格不拖动（judge/training_gate/历史 best 均不动）。
                 # 矩阵/基线无数据时回落旧链：6 格 Δ → 镜像 → 总胜率（行为同 2026-11-17 版）。
                 # 选择值+门控分量（extra.cells/worst/delta_median/robust_cells）落 eval.jsonl。
                 select_rate = win_rate
@@ -1173,7 +1198,7 @@ def train(args: Args):
                     gate = training_gate(matrix_cells)
                     cand = candidate_gate(matrix_cells)
                     select_rate = sel_val if sel_val is not None else win_rate
-                    select_label = "18格矩阵最小Wilson下界Δ"
+                    select_label = "17格中位Δ(P1)"
                     target_hit = gate["pass"]
                     select_extra = {"cells": len(matrix_cells),
                                     "worst": (f"{worst_key[0]}|{worst_key[1]}/P{worst_key[2]+1}"
@@ -1347,7 +1372,7 @@ if __name__ == "__main__":
                              "等价 --opponent-pool checkpoints 的 FSP 口径；日志标注 fsp=true")
     parser.add_argument("--eval-theme", default=None,
                         help="评估基准主题：空串=三主题各 50 局输出分主题胜率（默认）；"
-                             "red=单主题；red,green=逗号列表。早停/best 按选择口径（B4=18格矩阵margin）")
+                             "red=单主题；red,green=逗号列表。早停/best 按选择口径（P1 2026-11-25=17格矩阵Δ中位数）")
     parser.add_argument("--eval-model-theme", default=None,
                         help="评估局模型侧卡组（2026-11-21 与训练口径解耦）：all=三预组都评"
                              "（默认，6 格标尺全填，绿 bootcamp 也出 6 格）；"
@@ -1448,7 +1473,7 @@ if __name__ == "__main__":
              else "（模型侧=该主题整组）" if args.model_theme else ""))
     print(f"  Eval themes: {', '.join(parse_eval_themes(args.eval_theme))}"
           f"（每主题 {args.eval_episodes} 局；6 格=模型执三套 × 先/后手；早停/best 选择口径"
-          f"= 18 格矩阵最小 margin〔B4 2026-11-22〕，矩阵无数据回落 6 格 margin）")
+          f"= 17 格矩阵 Δ 中位数〔P1 2026-11-25〕，矩阵无数据回落 6 格 margin）")
     # 评估模型侧卡组与实计局数（2026-11-21）：多卡组时 eval_episodes 只是每组合基数，
     # 真实每次评估局数 = 每组合局数 × 对手主题数 × 模型卡组数（C3 后三套×三主题×48=432 局）
     _emt = eval_model_themes(args)

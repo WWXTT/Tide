@@ -60,7 +60,7 @@ def run():
     verdict = next(c["verdict"] for c in r["per_cell"] if c["key"] == key)
     check(verdict == "fail", f"明显未达：verdict={verdict}（区间不跨 0 → fail）")
 
-    # ---- ④ 饱和格（绿镜先手 base=0.978）：不退步 ≥ 基线−5pp ----
+    # ---- ④ 饱和格（绿镜先手 base=0.965，B2 重测表值）：不退步 ≥ 基线−5pp ----
     sat = SATURATED_CELLS[0]
     r = judge(cells_with(sat_delta=-0.02))
     v_ok = next(c["verdict"] for c in r["per_cell"] if c["key"] == sat)
@@ -69,13 +69,27 @@ def run():
     check(v_ok == "saturated_pass" and v_bad == "saturated_fail",
           f"饱和格：−2pp={v_ok}、−8pp={v_bad}（界=基线−5pp）")
 
-    # ---- ⑤ best 选点 = Δ 最小 Wilson 下界（非最小点估计） ----
+    # ---- ⑤ best 选点（P1 2026-11-25 改版）= 17 常规格 Δ 中位数；结构性零格不拖动 ----
     c = cells_with(default_delta=0.10)
     val, worst = select_value(c)
-    point_min = min(w / n - SCRIPT_MATRIX_BASELINES[k] for k, (w, n) in c.items()
-                    if k not in SATURATED_CELLS)
-    check(val is not None and val <= point_min + 1e-9,
-          f"选点：Wilson 下界 {val:.4f} ≤ 最小点估计 {point_min:.4f}")
+    ds = sorted(w / n - SCRIPT_MATRIX_BASELINES[k] for k, (w, n) in c.items()
+                if k not in SATURATED_CELLS)
+    check(val is not None and abs(val - statistics.median(ds)) < 1e-9,
+          f"选点：=17 格 Δ 中位数（{val:.4f}）")
+    check(worst is not None and worst[0] in SCRIPT_MATRIX_BASELINES,
+          "选点：worst_key 随行（诊断口径）")
+    # 结构性零格（F1 病根）：单格 0 胜 → 旧 Wilson 下界口径被钉死，中位数口径不动
+    key0 = next(k for k in SCRIPT_MATRIX_BASELINES if k not in SATURATED_CELLS)
+    n0 = c[key0][1]
+    c2 = dict(c)
+    c2[key0] = (0, n0)
+    val2, worst2 = select_value(c2)
+    check(val2 is not None and abs(val2 - val) < 1e-9,
+          f"选点：单格 0 胜不拖动中位数（{val2:.4f} vs {val:.4f}）")
+    check(worst2 is not None and worst2[0] == key0, "选点：worst=零胜格（诊断口径）")
+    # 覆盖不齐 / 空表 → (None, None)（调用方回落旧链）
+    partial = dict(list(c.items())[:6])
+    check(select_value(partial) == (None, None), "选点：覆盖不齐 → (None, None)")
     check(select_value({}) == (None, None), "选点：空表 → (None, None)")
 
     # ---- ⑥ 候选门：Δ=−8pp 的格进 below（预警） ----

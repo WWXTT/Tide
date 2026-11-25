@@ -114,7 +114,7 @@ def render_cells(run_dir: Path):
                      f"{STATE_MARK[c['state']]} {gap:>7} n={c['n']}/{c['evals']}次")
     if any(c["generation_mixed"] for c in cells.values()):
         lines.append("  ! 本 run 内门槛变过：只池化最新代，旧代行已排除")
-    lines.append("  ▲=门槛(脚本基线+15pp) ◉=胜率压门槛 ●=池化胜率 │=95%CI")
+    lines.append("  ▲=门槛(该格 eval 行 threshold；A2 2026-11-24 起=脚本基线 Δ≥0 口径，旧 run 行=基线+15pp)")
     lines.append("  单次评估的 pass/fail 不作判据（每格仅 ~24 局，详见 AI训练说明 §3.4.1）")
     return lines
 

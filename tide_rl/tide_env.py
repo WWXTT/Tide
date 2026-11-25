@@ -276,6 +276,14 @@ class TideEnv(TideEnvTcp):
             pid, ppid, cmdline = int(parts[0]), int(parts[1]), parts[2]
             if pid in protected:
                 continue  # 本进程内别的 TideEnv 持有——不是残留
+            # 工程路径精确匹配（2026-11-25 修复）：上方 PS 的 -like 通配会把
+            # 前缀同名副本误当本工程（Tide_train_green 含 "Tide_train" 子串 →
+            # 绿试点在跑时 Tide_train 侧新启动被误报『已有实例』，其孤儿还会被误杀）。
+            # 只认命令行 -projectPath 的 token 值与本工程全等（大小写不敏感）的实例。
+            m_proj = re.search(r"-projectPath\s+(?:\"([^\"]+)\"|(\S+))", cmdline)
+            proj_val = (m_proj.group(1) or m_proj.group(2)) if m_proj else None
+            if not proj_val or os.path.normcase(proj_val) != os.path.normcase(self.project_path):
+                continue  # 别的副本（前缀重叠）——与本工程无关
             if ppid != os.getpid() and self._pid_alive(ppid):
                 m = re.search(r"-tidePort\s+(\d+)", cmdline)
                 live_foreign.append((pid, ppid, m.group(1) if m else "?"))
