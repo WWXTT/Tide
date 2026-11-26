@@ -4,7 +4,7 @@
 - **状态（2026-11-18 审计注）：五个阶段已全部落地**——阶段1 UnsupportedForAi 闸、阶段2 `SimpleAI.SettleAfterAiActionAsync`、阶段3 守卫 SourcePlayer/角色实体入栈、阶段4 VoluntaryEffect 兜底+`PickHeroSkillEffect`、阶段5 `PickPlaceCell`（`AiStrategy.cs`/`SimpleAI.cs`/`LegalActionEnumerator.cs`/`GameActions.ResponseWindow.cs` 内均有对应实现与"2026-11-15 审计 §N"注释）。正文与 §7 派活令保留作历史记录，勿再按计划重复施工。
 - **2026-11-19 动作空间注**：§8 的“RL 动作空间加落格/移动选格/宣言”由
   [AI动作空间补全_修改计划](AI动作空间补全_修改计划.md) P1/P2 接手；本计划 A-1/A-2 的“跳过”口径在 P1 落地后删除。
-- 依据：[AI与脚本动作覆盖审计_2026-11-15.md](AI与脚本动作覆盖审计_2026-11-15.md)（下称“审计”；**注：该文件未入库，链接失效**）
+- 依据：原《AI与脚本动作覆盖审计_2026-11-15》（已删除）（下称“审计”；**注：该文件未入库，链接失效**）
 - 性质：实现计划（分阶段，一次一派）。本文件只描述要改什么、怎么验收；不改代码。
 - 范围：本地人机（木桩/挑战/普通 AI）、AI-vs-AI 模拟、RL/神经动作空间；**不含联机协议与 UI 改版**（单独立项，见 §8）。
 
