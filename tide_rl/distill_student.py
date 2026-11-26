@@ -131,6 +131,10 @@ def load_teacher(mf_path: str):
         # 跨树加载（2026-11-26 用户定，决策③）：教师 ckpt 树不同代（如 aux 2→3）时 merge 并树
         old_params = flax.serialization.from_bytes(None, f.read())
         params, _merge_report = merge_params_by_shape(params, old_params)
+        # 跨树加载留痕（决策③）：loaded/fresh 打一行——教师树缺/换的模块（如 aux 头）落 fresh
+        _fm = sorted({p.rsplit("/", 1)[0] for p in _merge_report["fresh"]})
+        print(f"[teacher:merge] 同形状继承 {_merge_report['n_loaded_params']}/{_merge_report['n_total_params']}"
+              f" 参数；fresh {_merge_report['n_new_params']}（模块: {', '.join(_fm) or '—'}）", flush=True)
     print(f"[teacher] {deck} ← {ckpt}（run={mf.get('run')} step={mf.get('step')} "
           f"tier={mf.get('tier')} sha256={sha[:12]}…）", flush=True)
     return deck, jax.jit(agent.apply), params, mf
@@ -435,6 +439,10 @@ def cmd_collect(cli):
             # 跨树加载（决策③同口径）：学生 ckpt 树不同代时 merge 并树
             old_params = flax.serialization.from_bytes(None, f.read())
             s_params, _merge_report = merge_params_by_shape(s_params, old_params)
+            # 跨树加载留痕（决策③同口径）：loaded/fresh 打一行
+            _sm = sorted({p.rsplit("/", 1)[0] for p in _merge_report["fresh"]})
+            print(f"[student:merge] 同形状继承 {_merge_report['n_loaded_params']}/{_merge_report['n_total_params']}"
+                  f" 参数；fresh {_merge_report['n_new_params']}（模块: {', '.join(_sm) or '—'}）", flush=True)
         apply_s = jax.jit(s_agent.apply)
         print(f"[student] {student_ckpt} → run {student_run.name}（actor={cli.actor}）", flush=True)
 
@@ -476,7 +484,8 @@ def cmd_collect(cli):
                         if gid in seen_bc_games:
                             continue
                         seen_bc_games.add(gid)
-                        meta = json.loads(meta_p.read_text(encoding="utf-8"))
+                        # C# File.WriteAllText(UTF8) 带 BOM——utf-8-sig 容错读
+                        meta = json.loads(meta_p.read_text(encoding="utf-8-sig"))
                         game_idx = len(games_meta)
                         n_unmatched = 0
                         for rec in parse_bc_bin(bc_raw / (gid + ".bin")):

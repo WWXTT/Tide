@@ -64,7 +64,11 @@ def _behavior_of(info):
             "handoff_miss": str(info.get("handoffMiss", "") or ""),
             # 二期 S3-3：链进度闩位（decider 座位；终局步=全量）
             "chain_bits": int(info.get("chainBits", 0)),
-            "chain_done": 1 if info.get("chainDone") else 0}
+            "chain_done": 1 if info.get("chainDone") else 0,
+            # 二期 S3-1 验收补批（2026-11-26 DSH 定位）：交棒后首次归根施放步距与强制交棒标记——
+            # 上批冒烟 s2g 恒 0 的根因=本表缺这两个键（C# 已回传、Python 没读）。
+            "handoff_steps_to_genel": int(info.get("handoffStepsToGenel", -1)),
+            "handoff_forced": 1 if info.get("handoffForced") else 0}
 
 
 def rollout_single_env(agent_apply, params, env, obs, rstate, num_steps, rng, rnn_type="gru",

@@ -998,6 +998,52 @@ def train(args: Args):
                         behav_win["atk_risky"] = behav_win.get("atk_risky", 0) + int(b.get("atk_risky", 0))
                         behav_win["atk_face"] = behav_win.get("atk_face", 0) + int(b.get("atk_face", 0))
                         behav_win["atk_any"] = behav_win.get("atk_any", 0) + int(b.get("atk_any", 0))
+                        # ---- 二期 S3-1/S3-3（2026-11-26 补批）：交棒与链闩位验收读数 ----
+                        # S3-1：交棒打点聚合（handoff_state=none 的局不进 handoff_* 计数）
+                        _hs = str(b.get("handoff_state", "") or "")
+                        if _hs and _hs != "none":
+                            behav_win["handoff_cfg"] = _hs
+                            behav_win["handoff_games"] = behav_win.get("handoff_games", 0) + 1
+                            _hd = int(b.get("handoff_done", 0) or 0)
+                            behav_win["handoff_done"] = behav_win.get("handoff_done", 0) + _hd
+                            _ht = int(b.get("handoff_turn", 0) or 0)
+                            if _ht > 0:
+                                behav_win["handoff_turn_sum"] = behav_win.get("handoff_turn_sum", 0) + _ht
+                                behav_win["handoff_turn_n"] = behav_win.get("handoff_turn_n", 0) + 1
+                            if _hd:
+                                _hl = int(b.get("handoff_lands", 0) or 0)
+                                behav_win["handoff_lands_sum"] = behav_win.get("handoff_lands_sum", 0) + _hl
+                                behav_win["handoff_lands_n"] = behav_win.get("handoff_lands_n", 0) + 1
+                                _hg = float(b.get("handoff_gen_cost", -1) or -1)
+                                if _hg >= 0:
+                                    _k = "handoff_gencost_" + str(_hg)
+                                    behav_win[_k] = behav_win.get(_k, 0) + 1
+                                _s2g = int(b.get("handoff_steps_to_genel", -1) or -1)
+                                if 0 < _s2g <= 3:
+                                    behav_win["handoff_fast_cast"] = behav_win.get("handoff_fast_cast", 0) + 1
+                                if _s2g > 0:
+                                    behav_win["handoff_casted"] = behav_win.get("handoff_casted", 0) + 1
+                                behav_win["handoff_s2g_sum"] = behav_win.get("handoff_s2g_sum", 0) + max(_s2g, 0)
+                            if not _hd:
+                                _hm = str(b.get("handoff_miss", "") or "unknown")
+                                _k = "handoff_miss_" + _hm
+                                behav_win[_k] = behav_win.get(_k, 0) + 1
+                            behav_win["handoff_gen_in_hand"] = (behav_win.get("handoff_gen_in_hand", 0)
+                                                                + int(b.get("handoff_gen_in_hand", 0) or 0))
+                            # S3-1 补批：强制交棒（回合兜底）计数——区分 genel_ready 真实触发
+                            behav_win["handoff_forced"] = (behav_win.get("handoff_forced", 0)
+                                                           + int(b.get("handoff_forced", 0) or 0))
+                        # S3-3：链里程碑闩位分布 + 链奖励份额（telescoping：局总量=λ×bits/4）
+                        _bits = int(b.get("chain_bits", 0) or 0)
+                        behav_win["phi_games"] = behav_win.get("phi_games", 0) + 1
+                        for _i in range(4):
+                            if _bits & (1 << _i):
+                                _k = "phi_bit" + str(_i)
+                                behav_win[_k] = behav_win.get(_k, 0) + 1
+                        if b.get("chain_done"):
+                            behav_win["phi_done"] = behav_win.get("phi_done", 0) + 1
+                        behav_win["phi_reward_sum"] = (behav_win.get("phi_reward_sum", 0.0)
+                                                       + args.chain_reward_lambda * _bits / 4.0)
 
             global_step += args.num_envs * args.num_steps
 

@@ -640,6 +640,8 @@ namespace CardCore.Editor.TideHeadless
                     handoffGenCost = r.HandoffGenCost,
                     handoffGenInHand = r.HandoffGenInHand,
                     handoffMiss = r.HandoffMiss ?? "",
+                    handoffStepsToGenel = r.HandoffStepsToGenel, // S3-1 验收：交棒后首次归根施放步距
+                    handoffForced = r.HandoffForced, // S3-1 验收：true=回合兜底强制交棒（非 genel_ready 触发）
                     // S3-3（2026-11-26 二期 §5）：链进度闩位（decider 座位；终局步=全量）——
                     // aux 第三标签「本局是否到达目标态」的回传源
                     chainBits = r.ChainBits,
@@ -670,7 +672,7 @@ namespace CardCore.Editor.TideHeadless
             // S3-1/S3-3（2026-11-26 二期）：开手交棒打点 + 链进度闩位（JsonUtility 只序列化字段——
             // bool/int/float/string 全兼容；旧 Python 客户端读不到新键=缺省，零破坏）
             public string handoffState; public bool handoffDone; public int handoffTurn; public int handoffLands;
-            public float handoffGenCost; public bool handoffGenInHand; public string handoffMiss;
+            public float handoffGenCost; public bool handoffGenInHand; public string handoffMiss; public int handoffStepsToGenel; public bool handoffForced;
             public int chainBits; public bool chainDone;
             // 2026-11-23 行为仪表（B4 用户口径）：模型侧「牺牲 + 回收」链与 14 费大哥落地（每局累计）
             public int mSac; public int mRec; public int mChain; public int mAgros; public int mAgrosTurn;

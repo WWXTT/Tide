@@ -84,6 +84,12 @@ namespace CardCore.AI.NeuralEnv
         public bool HandoffGenInHand;
         /// <summary>未交棒原因（""=已交棒；"ended"=终局仍未触发）。</summary>
         public string HandoffMiss;
+        /// <summary>交棒后第几步首次施放归根（1 起；-1=未交棒或交棒后整局未施放）——
+        /// 「交棒后 3 步内施放率」的原始读数（S3-1 验收）。</summary>
+        public int HandoffStepsToGenel;
+        /// <summary>本次交棒是否为回合兜底强制（true=兜底/maxOpeningTurns，false=genel_ready 真实触发）
+        /// ——S3-1 验收按本位拆分读，防兜底污染命中率与 gen_in_hand 统计。</summary>
+        public bool HandoffForced;
         // ---- S3-3（2026-11-26 二期 §5）：链进度（协议 info.chainBits/chainDone；decider 座位）----
         /// <summary>decider 座位的链里程碑闩位（bit0..3；本步结算后的值——终局步=全量）。</summary>
         public int ChainBits;
@@ -234,6 +240,11 @@ namespace CardCore.AI.NeuralEnv
         private int _handoffTurn, _handoffLands, _handoffGenCostX10 = -1; // 交棒打点（费×10 存整数）
         private bool _handoffGenInHand;
         private string _handoffMiss = "";  // 终局未触发原因（"ended"=未交棒即终局；""=已交棒）
+        // S3-1 验收读数（2026-11-26 补）：交棒后模型座决策步计数与首次归根施放步距——
+        // 「交棒后 3 步内施放率」的数据源（开手回合动作不走 Step，天然只计交棒后）。
+        private int _stepsAfterHandoff;       // 交棒后的模型座决策步（1 起，0=未交棒）
+        private int _handoffStepsToGenel = -1; // 交棒后第几步首次施放归根（-1=整局未施放）
+        private bool _handoffForced;           // 本次交棒=回合兜底强制（true）/ genel_ready 真实触发（false）
 
         // ---- S3-3（2026-11-26 二期 §5）：链进度势能 Φ_chain —— 三预组各自的 4 段里程碑闩位
         //（按座位独立计数；事件层更新，含脚本开手/对手回合）。闩位只进不出（单调——势能
@@ -293,6 +304,9 @@ namespace CardCore.AI.NeuralEnv
                 if (!asCard) return;           // 归根当地落不算「回收」
                 _mRec++;
                 if (_mSacSeen) _mChain = 1;    // 先牺牲 → 后归根 = 走通回收链
+                // S3-1 验收读数：交棒后首次归根施放步距（开手回合不经过本函数——天然只计交棒后）
+                if (_handoffState != "none" && _handoffDone && _handoffStepsToGenel < 0)
+                    _handoffStepsToGenel = Math.Max(_stepsAfterHandoff, 1);
             }
             else if (id == IdGreenAgros)
             {
@@ -608,6 +622,9 @@ namespace CardCore.AI.NeuralEnv
             _handoffGenInHand = false;
             _handoffMiss = "";
             _handoffDone = _handoffState == "none";
+            _stepsAfterHandoff = 0;        // S3-1：交棒后步距读数每局清零
+            _handoffStepsToGenel = -1;
+            _handoffForced = false;
             if (!_handoffDone && modelIsP1.HasValue && _modelPlayer != null)
             {
                 var modelDeck = ReferenceEquals(_modelPlayer, _core.Player1) ? deck1 : deck2;
@@ -692,6 +709,9 @@ namespace CardCore.AI.NeuralEnv
             if (_gameOver) return BuildResult(0f); // 已终局：无动作可执行
 
             var me = _decider ?? _core.TurnEngine.TurnPlayer; // 本步决策座次（Main=回合玩家 / 响应=优先权方）
+            // S3-1 验收读数：交棒后步距计数（每模型座决策步 +1；开手回合不走 Step 故只计交棒后）
+            if (_handoffState != "none" && _handoffDone && _handoffStepsToGenel < 0)
+                _stepsAfterHandoff++;
             // 2026-11-23 成长指标：本步动手前的 T1/T3 地数快照（红/绿招牌操作分析用）
             SnapshotGrowth(me);
             // 2026-11-23 战斗伤害计价：每步清零（本步内的 CombatDamageEvent 由 OnCombatDamage 记账）
@@ -1078,11 +1098,15 @@ namespace CardCore.AI.NeuralEnv
             }
         }
 
-        /// <summary>完成交棒：打点（回合/池地/剩余元素/动态费/手牌是否含归根）+ 摘除开手脚本。</summary>
-        private void CompleteHandoff()
+        /// <summary>完成交棒：打点（回合/池地/剩余元素/动态费/手牌是否含归根/是否强制）+ 摘除开手脚本。
+        /// forced=**回合兜底**（maxOpeningTurns 到顶强制交棒，与 genel_ready 触发无关）——
+        /// forced 局的 gen_in_hand 可为 false（手无归根）；S3-1 验收按 forced 拆分读，防兜底污染
+        ///（2026-11-26 DSH：上批冒烟 5/7 局是兜底，gen_in_hand 2/7 由此解释）。</summary>
+        private void CompleteHandoff(bool forced)
         {
             if (_handoffDone) return;
             _handoffDone = true;
+            _handoffForced = forced;
             _handoffTurn = _core.TurnEngine.TurnNumber;
             _handoffLands = LandCountOf(_modelPlayer);
             var genel = (_core.ZoneManager.GetCards(_modelPlayer, Zone.Hand) ?? new List<Card>())
@@ -1093,6 +1117,7 @@ namespace CardCore.AI.NeuralEnv
             else if (_handoffState != "genel_ready")
                 _handoffGenCostX10 = -1; // 非 genel_ready 档位不承诺归根在手
             _openingAi = null;           // 交棒后开手脚本退役（GC）
+            _stepsAfterHandoff = 1;      // 交棒即起算（首个停靠步=第 1 步）
         }
 
         /// <summary>模型座开手回合整段脚本驱动（镜像 RunSimpleAiTurnAsync 的 D2d 异步链——
@@ -1230,7 +1255,7 @@ namespace CardCore.AI.NeuralEnv
                         if (_parkTcs != null) return;   // 防御：开手链不应停靠（模型座回合语境）
                         continue;
                     }
-                    CompleteHandoff(); // 触发（或 maxOpeningTurns 兜底）→ 交棒，落本停靠口问模型
+                    CompleteHandoff(forced); // 触发（或 maxOpeningTurns 兜底）→ 交棒，落本停靠口问模型
                 }
 
                 var engine = _core.StackEngine;
@@ -1685,6 +1710,8 @@ namespace CardCore.AI.NeuralEnv
                 HandoffGenCost = _handoffGenCostX10 / 10f,
                 HandoffGenInHand = _handoffGenInHand,
                 HandoffMiss = _handoffMiss ?? "",
+                HandoffStepsToGenel = _handoffStepsToGenel,
+                HandoffForced = _handoffForced,
                 ChainBits = SeatOf(_decider) is >= 0 and <= 1 ? _chainBits[SeatOf(_decider)] : 0,
                 ChainDone = SeatOf(_decider) is >= 0 and <= 1 && (_chainBits[SeatOf(_decider)] & 8) != 0,
             };

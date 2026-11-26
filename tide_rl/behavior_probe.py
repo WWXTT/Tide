@@ -204,6 +204,10 @@ def main():
         # （同名同形状继承，形状变化/new 模块保留本次初始化）。
         old_params = flax.serialization.from_bytes(None, f.read())
         params, _merge_report = merge_params_by_shape(params, old_params)
+        # 跨树加载留痕（决策③）：loaded/fresh 打一行——aux 头在 fresh 清单=旧 ckpt 头未误继承
+        _fm = sorted({p.rsplit("/", 1)[0] for p in _merge_report["fresh"]})
+        print(f"[merge] 同形状继承 {_merge_report['n_loaded_params']}/{_merge_report['n_total_params']}"
+              f" 参数；fresh {_merge_report['n_new_params']}（模块: {', '.join(_fm) or '—'}）", flush=True)
     jit_apply = jax.jit(agent.apply)
     print(f"[ckpt] {ckpt}（split={meta.get('_split')} step={meta.get('step')}）", flush=True)
 
