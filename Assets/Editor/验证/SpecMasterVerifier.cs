@@ -320,10 +320,34 @@ namespace CardCore.Editor.Tests
 
                         if (scen == 3)
                         {
-                            if (rows.Count == 3 && rows.All(r => r.Targets != null && r.Targets.Count == 2))
-                                d1.Line("3 敌 = 3 行 nTargets=2 ✓（C(3,2) 组合枚举）");
+                            // v22 二期 S2a（2026-11-26）双模式断言（旧「3 行 nTargets=2」是组合行时代
+                            // 残留——A6 逐步行下即过时，SpecMaster 在 A6 后未复跑，本批随 v22 升级）：
+                            //   macro（默认）：诱敌（选 2/3 敌）折叠为 **1 条选项提交行**（PickMode=1、
+                            //     Targets=null、PickPlan 携带——OpenAndAutoComplete 一次完成）；
+                            //   step：A6 口径 3 条首步行（Targets=单候选、PickMode=0、PickPlan 携带）。
+                            var macroRows = rows.Where(r => r.PickMode == 1).ToList();
+                            if (rows.Count == 1 && macroRows.Count == 1
+                                && macroRows[0].PickPlan != null && macroRows[0].Targets == null)
+                                d1.Line("3 敌 macro = 1 选项行（PickMode=1/PickPlan 携带）✓（v22 S2a）");
                             else
-                                d1.FailWith($"[FAIL] 诱敌+3 敌期望 3 行 nTargets=2，实际 {rows.Count} 行（卡：{LureName}；原因：组合枚举/多目标档回归）");
+                                d1.FailWith($"[FAIL] 诱敌+3 敌 macro 期望 1 条选项行（PickMode=1/Targets=null），"
+                                    + $"实际 {rows.Count} 行（选项行 {macroRows.Count}）（卡：{LureName}；原因：v22 选项行回归）");
+                            // step 模式对照（临时翻转静态 PicksMode，跑完还原 macro——不污染后续场景）
+                            var savedMode = LegalActionEnumerator.PicksMode;
+                            LegalActionEnumerator.PicksMode = "step";
+                            try
+                            {
+                                lae.Enumerate(core, p1);
+                                var stepRows = lae.Actions.Where(a => a.Type == TideActionType.PlayCard
+                                    && ReferenceEquals(a.Card, handLure)).ToList();
+                                if (stepRows.Count == 3 && stepRows.All(r => r.PickMode == 0
+                                        && r.PickPlan != null && r.Targets != null && r.Targets.Count == 1))
+                                    d1.Line("3 敌 step = 3 首步行（单目标/PickPlan 携带）✓（A6 口径保持）");
+                                else
+                                    d1.FailWith($"[FAIL] 诱敌+3 敌 step 期望 3 条首步行（单目标），实际 "
+                                        + $"{stepRows.Count} 行（卡：{LureName}；原因：step 路径回归）");
+                            }
+                            finally { LegalActionEnumerator.PicksMode = savedMode; }
                         }
                         if (scen == 1)
                         {

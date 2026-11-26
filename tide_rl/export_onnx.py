@@ -28,6 +28,8 @@ C# 部署侧照旧喂原始特征（-1..91），部署与训练逐值同口径�
 并复制到 Assets/Art/AIModels/（--no-unity-copy 关闭；Unity 导入 .onnx 生成 ModelAsset，供 YooAsset 热更打包）。
 
 数值验证：onnxruntime 逐输出对拍 JAX，非法动作掩码抽检；容差 5e-3（f32 归约顺序差异）。
+fixture argmax 以自身 expect_logits 为单源回填并导出收尾断言自洽（D1，2026-11-26——旧实现
+取未取整输入的 ORT argmax，与取整输入重算的 expect_logits 可差 1）。
 """
 
 import argparse
@@ -235,6 +237,12 @@ def build_case(seed: int, mask_from: int | None) -> dict:
     actions[:, 15] = rng.integers(-1, 7, MAX_ACTIONS)
     actions[:, 16] = rng.integers(-1, 16, MAX_ACTIONS)
     actions[:, 17] = rng.integers(-1, 9, MAX_ACTIONS)  # P2：落格格下标 -1..8
+    # v22（2026-11-26 二期 S2a）：pickMode/原子摘要列值域采样（合成分布只求形状对拍；
+    # [20]=0/1/2、[21..24]=AtomTypeIndex/4096 值域 0..1、[25]=原子数/16 值域 0..1——语义见
+    # tide_features.N_ACTION_FEATURES v22 段注）
+    actions[:, 20] = rng.integers(0, 3, MAX_ACTIONS)
+    actions[:, 21:25] = rng.random((MAX_ACTIONS, 4)).astype(np.float32)
+    actions[:, 25] = rng.random(MAX_ACTIONS).astype(np.float32)
     if mask_from is not None:
         actions[mask_from:, 0] = 0.0
     rstate = rng.normal(size=N_RNN_CHANNELS).astype(np.float32) * 0.1
@@ -409,13 +417,14 @@ def main():
         worst = max(worst, max(diffs))
         argmax = int(np.argmax(ort_out[1]))
         print(f"[对拍 {ci}] max|Δ| rstate={diffs[0]:.2e} logits={diffs[1]:.2e} value={diffs[2]:.2e} "
-              f"| argmax={argmax}")
+              f"| argmax(原始输入ORT)={argmax}")
         fixture["cases"].append({
             "rstate": case["rstate"].round(6).tolist(),
             "cards_flat": case["cards"].reshape(-1).round(6).tolist(),
             "global_flat": case["global"].round(6).tolist(),
             "actions_flat": case["actions"].reshape(-1).round(6).tolist(),
-            # 参考输出基于取整后的输入重算（Unity 读同一 JSON，逐位一致），见下方回填
+            # 参考输出基于取整后的输入重算（Unity 读同一 JSON，逐位一致），见下方回填；
+            # argmax 先存原始输入 ORT 值，回填循环里以 expect_logits 重算覆盖（D1 单源）
             "expect_rstate_flat": None,
             "expect_logits": None,
             "expect_value": None,
@@ -435,6 +444,20 @@ def main():
         fc["expect_rstate_flat"] = np.asarray(ref[0]).reshape(-1).round(5).tolist()
         fc["expect_logits"] = np.asarray(ref[1]).round(5).tolist()
         fc["expect_value"] = np.asarray(ref[2]).round(5).tolist()
+        # D1（2026-11-26 S1/S2 收尾）：argmax 单源=自身 expect_logits——旧实现取未取整
+        # 输入的 ORT argmax（上方对拍行），与取整输入重算的 expect_logits 可差 1（1e-6 级
+        # 输入差即可翻转并列 top1）；Unity 侧按 expect_logits 取 argmax 对拍，两源不一致
+        # =假红。此处以 expect_logits 回填，导出收尾再统一断言自洽（下方）。
+        fc["argmax"] = int(np.argmax(fc["expect_logits"]))
+
+    # D1 自洽断言（导出收尾）：每个 case 的 argmax 必须等于其 expect_logits 的 argmax——
+    # 防后续改动把 argmax 又接回其它来源（未取整 ORT 输出/重排后的 logits）
+    for ci, fc in enumerate(fixture["cases"]):
+        want = int(np.argmax(fc["expect_logits"]))
+        assert fc["argmax"] == want, \
+            f"case{ci} argmax 与 expect_logits 不自洽: {fc['argmax']} ≠ argmax(expect_logits)={want}"
+    print(f"[✓] fixture argmax 与 expect_logits 自洽（{len(fixture['cases'])} case，"
+          f"argmax={[fc['argmax'] for fc in fixture['cases']]}）")
 
     if worst > args.tol:
         sys.exit(f"[✗] 数值偏差超容差: {worst:.2e} > {args.tol}")

@@ -96,8 +96,15 @@ namespace CardCore.AI.NeuralEnv
         public int PicksRemaining;
         /// <summary>A6：多步拾取计划（首步行携带；null=普通行——单步可 Apply）。
         /// 不进特征值/签名（计划由枚举态决定）；驱动 Step 据它开 TargetPickGate。
-        /// 闸内步行的 PickPlan 恒 null（由 gate.HasPending 区分）。</summary>
+        /// 闸内步行的 PickPlan 恒 null（由 gate.HasPending 区分）。
+        /// v22 S2a：macro 模式下「选项提交行」（PickMode=1）也携带本字段（Targets=空）。</summary>
         public TargetPickPlan PickPlan;
+        /// <summary>v22（2026-11-26 二期 S2a）：拾取行模式标记，特征 [20]——0=普通行（struct 默认）、
+        /// 1=选项提交行（macro：多步计划的一次性完成行，Targets=空、[10] 语义保持；选中后
+        /// TargetPickGate.OpenAndAutoComplete 按共享序选满提交）、2=闸内选项步（step 路径诊断标记）。
+        /// 进 Signature（防选项行与无目标行同键被「本回合摘除无效动作」误并）；特征行含 [20]
+        /// ⇒ 自然入 FoldEquivalentRows 键。</summary>
+        public int PickMode;
 
         public override string ToString()
         {
@@ -121,11 +128,13 @@ namespace CardCore.AI.NeuralEnv
                 // 否则同目标集的不同宣言/落格行同键（拒一禁全、去重误并），强夺 3 候选行塌缩成 1。
                 // v20（计划 §3.3）：SummonCells/SummonPlan 入键——否则不同落位计划同键被
                 // FoldEquivalentRows 误并成 1 行（[17] 特征闸修复同批）。
+                // v22 S2a：PickMode 入键——macro 选项行与同卡「无目标/引擎自动」行 Type/Card/Targets
+                // 全同，不区分则摘除判重会互相误并（计划 §7 风险表点名）。
                 string i = Interaction == null
                     ? "-"
                     : $"{Interaction.DeclaredName ?? "-"}@{Interaction.MoveX},{Interaction.MoveZ}"
                       + (Interaction.HasSummonCells ? "@" + string.Join(".", Interaction.SummonCells) : "");
-                return $"{(int)Type}|{Card?.ID ?? "-"}|{Effect?.Id ?? "-"}|{t}|{ModeIndex}|{ctx}|{d}|{i}|{PlacementCell}|{SummonPlan}";
+                return $"{(int)Type}|{Card?.ID ?? "-"}|{Effect?.Id ?? "-"}|{t}|{ModeIndex}|{ctx}|{d}|{i}|{PlacementCell}|{SummonPlan}|{PickMode}";
             }
         }
 
@@ -363,7 +372,7 @@ namespace CardCore.AI.NeuralEnv
                             AddRowsWithInteraction(core, me, m < castDefs.Count ? castDefs[m] : null,
                                 TideActionType.RespondPlay, c, m, src, set.Targets, response: true,
                                 reference: ReferencePickOf(core, me, c, m, set.Targets),
-                                pickPlan: set.Plan); // P1 v0.3 目标随行 + A6 多步计划随行（Counts 由闸提交时重建）
+                                pickPlan: set.Plan, pickMacro: set.Macro); // P1 v0.3 目标随行 + A6 多步计划随行（Counts 由闸提交时重建）；v22 S2a macro 选项行
                             ParkedOptionOfRow.Add(oi);
                         }
                         break;
@@ -393,6 +402,14 @@ namespace CardCore.AI.NeuralEnv
         // static 字段而非 const = 编辑器反射可翻转（A/B 验证/紧急回退免改源码重编译）；默认恒开/关。
         private static bool EquivalentFoldEnabled = true;  // 折叠开关（回退用）
         private static bool EquivalentFoldLog = false;     // [ActionFold] 日志开关（验收取证用，防训练刷屏）
+
+        /// <summary>v22（2026-11-26 二期 S2a）目标拾取行模式——多步拾取计划的出行形态：
+        /// "macro"（默认）=只产**选项提交行**（PickMode=1，选中后 OpenAndAutoComplete 按共享序
+        /// 一次选满提交——献祭 12 步折叠为 1 步，时域/粒度修复）；"step"=A6 逐步行（首步行+闸内
+        /// 拾取，现状口径）；"both"=并存（仅诊断，摊薄 logits 不进训练）。
+        /// 驱动 reset 经协议 picksMode 下发设置（tide_env_tcp 按次覆盖+回显断言）；
+        /// static 字段=同 EquivalentFoldEnabled 惯例（编辑器反射可翻转）。</summary>
+        public static string PicksMode = "macro";
 
         /// <summary>等价行动作折叠（方案 §5.5，仅 Enumerate 主表——响应表本就小）：
         /// 键 = 动作特征行去掉 [2]sourceIndex——对模型而言唯一不可区分差异是「来源卡在
@@ -425,7 +442,17 @@ namespace CardCore.AI.NeuralEnv
         /// A7（2026-11-24 回到一期训练目标）：键尾追加**来源卡当前 Zone**——牌库顶虚拟手牌行
         ///（TopDeckAsHandAura，来源=Deck）与同名手牌行特征全同、仅 [2] 槽位异，去 sourceIndex
         /// 后被误并成一行（11-18 起 DeckVerifier ⑨ 两条红的根因：可出的牌库顶行被吞）。
-        /// 同区同内容副本仍折叠（折叠本意不变）；无来源卡的行（EndTurn 等）区键="—"。</summary>
+        /// 同区同内容副本仍折叠（折叠本意不变）；无来源卡的行（EndTurn 等）区键="—"。
+        /// v22 S2-1b（C8，2026-11-26 二期 S2a）：**PlayLand 例外并来源卡身份**——放地行只有 [2]
+        /// 不同（同费同锁色），折叠后 4 张可当地只剩 1 行且恒取手牌序第一张，模型对「烧哪张」
+        /// 没有选择权（实测 开折叠 17 行/放地 1 行 vs 关折叠 28 行/放地 4 行）。其它类型不动
+        ///（PlayCard 已有 [5]cost/[6]effectIdentity 可分）。
+        /// B1b 修正（2026-11-26 lae ⑩ 实证）：身份必须用 **RuntimeId（实例唯一）**而非 Card.ID——
+        /// CardWrapper 构造 ID=data.ID（模板 ID，BuildDeck 副本共享；Entity.RuntimeId 注释明示
+        /// 不能复用），首版并 Card.ID 后同卡多张仍同键折成 1 行（⑩ 夹具：4 张同卡 开折叠 1 行
+        /// vs 关折叠 4 行——计划 §4 B1b「行数==可当地张数」判据红）。改并 RuntimeId 后逐实例
+        /// 可分（手牌上限 12 ⇒ 放地行峰值 ≤12，远低于 512 上限；同种子对拍确定性不受影响——
+        /// RuntimeId 按实体构造序自增，重放口径同源）。</summary>
         private string FeatureKeyExceptSource(int k)
         {
             int b = k * TideObservation.NAction;
@@ -436,7 +463,11 @@ namespace CardCore.AI.NeuralEnv
                 parts[i++] = Features[b + j].ToString("R");
             }
             var src = Actions[k].Card;
-            return string.Join(",", parts) + "|" + (src != null ? src.GetZone().ToString() : "—");
+            var zoneKey = src != null ? src.GetZone().ToString() : "—";
+            // S2-1b：放地行并来源卡实例身份（同区同名同模板的多张副本也须可分——模型选哪张当地）
+            if (Actions[k].Type == TideActionType.PlayLand && src != null)
+                zoneKey += "#" + src.RuntimeId;
+            return string.Join(",", parts) + "|" + zoneKey;
         }
 
         /// <summary>动作表硬上限守卫（v3 契约 §6）：超过 MaxActions 时保留前 MaxActions-1 行，
@@ -693,7 +724,7 @@ namespace CardCore.AI.NeuralEnv
                             AddRowsWithInteraction(core, me, m < castDefs.Count ? castDefs[m] : null,
                                 TideActionType.PlayCard, c, m, src, set.Targets,
                                 reference: ReferencePickOf(core, me, c, m, set.Targets),
-                                pickPlan: set.Plan); // A6：多步计划随行
+                                pickPlan: set.Plan, pickMacro: set.Macro); // A6 计划随行；v22 S2a macro 选项行
                 }
             }
 
@@ -720,7 +751,7 @@ namespace CardCore.AI.NeuralEnv
                     AddRowsWithInteraction(core, me, m < topDefs.Count ? topDefs[m] : null,
                         TideActionType.PlayCard, top, m, TideObservation.DeckTopSlot, set.Targets,
                         reference: ReferencePickOf(core, me, top, m, set.Targets),
-                        pickPlan: set.Plan); // A6：多步计划随行
+                        pickPlan: set.Plan, pickMacro: set.Macro); // A6 计划随行；v22 S2a macro 选项行
             }
         }
 
@@ -780,7 +811,7 @@ namespace CardCore.AI.NeuralEnv
             bool response = type == TideActionType.RespondActivate;
             foreach (var set in expansions)
                 AddRowsWithInteraction(core, me, def, type, src, 0, sourceSlot, set.Targets,
-                    response, effect: def, pickPlan: set.Plan); // P1 v0.3 展开 + A6 计划随行
+                    response, effect: def, pickPlan: set.Plan, pickMacro: set.Macro); // P1 v0.3 展开 + A6 计划随行；v22 S2a macro 选项行
         }
 
         private void EnumerateAttack(GameCore core, Player me, Player opp, ZoneManager zm)
@@ -947,7 +978,7 @@ namespace CardCore.AI.NeuralEnv
                 int slot = TideObservation.IndexOfCard(core, me, skillCard); // 场地区槽（v3 已编码）
                 foreach (var set in slots)
                     AddRowsWithInteraction(core, me, effect, TideActionType.HeroSkill, skillCard, e, slot,
-                        set.Targets, effect: effect, pickPlan: set.Plan); // P1 v0.3 展开 + A6 计划随行
+                        set.Targets, effect: effect, pickPlan: set.Plan, pickMacro: set.Macro); // P1 v0.3 展开 + A6 计划随行；v22 S2a macro 选项行
             }
         }
 
@@ -1055,7 +1086,7 @@ namespace CardCore.AI.NeuralEnv
                         AddRowsWithInteraction(core, me, m < castDefs.Count ? castDefs[m] : null,
                             TideActionType.RespondPlay, c, m, src, set.Targets, response: true,
                             reference: ReferencePickOf(core, me, c, m, set.Targets),
-                            pickPlan: set.Plan); // P1 v0.3 展开 + A6 多步计划随行
+                            pickPlan: set.Plan, pickMacro: set.Macro); // P1 v0.3 展开 + A6 多步计划随行；v22 S2a macro 选项行
                 }
             }
         }
@@ -1108,8 +1139,12 @@ namespace CardCore.AI.NeuralEnv
             public readonly List<Entity> Targets;
             /// <summary>A6 多步拾取计划（null=单步行/引擎自动——可直发 Apply）。</summary>
             public readonly TargetPickPlan Plan;
-            public TargetSet(List<Entity> targets) { Targets = targets; Plan = null; }
-            public TargetSet(List<Entity> targets, TargetPickPlan plan) { Targets = targets; Plan = plan; }
+            /// <summary>v22 S2a：macro=选项提交行（Targets=null + Plan；EmitFromPlan 的
+            /// macro/both 模式产，行构造层置 PickMode=1）。</summary>
+            public readonly bool Macro;
+            public TargetSet(List<Entity> targets) { Targets = targets; Plan = null; Macro = false; }
+            public TargetSet(List<Entity> targets, TargetPickPlan plan, bool macro = false)
+            { Targets = targets; Plan = plan; Macro = macro; }
         }
 
         /// <summary>出牌目标展开（PlayCard/RespondPlay 共用）：FirstDomainEffect 找带组合域的施放即结算效果，
@@ -1332,8 +1367,18 @@ namespace CardCore.AI.NeuralEnv
             foreach (var s in plan.Specs) empty.Add(new List<Entity>());
             if (!TargetPickGate.CompletionExists(core, me, plan, empty, first, 1))
                 return; // 全不可付 → 默认行（引擎自动）
-            foreach (var c in fs.Candidates)
-                sink.Add(new TargetSet(new List<Entity> { c }, plan));
+            // v22 S2a（时域/粒度修复，docs/二期训练架构_实施计划.md §4）：多步计划按 PicksMode 出行——
+            //   macro（默认）：只产 **1 条选项提交行**（Targets=null、[10] 语义保持、[20]=1；选中后
+            //     OpenAndAutoComplete 按共享序一次选满提交——「祭 11 张」12 个决策步折叠为 1 步；
+            //     链折叠后跨度 35→22、每局步数 40.4→28.4）；
+            //   step：A6 现状（首步行逐候选 1 目标/行）；both：并存（诊断用，摊薄 logits）。
+            bool emitSteps = PicksMode != "macro";
+            bool emitMacro = PicksMode != "step";
+            if (emitMacro)
+                sink.Add(new TargetSet(null, plan, macro: true));
+            if (emitSteps)
+                foreach (var c in fs.Candidates)
+                    sink.Add(new TargetSet(new List<Entity> { c }, plan));
         }
 
         /// <summary>计划序拼接（单步行 Targets）：specIndex 位替换为 [c]，其余 Forced 占位在位
@@ -1433,6 +1478,7 @@ namespace CardCore.AI.NeuralEnv
                     plan.FirstSpecIsReference && cur == firstModel ? c : proto.Reference);
                 CopyProtoExtras(proto, ref row);
                 row.PicksRemaining = plan.HasVariable ? -1 : remaining; // 固定计划：剩余总数（末步=1）
+                row.PickMode = 2; // v22 S2a：闸内选项步（step 路径诊断标记，特征 [20]）
                 lae.Actions.Add(row);
             }
             if (spec.Variable && curPicked >= 1
@@ -1444,6 +1490,7 @@ namespace CardCore.AI.NeuralEnv
                 CopyProtoExtras(proto, ref row);
                 row.DynamicCounts = TargetPickGate.BuildCountsForCurrent(); // [5] 实价 base×N 可见
                 row.PicksRemaining = 0; // 提交行：本步不选目标，只提交当前选择
+                row.PickMode = 2;       // v22 S2a：闸内选项步（提交行同属 step 路径）
                 lae.Actions.Add(row);
             }
             if (lae.Actions.Count == 0)
@@ -1455,6 +1502,7 @@ namespace CardCore.AI.NeuralEnv
                 CopyProtoExtras(proto, ref row);
                 row.DynamicCounts = TargetPickGate.BuildCountsForCurrent();
                 row.PicksRemaining = 0;
+                row.PickMode = 2; // v22 S2a：闸内选项步（防御强制提交行同标记）
                 lae.Actions.Add(row);
             }
             lae.BuildFeatures();
@@ -1652,7 +1700,7 @@ namespace CardCore.AI.NeuralEnv
         private void AddRowsWithInteraction(GameCore core, Player me, EffectDefinition def,
             TideActionType type, Card card, int modeIndex, int sourceSlot, List<Entity> targets,
             bool response = false, Entity reference = null, EffectDefinition effect = null,
-            TargetPickPlan pickPlan = null)
+            TargetPickPlan pickPlan = null, bool pickMacro = false)
         {
             var variants = InteractionVariants(core, me, card, def, targets, out var declaredNames);
             if (variants != null && variants.Count == 0) return; // 交互不可用（空格/候选空/多目标移动）
@@ -1664,7 +1712,7 @@ namespace CardCore.AI.NeuralEnv
             if (HasMainSummon(def) && !permanentPlay)
             {
                 EmitSummonPlanRows(core, me, def, type, card, modeIndex, sourceSlot, targets,
-                    response, reference, effect, pickPlan);
+                    response, reference, effect, pickPlan, pickMacro);
                 return;
             }
 
@@ -1685,6 +1733,7 @@ namespace CardCore.AI.NeuralEnv
                     if (inter != null && declaredNames != null)
                         inter.DeclaredIndex = Math.Min(declaredNames.IndexOf(inter.DeclaredName), 15);
                     AttachPickPlan(ref row0, pickPlan); // A6：多步计划随行（struct 须 ref——按值改副本会被丢）
+                    if (pickMacro) row0.PickMode = 1;   // v22 S2a：选项提交行（Targets=null+Plan）
                     Actions.Add(row0);
                     return;
                 }
@@ -1697,6 +1746,7 @@ namespace CardCore.AI.NeuralEnv
                         inter.DeclaredIndex = Math.Min(declaredNames.IndexOf(inter.DeclaredName), 15);
                     row.PlacementCell = ci; // P2：格下标 0..8（特征 [17]）
                     AttachPickPlan(ref row, pickPlan); // A6：多步计划随行（含落格变体各自行）
+                    if (pickMacro) row.PickMode = 1;   // v22 S2a：选项提交行（各落格变体各自一条）
                     Actions.Add(row);
                 }
             }
@@ -1724,7 +1774,8 @@ namespace CardCore.AI.NeuralEnv
         /// plan/cells（防折叠误并）。无空格=0 行（不发动）。count 取召唤原子 value（Max(1,·)）。 </summary>
         private void EmitSummonPlanRows(GameCore core, Player me, EffectDefinition def,
             TideActionType type, Card card, int modeIndex, int sourceSlot, List<Entity> targets,
-            bool response, Entity reference, EffectDefinition effect, TargetPickPlan pickPlan)
+            bool response, Entity reference, EffectDefinition effect, TargetPickPlan pickPlan,
+            bool pickMacro = false)
         {
             var board = GameBoard.MoveUnitRules.Current;
             var free = GameBoard.SummonPlacementRules.FreeCells(board, me);
@@ -1748,6 +1799,7 @@ namespace CardCore.AI.NeuralEnv
                 var row = BuildTargetedRow(type, card, modeIndex, sourceSlot, targets, response, effect,
                     reference);
                 AttachPickPlan(ref row, pickPlan); // A6：多步计划随行（各落位计划行共用同一计划；struct 须 ref）
+                if (pickMacro) row.PickMode = 1;   // v22 S2a：选项提交行（默认/各锚点计划各一条）
                 if (cells != null)
                 {
                     row.Interaction = new InteractionParams { SummonCells = new List<int>(cells) };
@@ -1857,6 +1909,26 @@ namespace CardCore.AI.NeuralEnv
                         || a.Type == TideActionType.Activate || a.Type == TideActionType.RespondActivate);
                 Features[b + 18] = summonRow ? a.SummonPlan : -1;
                 Features[b + 19] = summonRow ? a.SummonUnityHits : -1;
+                // v22（2026-11-26 二期 S2a）动作语义补盲，NAction 20→26：
+                // [20]=pickMode（0=普通行〔struct 默认〕/1=选项提交行〔macro：多步计划一次性完成〕/
+                //   2=闸内选项步〔step 诊断〕）——选项行 Targets=空、[10] 语义保持；[20] 已进
+                //   Signature 与折叠键（特征行含 [20] 自然入键），选项行不会与普通行误并。
+                // [21..24]=该效果（a.Effect，与 [6]effectIdentity 同域——Activate/RespondActivate/
+                //   VoluntaryTrigger/HeroSkill 行携带；PlayCard 行 Effect=null 恒 0，效果原子经
+                //   卡身份通路可见）前 4 个原子的 AtomTypeIndex/4096（不足补 0；无效果行全 0）。
+                //   动机：[6] 是 1024 池标量，玩家自组卡组时近似随机数——原子类型让「这条行在
+                //   做什么」对未见卡可读（计划 §4 S2-3）。
+                // [25]=原子数/16（钳 16；无效果=0）。
+                Features[b + 20] = a.PickMode;
+                var atoms = a.Effect?.Effects;
+                if (atoms != null)
+                {
+                    for (int ai = 0; ai < 4; ai++)
+                        Features[b + 21 + ai] = ai < atoms.Count && atoms[ai] != null
+                            ? CardIdentityService.AtomTypeIndex(atoms[ai].Type.ToString()) / 4096f
+                            : 0f;
+                    Features[b + 25] = Math.Min(atoms.Count, 16) / 16f;
+                }
             }
         }
 

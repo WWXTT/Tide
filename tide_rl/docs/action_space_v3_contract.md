@@ -1,9 +1,23 @@
 # Tide 动作空间 v3 契约（精确对齐期：卡区容量/位置/新决策点/动作数守卫）
 
 定案日期：2026-10-14。本文档是 C#（Unity）与 Python（训练）两侧实现的**唯一权威契约**，
-两侧任何常量/布局改动必须先改这里再改代码。版本号 `LAYOUT_VERSION = 21`。
+两侧任何常量/布局改动必须先改这里再改代码。版本号 `LAYOUT_VERSION = 22`。
 前置文档：`action_space_v2_contract.md`（v2，2026-09-30，已被本版取代）；
 对账依据：仓库根 `AI训练准备_v3对账报告_2026-10-14.md`。
+
+> **2026-11-26 v22 修订（二期 S2a，docs/二期训练架构_实施计划.md §4——时域/粒度修复）**：
+> 动作特征 20→**26** 维：+[20]pickMode（0=普通行 / 1=选项提交行〔macro：多步拾取计划的
+> **2026-11-26 二期 S3 协议键登记（观测/动作布局零变更——仅 reset 请求与 info 新键，旧客户端零破坏）**：reset 请求新增 `chainLambda`/`chainSet`（S3-3 链进度势能系数，恒显式下发、0=关）、`handoff`/`maxOpeningTurns`（S3-1 开手交棒档位 none/t3_lands/first_sac_done/genel_ready + 兜底回合，none=关）；info 新增 `handoffState/handoffDone/handoffTurn/handoffLands/handoffGenCost/handoffGenInHand/handoffMiss`（交棒打点，stats.jsonl 消费）与 `chainBits/chainDone`（decider 座位链里程碑闩位 bit0..3 与终点位——aux 第三标签标签源）。ShardWriter 分片新增 `chosen_card_id` 列（脚本 BC 分片有值、教师/DAgger 分片空串）。详见 docs/二期训练架构_实施计划.md §5 S3 落地注。
+
+> 一次性完成行，Targets=空、[10] 语义保持，选中后 `TargetPickGate.OpenAndAutoComplete` 按
+> HeroSkillTargetPolicy 共享序选满提交〕/ 2=闸内选项步〔step 路径诊断标记〕；进 LAE.Signature
+> 防与无目标行同键误摘）+ [21..24]=效果前 4 个原子的 `AtomTypeIndex/4096`（不足补 0、无效果行
+> 全 0）+ [25]=原子数/16。同批：①`FeatureKeyExceptSource` 对 **PlayLand 例外并来源卡身份**
+>（C8——放地行仅 [2] 异被折叠成 1 行，模型不能选「烧哪张」）；②`--picks-mode macro/step/both`
+>（reset 选项 `picksMode` 下发、info 回显断言，默认 macro）。卡特征 158/卡槽 191/globals 100
+> 不变。动作编码器输入 276→282、参数 4,402,054→4,402,822——**旧 checkpoint/ONNX/fixture
+> 全部作废**；v21 权重热启动走 `merge_params_by_shape`（动作编码器 kernel (276,128)→(282,128)
+> = reshaped）。
 
 > **2026-11-24 v21 修订（观测·卡组分布与策略分界，docs/观测_卡组分布与策略分界_实施方案.md）**：
 > ①**己方牌库块 [154..183] 语义换血**：由「每张物理卡一槽」改「**每种唯一卡一槽 + 张数**」——
@@ -13,7 +27,7 @@
 > **g[96] deckTruncated**；`IndexOfCard` 同组任一张映射同一槽（`GroupDeckForEncoding` 单源）。
 > ②**globals 88→97**：+**g[88..95] 己方牌库开局标签**（`DeckTagsOf(OriginalDeckOf(me))`，与对方
 > g[50..57] 同函数同口径、整局恒定）+g[96] 截断标记。
-> **v21 定稿增补（2026-11-24 回到一期训练目标 B0.3，globals 97→100，不再讨论 v22）**：
+> **v21 定稿增补（2026-11-24 回到一期训练目标 B0.3，globals 97→100；「不再讨论 v22」已于 2026-11-26 作废，见顶部 v22 修订）**：
 > +**g[97]/g[98] 双方手牌上限**（`RuleHooks.GetHandLimit` 单源线性计数——修改链如纳川仪典的
 > 额外上限直接可见）+**g[99] 己方超上限剩余待弃张数**（弃牌进行中=HandLimitDiscardGate 快照
 > 剩余；否则己方回合 max(0, 有效手牌−上限)；对手回合恒 0——对手回合超限走入手闸改投除外区）。
@@ -26,7 +40,7 @@
 > ④**死亡计数 [152] 改原始层数**：手牌累计**无上限**（旧满 6/满 9 与 /9 归一化退役）、计价改
 > **基价 +2 开启费**（`DeathTollEnableFee`，旧 ×4 总费口径退役）、执行期增幅 floor(计数/单价)
 > 不封顶——与 2026-11-20 原子属性化（deathToll 布尔）同族收口。
-> 动作 20 维不变。**旧 checkpoint/ONNX/fixture 全部作废**（按 dims 拒载回落 SimpleAI；
+> 动作 20 维不变（v21 时口径；**v22 起为 26 维**，见顶部 v22 修订）。**旧 checkpoint/ONNX/fixture 全部作废**（按 dims 拒载回落 SimpleAI；
 > 库内 v20 模型加载期被 `ValidateModelLayout` 拒——重训重导出前难度 2 模型 AI 不可用）。
 
 > **2026-11-18 v15 修订（场地特殊化·拆槽）**：场地卡从战场单位槽拆出——
@@ -162,7 +176,7 @@ TransferEquipment（装备退役）；DrainStack（driver 自动）。
 > 多目标效果每步选 1 个目标（`TargetPickGate` 累积，固定档收满自动提交、可变档显式提交行 `[10]=0`）；
 > 组合行 / 子集行 / prefix-k / `MaxTargetCombos` / `MaxSubsetRows` / `MaxPrefixRows` / `MaxExpansionRows`
 > 退役（AI 逐目标单选，玩家/脚本侧仍一次提交——SimpleAI 与人类 UI 不走 LAE）。
-> 动作维仍 20、`LAYOUT_VERSION` 不变（v21 无权重），但属语义变更：旧 ONNX / checkpoint / 夹具不得复用。
+> 动作维仍 20、`LAYOUT_VERSION` 不变（v21 无权重），但属语义变更：旧 ONNX / checkpoint / 夹具不得复用。（v22 起动作 26 维、LAYOUT_VERSION=22——见顶部 v22 修订。）
 > 见 `docs/回到一期训练目标.md` A6。
 
 > v5 苏醒变体行的区分信号：同 (source,target,mode) 下 actionCost 更低的那行=苏醒施放
@@ -321,7 +335,7 @@ Python reset 逐值断言；C# `TideObservation.LayoutVersion=10` 常量回显�
 
 | 项 | C# | Python | 期望值 |
 |---|---|---|---|
-| 布局版本 | TideHeadlessServer 回显 | `LAYOUT_VERSION` | 21 |
+| 布局版本 | TideHeadlessServer 回显 | `LAYOUT_VERSION` | 22 |
 | 卡特征维 | `TideObservation.NCard` | `N_CARD_FEATURES` | 158 |
 | 卡槽总数 | `TideObservation.MaxCardsTotal` | `MAX_CARDS` | 191 |
 | 全局维 | `TideObservation.NGlobal` | `N_GLOBAL_FEATURES` | 97 |

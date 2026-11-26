@@ -33,7 +33,10 @@ namespace CardCore.Editor.Tests
     ///    占格递减、满区 0 行、法术行 -1。⑧ 弃牌专项（P3 2026-11-19 §4.1 建·A0 2026-11-24 逐张弃
     ///    改版）——EnumerateDiscardChoices 每张手牌一行、特征 [10]=1、停靠门 Park/Snapshot/Complete
     ///    单卡链、引擎真实 EndTurn 链 9 张/上限 7 → 恰 2 个连续弃牌步、非模型座回落。⑨ P3.2 预言专项——
-    ///    合成预言卡 3 行（Type:*）、[16]=0/1/2、Signature 互异（反馈回归）、应用直通。
+    ///    合成预言卡 3 行（Type:*）、[16]=0/1/2、Signature 互异（反馈回归）、应用直通。⑩ B1b 放地
+    ///    行数判据（2026-11-26 S1/S2 收尾）——N 张同费同色同名手牌（仅卡实例异）PlayLand 行数==N、
+    ///    各行 [2]sourceIndex 两两互异、关折叠口径行数一致（C8 修复 FeatureKeyExceptSource 并来源卡
+    ///    ID 的常驻证据——修复前 4 张可当地折叠成 1 行恒取首张）。
     /// 入口：菜单 验证/LAE多目标组合枚举；Run() 返回报告文本（全过=PASS 结尾）。
     /// 夹具定位按**卡名**解析+动作行按**卡实例**过滤（教学池 ID 随内容重推漂移——2026-11-02
     /// 火炬即被并行改版换号，硬编码 ID 会假阴）。
@@ -79,6 +82,7 @@ namespace CardCore.Editor.Tests
                 RunPlacementScenario(log, checks);      // ⑦ P2 落格专项
                 RunDiscardChoiceScenario(log, checks); // ⑧ P3.1 弃牌专项
                 RunProphecyScenario(log, checks);      // ⑨ P3.2 预言三选一专项
+                RunPlayLandRowCountScenario(log, checks); // ⑩ B1b 放地行数判据（C8 常驻证据）
             }
             catch (Exception ex)
             {
@@ -169,13 +173,29 @@ namespace CardCore.Editor.Tests
                         switch (scen)
                         {
                             case 3:
-                                // A6：候选>需求 → 固定 2 步计划——首步行（1 目标/行、[10]=2、携计划）
-                                checks.Add(new Check(rows.Count == 3 && rows.All(r => r.Targets != null && r.Targets.Count == 1
-                                    && r.PickPlan != null && r.PicksRemaining == 2 && FeatureOf(lae, r, 10) == 2f),
-                                    $"3 敌期望 3 行首步单选（Targets=1/[10]=2/携计划），实际 {rows.Count} 行（{string.Join(" ; ", rows.Select(describe).ToArray())}）"));
-                                var singles = rows.Select(r => r.Targets[0]).Distinct().ToList();
-                                checks.Add(new Check(singles.Count == 3 && singles.All(t => t is Card tc && tc.GetController() == p2),
-                                    "3 敌首步行候选两两不同（逐候选=敌方战场——旧 C(3,2) 组合口径退役）"));
+                                // v22 二期 S2a（2026-11-26）双模式断言：
+                                //   macro（默认）：选 2/3 敌折叠为 1 条选项提交行（PickMode=1、Targets=null、
+                                //     携计划、[10] 语义保持=FixedTotal 2）——OpenAndAutoComplete 一次完成；
+                                //   step：A6 口径 3 条首步行（1 目标/行、[10]=2、携计划）。
+                                checks.Add(new Check(rows.Count == 1 && rows[0].PickMode == 1
+                                    && rows[0].PickPlan != null && rows[0].Targets == null
+                                    && FeatureOf(lae, rows[0], 10) == 2f && FeatureOf(lae, rows[0], 20) == 1f,
+                                    $"3 敌 macro 期望 1 选项行（PickMode=1/Targets=null/[10]=2 携计划），实际 {rows.Count} 行（{string.Join(" ; ", rows.Select(describe).ToArray())}）"));
+                                var savedMode = LegalActionEnumerator.PicksMode;
+                                LegalActionEnumerator.PicksMode = "step";
+                                try
+                                {
+                                    lae.Enumerate(core, p1);
+                                    var stepRows = lae.Actions.Where(a => a.Type == TideActionType.PlayCard
+                                        && ReferenceEquals(a.Card, handLure)).ToList();
+                                    checks.Add(new Check(stepRows.Count == 3 && stepRows.All(r => r.Targets != null && r.Targets.Count == 1
+                                        && r.PickPlan != null && r.PicksRemaining == 2 && FeatureOf(lae, r, 10) == 2f),
+                                        $"3 敌 step 期望 3 行首步单选（Targets=1/[10]=2/携计划），实际 {stepRows.Count} 行（{string.Join(" ; ", stepRows.Select(describe).ToArray())}）"));
+                                    var singles = stepRows.Select(r => r.Targets[0]).Distinct().ToList();
+                                    checks.Add(new Check(singles.Count == 3 && singles.All(t => t is Card tc && tc.GetController() == p2),
+                                        "3 敌首步行候选两两不同（逐候选=敌方战场——旧 C(3,2) 组合口径退役）"));
+                                }
+                                finally { LegalActionEnumerator.PicksMode = savedMode; }
                                 break;
                             case 2:
                                 checks.Add(new Check(rows.Count == 1 && rows[0].Targets != null && rows[0].Targets.Count == 2
@@ -260,7 +280,28 @@ namespace CardCore.Editor.Tests
                     lae.Enumerate(core, p1);
                     CheckZoneFeatures(lae, core, p1, checks, "逐原子场景");
                     var rows = lae.Actions.Where(a => a.Type == TideActionType.PlayCard && ReferenceEquals(a.Card, tCard)).ToList();
-                    log.AppendLine("[逐原子] LAE 首步行数=" + rows.Count + " :: " + string.Join(" ; ",
+                    // v22 S2a（2026-11-26）macro（默认）：两个 Fixed(1) spec 折叠为 **1 条选项提交行**
+                    //（PickMode=1/Targets=null/[10]=2 携计划）；OpenAndAutoComplete 按候选序首位一次
+                    // 完成（敌域首位+己域首位），只建最终动作不 Apply——引擎状态零扰动。随后本场景
+                    // 整体切 step 跑下方 A6 闸机链（跑完还原 macro）。
+                    checks.Add(new Check(rows.Count == 1 && rows[0].PickMode == 1 && rows[0].PickPlan != null
+                        && rows[0].Targets == null && FeatureOf(lae, rows[0], 10) == 2f && FeatureOf(lae, rows[0], 20) == 1f,
+                        $"macro 期望 1 选项行（PickMode=1/Targets=null/[10]=2 携计划），实际 {rows.Count} 行"));
+                    try
+                    {
+                        var optFinal = TargetPickGate.OpenAndAutoComplete(core, p1, rows[0], null);
+                        TargetPickGate.ConsumeParked();
+                        checks.Add(new Check(optFinal.Targets != null && optFinal.Targets.Count == 2
+                            && IsEnemySide(optFinal.Targets[0]) && IsOwnSide(optFinal.Targets[1])
+                            && !TargetPickGate.HasPending,
+                            "macro OpenAndAutoComplete：候选序首位各一（敌+己）、收口清闸 ✓（v22 S2a）"));
+                    }
+                    finally { TargetPickGate.Reset(); }
+                    var savedPicks = LegalActionEnumerator.PicksMode;
+                    LegalActionEnumerator.PicksMode = "step"; // 下方闸机链按 A6 step 口径验收（gate 机制 v22 不变）
+                    lae.Enumerate(core, p1);
+                    rows = lae.Actions.Where(a => a.Type == TideActionType.PlayCard && ReferenceEquals(a.Card, tCard)).ToList();
+                    log.AppendLine("[逐原子] step 首步行数=" + rows.Count + " :: " + string.Join(" ; ",
                         rows.Select(r => r.Targets == null ? "null" : "[" + NameOf(r.Targets[0]) + "]").ToArray()));
                     checks.Add(new Check(rows.Count == 3 && rows.All(r => r.Targets != null && r.Targets.Count == 1
                         && r.PickPlan != null && IsEnemySide(r.Targets[0]) && FeatureOf(lae, r, 10) == 2f),
@@ -309,6 +350,7 @@ namespace CardCore.Editor.Tests
                             $"引擎期望 伤只落在火种（Δ={wantDE2}·血量钳底）、疗+2 只落在巨像（其余 0），实际 Δ火灵={dE1} Δ火种={dE2} Δ巨像={dOw} Δ角色={dHero}"));
                     }
                     finally { TargetPickGate.Reset(); }
+                    LegalActionEnumerator.PicksMode = savedPicks; // v22：还原进入时的拾取模式（不污染后续场景）
                 }
                 finally
                 {
@@ -414,15 +456,37 @@ namespace CardCore.Editor.Tests
 
                     // LAE（A6 2026-11-24 逐目标单选）：并列两 Fixed(2) spec=固定 4 步计划——
                     // 首步行=弹回 spec 候选逐个（3 行、1 目标、[10]=4、携计划）；旧 18 行组合口径退役
+                    // v22 S2a（2026-11-26）双模式：macro（默认）=1 条选项提交行（PickMode=1/Targets=null/
+                    // [10]=4 携计划）+ OpenAndAutoComplete 探针（Fixed 前缀=各 spec 候选序前 2，不 Apply）；
+                    // 随后切 step 跑下方 A6 闸机链（「乱序拾取规范化 == 一次提交」等价断言原样保留）。
                     var lae = new LegalActionEnumerator();
                     lae.Enumerate(core, p1);
                     CheckZoneFeatures(lae, core, p1, checks, "并列弹回回收场景");
                     var rows = lae.Actions.Where(a => a.Type == TideActionType.PlayCard && ReferenceEquals(a.Card, tCard)).ToList();
                     var enemySet = new HashSet<Card> { e1, e2, e3 };
                     var graveSet = new HashSet<Card>(grave);
+                    checks.Add(new Check(rows.Count == 1 && rows[0].PickMode == 1 && rows[0].PickPlan != null
+                        && rows[0].Targets == null && FeatureOf(lae, rows[0], 10) == 4f && FeatureOf(lae, rows[0], 20) == 1f,
+                        $"macro 期望 1 选项行（PickMode=1/Targets=null/[10]=4 携计划），实际 {rows.Count} 行"));
+                    try
+                    {
+                        var optFinal = TargetPickGate.OpenAndAutoComplete(core, p1, rows[0], null);
+                        TargetPickGate.ConsumeParked();
+                        var ot = optFinal.Targets;
+                        checks.Add(new Check(ot != null && ot.Count == 4
+                            && ot.Take(2).All(t => enemySet.Contains(t as Card))
+                            && ot.Skip(2).All(t => graveSet.Contains(t as Card))
+                            && !TargetPickGate.HasPending,
+                            "macro OpenAndAutoComplete：各 spec 候选序前 2（敌 2+墓 2）、收口清闸 ✓（v22 S2a）"));
+                    }
+                    finally { if (TargetPickGate.HasPending) TargetPickGate.Reset(); }
+                    var savedPicks = LegalActionEnumerator.PicksMode;
+                    LegalActionEnumerator.PicksMode = "step";
+                    lae.Enumerate(core, p1);
+                    rows = lae.Actions.Where(a => a.Type == TideActionType.PlayCard && ReferenceEquals(a.Card, tCard)).ToList();
                     bool rowsOk = rows.Count == 3 && rows.All(r => r.PickPlan != null && r.Targets != null && r.Targets.Count == 1
                         && enemySet.Contains(r.Targets[0] as Card) && FeatureOf(lae, r, 10) == 4f);
-                    log.AppendLine("[并列弹回回收] LAE 首步行数=" + rows.Count + " :: "
+                    log.AppendLine("[并列弹回回收] step 首步行数=" + rows.Count + " :: "
                         + string.Join(" ; ", rows.Select(r => "[" + NameOf(r.Targets[0]) + "]").ToArray()));
                     checks.Add(new Check(rowsOk,
                         $"LAE 期望 3 行首步单选（弹回候选、[10]=4=固定总步数），实际 {rows.Count} 行"));
@@ -497,6 +561,7 @@ namespace CardCore.Editor.Tests
                         + $" 墓1留={zm.IsCardInZone(grave[0], p1, Zone.Graveyard)} 墓2留={zm.IsCardInZone(grave[1], p1, Zone.Graveyard)}");
                     checks.Add(new Check(engineOk,
                         "引擎分段结算：弹回两指定敌应入 P2 手牌、回收两指定卡应入 P1 手牌、其余候选不动（见上行读数）"));
+                    LegalActionEnumerator.PicksMode = savedPicks; // v22：还原进入时的拾取模式（不污染后续场景）
                 }
                 finally
                 {
@@ -691,8 +756,33 @@ namespace CardCore.Editor.Tests
                     string Describe(TideAction a) => "n=" + (a.Targets?.Count ?? -1);
                     log.AppendLine($"[{tag}] HeroSkill 行数={rows.Count} :: {string.Join(" ; ", rows.Select(Describe).ToArray())}");
 
+                    // v22 S2a（2026-11-26）macro（默认）：牺牲=可变数量计划 → **1 条选项提交行**
+                    //（PickMode=1/Targets=null/[10]=-1 携计划）；OpenAndAutoComplete=可变档全选
+                    //（T5/T7 候选同为 11 张池地——场上的阿格洛斯被 OrderSacrifice 排除），只建最终
+                    // 动作不 Apply。随后切 step 跑下方 A6 逐步链（跑完还原模式）。
+                    checks.Add(new Check(rows.Count == 1 && rows[0].PickMode == 1 && rows[0].PickPlan != null
+                        && rows[0].Targets == null && FeatureOf(lae, rows[0], 10) == -1f && FeatureOf(lae, rows[0], 20) == 1f,
+                        $"{tag} macro 期望 1 选项行（PickMode=1/Targets=null/[10]=-1 携计划），实际 {rows.Count} 行"));
+                    try
+                    {
+                        var optFinal = TargetPickGate.OpenAndAutoComplete(core, p1, rows[0], null);
+                        TargetPickGate.ConsumeParked();
+                        var ot = optFinal.Targets;
+                        checks.Add(new Check(ot != null && ot.Count == 11
+                            && ot.All(t => t is Card lc && IsName(lc, LandName))
+                            && (agros == null || ot.All(t => !ReferenceEquals(t, agros)))
+                            && !TargetPickGate.HasPending,
+                            $"{tag} macro OpenAndAutoComplete：可变档全选 11 池地（阿格洛斯排除）、收口清闸 ✓（v22 S2a）"));
+                    }
+                    finally { if (TargetPickGate.HasPending) TargetPickGate.Reset(); }
+                    var savedPicks = LegalActionEnumerator.PicksMode;
+                    LegalActionEnumerator.PicksMode = "step";
+
                     // A6：prefix-k 退役——牺牲=可变数量计划（[10]=-1 开放步数）：首步行=池地候选逐个
                     //（11 行、1 目标、携计划）；「祭几张」改闸拾取+提交行表达
+                    lae.Enumerate(core, p1);
+                    rows = lae.Actions
+                        .Where(a => a.Type == TideActionType.HeroSkill && ReferenceEquals(a.Card, skillCard)).ToList();
                     checks.Add(new Check(rows.Count == 11 && rows.All(r => r.Targets != null && r.Targets.Count == 1
                         && r.PickPlan != null && FeatureOf(lae, r, 10) == -1f),
                         $"{tag} 期望 11 行首步单选（[10]=-1 开放步数），实际 {rows.Count} 行"));
@@ -731,6 +821,7 @@ namespace CardCore.Editor.Tests
                             && tempAny == expectAny && agrosSafe && skillCard.IsTapped(),
                         $"{tag} 应用 k={applyK}：{applyK} 张池地入墓、临时彩=={expectAny}{(applyK > landCap ? $"（持有钳 min(k,{landCap})）" : "")}、池余 {11 - applyK}、技能横置"
                         + (fieldAgros ? "、阿格洛斯仍在场" : "")));
+                    LegalActionEnumerator.PicksMode = savedPicks; // v22：还原进入时的拾取模式（不污染后续场景）
                 }
                 finally { }
             }
@@ -817,7 +908,26 @@ namespace CardCore.Editor.Tests
                     CheckZoneFeatures(lae, core, p1, checks, "P0蛰伏");
                     var rows = lae.Actions
                         .Where(a => a.Type == TideActionType.HeroSkill && ReferenceEquals(a.Card, skillCard)).ToList();
-                    log.AppendLine($"[P0蛰伏] HeroSkill 行数={rows.Count} :: "
+                    // v22 S2a（2026-11-26）macro（默认）：蛰伏=可变数量计划 → 1 条选项提交行
+                    //（PickMode=1/Targets=null/[10]=-1）；OpenAndAutoComplete=全选 3 未横置池地（不 Apply）。
+                    checks.Add(new Check(rows.Count == 1 && rows[0].PickMode == 1 && rows[0].PickPlan != null
+                        && rows[0].Targets == null && FeatureOf(lae, rows[0], 10) == -1f && FeatureOf(lae, rows[0], 20) == 1f,
+                        $"P0蛰伏 macro 期望 1 选项行（PickMode=1/Targets=null/[10]=-1 携计划），实际 {rows.Count} 行"));
+                    try
+                    {
+                        var optFinal = TargetPickGate.OpenAndAutoComplete(core, p1, rows[0], null);
+                        TargetPickGate.ConsumeParked();
+                        checks.Add(new Check(optFinal.Targets != null && optFinal.Targets.Count == 3
+                            && !TargetPickGate.HasPending,
+                            "P0蛰伏 macro OpenAndAutoComplete：可变档全选 3 地、收口清闸 ✓（v22 S2a）"));
+                    }
+                    finally { if (TargetPickGate.HasPending) TargetPickGate.Reset(); }
+                    var savedPicks = LegalActionEnumerator.PicksMode;
+                    LegalActionEnumerator.PicksMode = "step";
+                    lae.Enumerate(core, p1);
+                    rows = lae.Actions
+                        .Where(a => a.Type == TideActionType.HeroSkill && ReferenceEquals(a.Card, skillCard)).ToList();
+                    log.AppendLine($"[P0蛰伏] step HeroSkill 行数={rows.Count} :: "
                         + string.Join(" ; ", rows.Select(r => "[" + NameOf(r.Targets[0]) + "]").ToArray()));
                     checks.Add(new Check(rows.Count == 3
                             && rows.All(r => r.Targets != null && r.Targets.Count == 1 && r.PickPlan != null
@@ -836,6 +946,7 @@ namespace CardCore.Editor.Tests
                     log.AppendLine($"[P0蛰伏] 应用 k=2：ok={ok} 横置+1层={tappedLayers} 未动={untouched} 技能横置={skillCard.IsTapped()}");
                     checks.Add(new Check(ok && tappedLayers == 2 && untouched == 1 && skillCard.IsTapped(),
                         "P0蛰伏 应用 k=2：恰 2 张横置+各 1 层、第 3 张不动、技能横置"));
+                    LegalActionEnumerator.PicksMode = savedPicks; // v22：还原进入时的拾取模式
                 }
                 finally { }
             }
@@ -1460,6 +1571,94 @@ namespace CardCore.Editor.Tests
             }
             checks.Add(new Check(bad == 0,
                 $"{tag}：全 {total} 行 [12]/[13] 与单源判定一致（坏 {bad} 行）"));
+        }
+
+        /// <summary>⑩ 放地行数判据（B1b，2026-11-26 S1/S2 收尾）——C8（v22 S2-1b）修复的常驻证据：
+        /// 修复前放地行只差 [2]（同费同锁色），FoldEquivalentRows 把 N 张可当地手牌并成 1 行且恒取
+        /// 手牌序第一张，模型对「烧哪张」没有选择权（C8 注实测：开折叠 17 行/放地 1 行 vs 关折叠
+        /// 28 行/放地 4 行）。修复后 FeatureKeyExceptSource 对 PlayLand 并来源卡 ID——本场景把修复
+        /// 变成判据：N 张**同费同色同名**（仅卡实例 ID 异，最严口径）手牌枚举一次：
+        /// ① PlayLand 行数 == N；② 各行 [2]sourceIndex 两两互异且与 Action.SourceIndex 一致；
+        /// ③ 来源卡实例互异（不塌缩到首张）；④ 关折叠口径行数一致（EquivalentFoldEnabled 反射
+        /// 翻转对拍，finally 还原不污染后续场景）。</summary>
+        private static void RunPlayLandRowCountScenario(StringBuilder log, List<Check> checks)
+        {
+            const int landCount = 4;
+            var catalog = CardCatalog.LoadAll().ToList();
+            var unitData = ByName(catalog, "教学·2");
+            var core = GameCore.Instance;
+            var deck1 = new List<CardData>();
+            for (int i = 0; i < 12; i++) deck1.Add(unitData);
+            var deck2 = new List<CardData>();
+            for (int i = 0; i < 8; i++) deck2.Add(ByName(catalog, EnemyAName));
+            core.InitGame(CardLoader.BuildDeck(deck1, 1), CardLoader.BuildDeck(deck2, 1));
+            var p1 = core.Player1;
+            p1.IsAI = true; core.Player2.IsAI = true;
+            using (var board = new GameBoard.BoardState(core, p1, core.Player2,
+                GameBoard.HalfFieldData.Flat(), GameBoard.HalfFieldData.Flat()))
+            {
+                board.EnableAutoResync();
+                AdvanceToMainPhase(core, p1);
+                var zm = core.ZoneManager;
+                // 手牌清空再摆恰 N 张同卡：同费同色同名（仅卡实例异）=修复前必折叠的最严口径
+                foreach (var extra in zm.GetCards(p1, Zone.Hand).ToList())
+                    zm.MoveCard(extra, p1, Zone.Hand, Zone.Deck);
+                var hand = new List<Card>();
+                for (int i = 0; i < landCount; i++)
+                {
+                    var c = TakeByName(zm, p1, "教学·2", Zone.Deck);
+                    if (c == null) break;
+                    zm.MoveCard(c, p1, Zone.Deck, Zone.Hand);
+                    hand.Add(c);
+                }
+                checks.Add(new Check(hand.Count == landCount,
+                    $"⑩夹具：恰 {landCount} 张手牌（{hand.Count}）"));
+                if (hand.Count < landCount) return;
+                // 口径前提：全部可当地且锁色候选唯一（多色卡每候选色一行——行数==N 只对单色候选成立）
+                checks.Add(new Check(hand.All(c => ElementPoolSystem.CanPlaceAsLand(c))
+                        && hand.All(c => ElementPoolSystem.GetLandColorChoices(c).Count == 1),
+                    "⑩前提：N 张全可当地且锁色候选唯一（行数==N 的口径前提）"));
+
+                // ① 开折叠（默认）枚举一次：PlayLand 行数 == 可当地张数
+                var lae = new LegalActionEnumerator();
+                lae.Enumerate(core, p1);
+                var landRows = lae.Actions.Where(a => a.Type == TideActionType.PlayLand).ToList();
+                log.AppendLine($"[⑩放地] 手牌 {hand.Count} 张同卡可当地 → PlayLand 行={landRows.Count}");
+                checks.Add(new Check(landRows.Count == landCount,
+                    $"⑩PlayLand 行数==可当地张数（{landRows.Count} vs {landCount}——C8 修复判据）"));
+
+                // ② 各行 [2]sourceIndex 指向互异手牌槽（修复前全行同键只留首张，[2] 恒手牌序第一张）
+                checks.Add(new Check(landRows.Select(r => r.SourceIndex).Distinct().Count() == landCount
+                        && landRows.All(r => r.SourceIndex >= 0 && FeatureOf(lae, r, 2) == r.SourceIndex),
+                    "⑩各行 [2]sourceIndex 两两互异且与特征一致（逐卡可分=「烧哪张」可选）"));
+
+                // ③ 来源卡实例互异——行不塌缩到手牌序第一张
+                checks.Add(new Check(landRows.All(r => r.Card != null)
+                        && landRows.Select(r => r.Card).Distinct().Count() == landCount,
+                    "⑩行来源卡实例互异（修复前恒取第一张）"));
+
+                // ④ 关折叠口径行数一致（EquivalentFoldEnabled 私有静态反射翻转——折叠开关注释
+                //    明示「编辑器反射可翻转」惯例；finally 还原，不污染后续场景）
+                var fld = typeof(LegalActionEnumerator).GetField("EquivalentFoldEnabled",
+                    BindingFlags.NonPublic | BindingFlags.Static);
+                if (fld == null)
+                {
+                    checks.Add(new Check(false, "⑩关折叠对拍：EquivalentFoldEnabled 字段不存在（LAE 改版须跟进）"));
+                    return;
+                }
+                var savedFold = (bool)fld.GetValue(null);
+                int rawLandRows = -1;
+                try
+                {
+                    fld.SetValue(null, false);
+                    var laeRaw = new LegalActionEnumerator();
+                    laeRaw.Enumerate(core, p1);
+                    rawLandRows = laeRaw.Actions.Count(a => a.Type == TideActionType.PlayLand);
+                }
+                finally { fld.SetValue(null, savedFold); }
+                checks.Add(new Check(rawLandRows == landCount,
+                    $"⑩关折叠口径行数一致（{rawLandRows} vs {landCount}）"));
+            }
         }
 
         private static float FeatureOf(LegalActionEnumerator lae, TideAction a, int slot)

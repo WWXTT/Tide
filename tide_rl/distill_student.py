@@ -38,6 +38,8 @@
 import argparse
 import hashlib
 import json
+import os
+import struct
 import time
 from pathlib import Path
 
@@ -47,11 +49,11 @@ import jax.numpy as jnp
 import flax.serialization
 import optax
 
-from tide_agent import create_tide_agent
+from tide_agent import create_tide_agent, merge_params_by_shape
 from tide_features import (
     init_rstate, sample_input, LAYOUT_VERSION,
     MAX_CARDS, N_CARD_FEATURES, N_GLOBAL_FEATURES,
-    MAX_ACTIONS, N_ACTION_FEATURES, N_RNN_CHANNELS,
+    MAX_ACTIONS, N_ACTION_FEATURES, N_RNN_CHANNELS, ACTION_F_TYPE,
 )
 from tide_env import TideEnv
 from phase1_criterion import BASELINE_ERA
@@ -62,9 +64,17 @@ from behavior_probe import behavior_of
 
 DECKS = ("red", "green", "blue")
 STEPS_PER_SHARD = 2000
-# 学生缺省权重 = 教师同源（共享 v21 last——三专精的热启动源，§9.5「从共享 last 热启动」）
+# 学生缺省权重 = 教师同源（共享 last（v22 口径）——三专精的热启动源，§9.5「从共享 last 热启动」；
+# 注意 v21 权重经 from_bytes 严格还原会因动作维 20≠26 拒载——须先经 merge_params_by_shape 并树）
 STUDENT_DEFAULT_CKPT = r"logs\tide_ppo_simpleai__42__1795540922\last\params.msgpack"
 STUDENT_RUN_GLOB = "tide_ppo_simpleai_student__42__*"
+
+# ---- S3-2/S3-0c（2026-11-26 二期 §5）：脚本 BC 录制流对账常量 ----
+# C# ScriptBcRecorder 的二进制记录布局（小端）：7×int32 + 16B cardId + cards + global + 行特征。
+BC_BIN_HEADER_FMT = "<7i16s"
+BC_BIN_HEADER_SIZE = struct.calcsize(BC_BIN_HEADER_FMT)  # 44
+GENEL_CARD_ID = "C_D1A00009"  # 绿「归根」（S3-0c 闸的计数对象；与 C# IdGreenRecall 同源）
+BC_TYPE_PLAYCARD = 0          # TideActionType.PlayCard（动作行 [ACTION_F_TYPE] 同值）
 
 
 def sha256_file(p: Path) -> str:
@@ -118,7 +128,9 @@ def load_teacher(mf_path: str):
     dummy = jax.tree.map(lambda x: x[None, ...] if x is not None else None, dummy)
     params = agent.init(jax.random.PRNGKey(targs.seed), init_rstate(targs.rnn_type), dummy)
     with open(ckpt, "rb") as f:
-        params = flax.serialization.from_bytes(params, f.read())
+        # 跨树加载（2026-11-26 用户定，决策③）：教师 ckpt 树不同代（如 aux 2→3）时 merge 并树
+        old_params = flax.serialization.from_bytes(None, f.read())
+        params, _merge_report = merge_params_by_shape(params, old_params)
     print(f"[teacher] {deck} ← {ckpt}（run={mf.get('run')} step={mf.get('step')} "
           f"tier={mf.get('tier')} sha256={sha[:12]}…）", flush=True)
     return deck, jax.jit(agent.apply), params, mf
@@ -144,6 +156,144 @@ def resolve_student_run(spec: str) -> Path:
     return p
 
 
+# ==================== S3-2 脚本 BC 流解析 + S3-0c shard 闸 ====================
+
+def parse_bc_bin(path: Path):
+    """ScriptBcRecorder 二进制记录流 → 记录迭代器。
+
+    布局（小端，见 ScriptBcRecorder 头注）：int32 chosen / int32 n_actions / int32 turn /
+    int32 ot / int32 seat / int32 type / int32 mode / 16B cardId(ASCII 补零) /
+    float32 cards(MAX_CARDS×N_CARD_FEATURES) / float32 global(N_GLOBAL_FEATURES) /
+    float32 行特征(n_actions×N_ACTION_FEATURES)。维度对账：与 tide_features 常量不一致
+    即响亮失败（防布局漂移静默出脏 shard）。"""
+    data = path.read_bytes()
+    off = 0
+    n_card = MAX_CARDS * N_CARD_FEATURES
+    while off < len(data):
+        chosen, n_actions, turn, ot, seat, atype, mode = struct.unpack_from(
+            BC_BIN_HEADER_FMT, data, off)[:7]
+        card_id = struct.unpack_from(BC_BIN_HEADER_FMT, data, off)[7].rstrip(b"\x00").decode("ascii")
+        off += BC_BIN_HEADER_SIZE
+        cards = np.frombuffer(data, dtype="<f4", count=n_card, offset=off).reshape(
+            MAX_CARDS, N_CARD_FEATURES).astype(np.float32)
+        off += 4 * n_card
+        glob = np.frombuffer(data, dtype="<f4", count=N_GLOBAL_FEATURES, offset=off).astype(np.float32)
+        off += 4 * N_GLOBAL_FEATURES
+        rows = np.frombuffer(data, dtype="<f4", count=n_actions * N_ACTION_FEATURES,
+                             offset=off).reshape(n_actions, N_ACTION_FEATURES).astype(np.float32)
+        off += 4 * n_actions * N_ACTION_FEATURES
+        yield {"chosen": int(chosen), "n_actions": int(n_actions), "turn": int(turn),
+               "ot": int(ot), "seat": int(seat), "type": int(atype), "mode": int(mode),
+               "card_id": card_id, "cards": cards, "global": glob, "actions": rows}
+    assert off == len(data), f"[bc] {path.name} 尾部残留 {len(data) - off} 字节（布局漂移？）"
+
+
+def count_genel_casts(shard_files):
+    """S3-0c 闸读数（2026-11-26 二期 §5）：shard 里「选中行=PlayCard(0) 且来源卡=归根」的步数。
+
+    两代 shard 两种识别路径：
+    - 脚本 BC 分片（S3-2 collect --actor script）：带 chosen_card_id 字段——直接比 ID；
+    - 教师/DAgger 分片（collect --actor teacher/student）：无 card_id——按 G5 的 DeckReg
+      口径识别：牌库块 [154..183] 中费特征 [5]≈8 的唯一卡=绿预组归根（11 张，红蓝 0 张费 8），
+      其内容身份 [15:29] 与选中行 [2] 指向槽位的身份全等 → 计为归根施放。
+    归根只在绿预组 ⇒ 任何口径下非绿局不会误计。"""
+    n_total = n_genel = 0
+    n_unmatched = 0
+    n_by_cardid = n_by_ident = 0
+    for f in shard_files:
+        z = np.load(f, allow_pickle=False)
+        chosen = z["chosen"]
+        n_total += len(chosen)
+        n_unmatched += int((chosen < 0).sum())
+        cards_id = [str(x) for x in z["chosen_card_id"]] if "chosen_card_id" in z else None
+        # 逐局归归根身份（无 card_id 的分片）：游戏首步的牌库块按费 8 找唯一槽
+        game_ident = {}
+        for i, c in enumerate(chosen):
+            if c < 0:
+                continue
+            a, b = int(z["actions_offsets"][i]), int(z["actions_offsets"][i + 1])
+            rows = z["actions_flat"][a:b]
+            if int(rows[c][ACTION_F_TYPE]) != BC_TYPE_PLAYCARD:
+                continue
+            if cards_id is not None and cards_id[i]:
+                if cards_id[i] == GENEL_CARD_ID:
+                    n_genel += 1
+                    n_by_cardid += 1
+                continue
+            # 身份路径：选中行 [2]=来源槽位 → 该槽内容身份 vs 牌库费 8 卡身份
+            src = int(round(float(rows[c][2])))
+            gid = int(z["game_idx"][i])
+            if gid not in game_ident:
+                cards_i = z["cards"][i]
+                game_ident[gid] = _genel_ident_from_deck(cards_i)
+            ident = game_ident.get(gid)
+            if ident is None or src < 0 or src >= MAX_CARDS:
+                continue
+            if _cards_ident(z["cards"][i][src]) == ident:
+                n_genel += 1
+                n_by_ident += 1
+    return {"steps_total": n_total, "genel_cast_steps": n_genel,
+            "unmatched_steps": n_unmatched, "by_card_id": n_by_cardid,
+            "by_deck_ident": n_by_ident}
+
+
+def _cards_ident(card_feats):
+    """卡槽内容身份（TideObservation [15:29] 14 维浮点——g_sampling.ident 同口径）。"""
+    return tuple(np.round(card_feats[15:29], 4))
+
+
+def _genel_ident_from_deck(cards):
+    """牌库块找费 8 的唯一卡 → 归根内容身份（绿预组 11 张费 8；找不到=None——非绿局/掺卡异常）。"""
+    hits = []
+    for i in range(154, 184):
+        if cards[i][0] > 0.5 and abs(float(cards[i][5]) - 8.0) < 0.01:
+            hits.append(_cards_ident(cards[i]))
+    return hits[0] if len(hits) == 1 else None
+
+
+
+def cmd_verify_shard(cli):
+    """S3-0c BC shard 闸（计划 §5）：shard 必须数得出「PlayCard:归根」步数；为 0 → BC
+    立即作废重采。--actions-stream 提供 S3-0a 动作行流时对账脚本局施放数（量级一致性，
+    供人工判读——两数据集局数不同，不设硬等式）。报告落 round 目录 shard_gate.json。"""
+    files = []
+    for spec in cli.shards.split(","):
+        spec = spec.strip()
+        if spec:
+            got = expand_shards(spec)
+            if not got:
+                raise SystemExit(f"[!] --shards 无匹配：{spec}")
+            files.extend(got)
+    report = count_genel_casts(files)
+    if cli.actions_stream:
+        from pathlib import Path as _P
+        stream_cast = stream_land = 0
+        for line in _P(cli.actions_stream).read_text(encoding="utf-8").splitlines():
+            try:
+                rec = json.loads(line)
+            except Exception:
+                continue
+            if rec.get("rec") != "act" or rec.get("kind") != "PlayCard":
+                continue
+            if rec.get("card") == "归根":
+                stream_cast += 1
+            elif rec.get("kind") == "PlayLand":
+                stream_land += 1
+        report["stream_cast_genel"] = stream_cast
+        report["stream_playland"] = stream_land
+    report["gate"] = "PASS" if report["genel_cast_steps"] > 0 else "FAIL(归根施放步=0——BC 数据缺施放标签，作废重采)"
+    out_p = None
+    shard_parent = files[0].parent if files else None
+    if shard_parent is not None:
+        out_p = shard_parent / "shard_gate.json"
+        out_p.write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
+    print(json.dumps(report, ensure_ascii=False, indent=1), flush=True)
+    if out_p:
+        print(f"[out] {out_p}")
+    if report["genel_cast_steps"] <= 0:
+        raise SystemExit(1)
+
+
 # ==================== collect ====================
 
 class ShardWriter:
@@ -155,7 +305,7 @@ class ShardWriter:
         self.k = 0
         self.buf = {f: [] for f in ("cards", "global", "actions_flat", "n_actions",
                                     "rstate", "teacher_logits", "teacher_value",
-                                    "game_idx", "chosen")}
+                                    "game_idx", "chosen", "chosen_card_id")}
         self.offsets = [0]
         self.steps = 0        # 当前分片内步数（flush 后清零）
         self.total_steps = 0  # 本轮累计步数（不随 flush 清零——收尾日志/round_meta 用它）
@@ -182,6 +332,31 @@ class ShardWriter:
         if self.steps >= STEPS_PER_SHARD:
             self.flush()
 
+    def add_script_bc(self, rec, game_idx):
+        """S3-2 脚本 BC：ScriptBcRecorder 二进制记录 → 分片步。
+        rstate 全零（逐步独立口径）；teacher_logits/teacher_value 全零占位（CE 训练路径
+        用 chosen，不读教师 logits——--loss ce）。chosen=-1（引擎拒绝/未匹配）不入标签
+        （仍计步数——matched 率由 round_meta 汇总）。"""
+        n = rec["n_actions"]
+        actions = np.zeros((MAX_ACTIONS, N_ACTION_FEATURES), dtype=np.float32)
+        actions[:n] = rec["actions"]
+        obs = {"cards_": rec["cards"], "global_": rec["global"], "actions_": actions}
+        self.buf["cards"].append(rec["cards"])
+        self.buf["global"].append(rec["global"])
+        self.buf["actions_flat"].append(rec["actions"])
+        self.offsets.append(self.offsets[-1] + n)
+        self.buf["n_actions"].append(n)
+        self.buf["rstate"].append(np.zeros((N_RNN_CHANNELS,), dtype=np.float32))
+        self.buf["teacher_logits"].append(np.zeros((MAX_ACTIONS,), dtype=np.float32))
+        self.buf["teacher_value"].append(0.0)
+        self.buf["game_idx"].append(game_idx)
+        self.buf["chosen"].append(int(rec["chosen"]))
+        self.buf["chosen_card_id"].append(rec["card_id"])
+        self.steps += 1
+        self.total_steps += 1
+        if self.steps >= STEPS_PER_SHARD:
+            self.flush()
+
     def flush(self):
         if not self.steps:
             return
@@ -192,30 +367,33 @@ class ShardWriter:
         np.savez_compressed(out, **arrs)
         print(f"[shard] {out}（{self.steps} 步）", flush=True)
         self.k += 1
-        self.buf = {f: [] for f in self.buf}
+        self.buf = {f: [] for f in self.buf}  # chosen_card_id 同键清零（__init__ 键集）
         self.offsets = [0]
         self.steps = 0
 
 
 def cmd_collect(cli):
+    if cli.actor == "script" and cli.teachers:
+        raise SystemExit("[!] --actor script 不吃教师清单（脚本臂即标签源）——去掉 --teachers")
     teachers = {}
     manifests = []
     teachers_by_deck = {}
-    for spec in cli.teachers.split(","):
-        spec = spec.strip()
-        if not spec:
-            continue
-        deck, apply_t, params_t, mf = load_teacher(spec)
-        if deck in teachers:
-            raise SystemExit(f"[!] deck={deck} 有两份教师清单（{spec}）——逐 deck 只认一个教师")
-        teachers[deck] = (apply_t, params_t)
-        manifests.append(spec)
-        teachers_by_deck[deck] = spec
-    missing = [d for d in DECKS if d not in teachers]
-    if missing and not cli.allow_missing:
-        raise SystemExit(f"[!] 缺教师 deck：{missing}（--allow-missing 才放行跳过该 deck）")
-    if missing:
-        print(f"[warn] --allow-missing：跳过无教师 deck {missing}", flush=True)
+    if cli.actor != "script":
+        for spec in cli.teachers.split(","):
+            spec = spec.strip()
+            if not spec:
+                continue
+            deck, apply_t, params_t, mf = load_teacher(spec)
+            if deck in teachers:
+                raise SystemExit(f"[!] deck={deck} 有两份教师清单（{spec}）——逐 deck 只认一个教师")
+            teachers[deck] = (apply_t, params_t)
+            manifests.append(spec)
+            teachers_by_deck[deck] = spec
+        missing = [d for d in DECKS if d not in teachers]
+        if missing and not cli.allow_missing:
+            raise SystemExit(f"[!] 缺教师 deck：{missing}（--allow-missing 才放行跳过该 deck）")
+        if missing:
+            print(f"[warn] --allow-missing：跳过无教师 deck {missing}", flush=True)
 
     student_run = resolve_student_run(cli.student_run)
     student_cfg = student_run / "config.json"
@@ -224,33 +402,6 @@ def cmd_collect(cli):
         sargs.unity_path = cli.unity_path
     if cli.project_path:
         sargs.project_path = cli.project_path
-    student_ckpt = Path(cli.student_ckpt or STUDENT_DEFAULT_CKPT)
-    if not student_ckpt.is_file():
-        raise SystemExit(f"[!] 学生权重不存在：{student_ckpt}（--student-ckpt 指定，"
-                         f"缺省=教师同源共享 last）")
-
-    s_agent = create_tide_agent(channels=sargs.channels, rnn_channels=sargs.rnn_channels,
-                                rnn_type=sargs.rnn_type)
-    dummy = sample_input()
-    dummy = jax.tree.map(lambda x: x[None, ...] if x is not None else None, dummy)
-    s_params = s_agent.init(jax.random.PRNGKey(sargs.seed), init_rstate(sargs.rnn_type), dummy)
-    with open(student_ckpt, "rb") as f:
-        s_params = flax.serialization.from_bytes(s_params, f.read())
-    apply_s = jax.jit(s_agent.apply)
-    print(f"[student] {student_ckpt} → run {student_run.name}（actor={cli.actor}）", flush=True)
-
-    env = TideEnv(
-        unity_path=sargs.unity_path,
-        project_path=sargs.project_path,
-        max_steps=sargs.max_episode_steps,
-        reward_lambda=sargs.reward_lambda,
-        opponent="simpleai",
-        model_theme="all",
-        model_doped=sargs.model_doped,
-        startup_timeout=sargs.startup_timeout,
-        step_timeout=sargs.step_timeout,
-    )
-
     distill_dir = student_run / "distill"
     distill_dir.mkdir(parents=True, exist_ok=True)
     round_n = cli.round if cli.round > 0 else 1 + len(list(distill_dir.glob("round_*")))
@@ -260,21 +411,92 @@ def cmd_collect(cli):
     round_dir.mkdir(parents=True)
     writer = ShardWriter(round_dir)
 
+    if cli.actor == "script":
+        # S3-2（2026-11-26 二期 §5）：脚本臂 BC——C# ScriptBcRecorder 拦截录制（拦截匹配，
+        # 见其头注），本侧只读流转 shard。TIDE_PROBE_BC_DIR 必须在 TideEnv 拉起 Unity
+        # **之前**进环境（batchmode 子进程继承）；C# 侧每局写 bc_<gameId>.bin + .meta.json。
+        # rstate 全零=逐步独立口径（脚本标签不绑学生递归上下文——DAgger 路径才需要）。
+        bc_raw = round_dir / "bc_raw"
+        bc_raw.mkdir(parents=True)
+        os.environ["TIDE_PROBE_BC_DIR"] = str(bc_raw)
+        student_ckpt = None
+        print(f"[script-bc] TIDE_PROBE_BC_DIR={bc_raw}（C# 拦截录制）", flush=True)
+    else:
+        student_ckpt = Path(cli.student_ckpt or STUDENT_DEFAULT_CKPT)
+        if not student_ckpt.is_file():
+            raise SystemExit(f"[!] 学生权重不存在：{student_ckpt}（--student-ckpt 指定，"
+                             f"缺省=教师同源共享 last）")
+        s_agent = create_tide_agent(channels=sargs.channels, rnn_channels=sargs.rnn_channels,
+                                    rnn_type=sargs.rnn_type)
+        dummy = sample_input()
+        dummy = jax.tree.map(lambda x: x[None, ...] if x is not None else None, dummy)
+        s_params = s_agent.init(jax.random.PRNGKey(sargs.seed), init_rstate(sargs.rnn_type), dummy)
+        with open(student_ckpt, "rb") as f:
+            # 跨树加载（决策③同口径）：学生 ckpt 树不同代时 merge 并树
+            old_params = flax.serialization.from_bytes(None, f.read())
+            s_params, _merge_report = merge_params_by_shape(s_params, old_params)
+        apply_s = jax.jit(s_agent.apply)
+        print(f"[student] {student_ckpt} → run {student_run.name}（actor={cli.actor}）", flush=True)
+
+    env = TideEnv(
+        unity_path=sargs.unity_path,
+        project_path=sargs.project_path,
+        max_steps=sargs.max_episode_steps,
+        reward_lambda=sargs.reward_lambda,
+        opponent="script" if cli.actor == "script" else "simpleai",
+        model_theme="all",
+        model_doped="" if cli.actor == "script" else sargs.model_doped,
+        startup_timeout=sargs.startup_timeout,
+        step_timeout=sargs.step_timeout,
+    )
+
     cells = [(opp, seat) for opp in DECKS for seat in (0, 1)]
     games_meta = []
     t0 = time.time()
-    total = len(teachers) * cli.games_per_deck
+    decks_run = list(DECKS) if cli.actor == "script" else sorted(teachers)
+    total = len(decks_run) * cli.games_per_deck
     done_games = 0
-    print(f"\n[collect] DAgger 采集：decks={sorted(teachers)} × {cli.games_per_deck} 局/deck"
+    print(f"\n[collect] 采集：decks={decks_run} × {cli.games_per_deck} 局/deck"
           f"（对手三脚本 × 双座轮转）= {total} 局 · actor={cli.actor} · 种子基 {cli.seed}\n",
           flush=True)
+    seen_bc_games = set()
     try:
-        for deck in sorted(teachers):
-            apply_t, params_t = teachers[deck]
+        for deck in decks_run:
+            apply_t, params_t = teachers.get(deck, (None, None))
             for i in range(cli.games_per_deck):
                 opp, seat = cells[i % len(cells)]
                 ep = i // len(cells)
                 seed = cli.seed + pair_seed_offset((deck,), DECKS, deck, opp) + seat * 500 + ep
+                if cli.actor == "script":
+                    # S3-2：脚本局整局在 reset 内打完（scriptVsScript）——C# 侧录制，Python 收流
+                    env.reset(options={"opponent": "script", "theme": opp,
+                                       "modelTheme": deck, "modelSeat": seat, "seed": seed})
+                    for meta_p in sorted(bc_raw.glob("bc_*.meta.json")):
+                        gid = meta_p.name[: -len(".meta.json")]  # bc_<gameId>
+                        if gid in seen_bc_games:
+                            continue
+                        seen_bc_games.add(gid)
+                        meta = json.loads(meta_p.read_text(encoding="utf-8"))
+                        game_idx = len(games_meta)
+                        n_unmatched = 0
+                        for rec in parse_bc_bin(bc_raw / (gid + ".bin")):
+                            if rec["chosen"] < 0:
+                                n_unmatched += 1
+                            writer.add_script_bc(rec, game_idx)
+                        games_meta.append({
+                            "deck": deck, "opp": opp, "seat": f"P{seat + 1}", "seed": seed,
+                            "winner": str(meta.get("winner", "")),
+                            "model_win": str(meta.get("winner", "")) == str(seat),
+                            "steps": int(meta.get("steps", 0)),
+                            "bc_unmatched": n_unmatched,
+                            "bc_game": int(meta.get("game", -1)),
+                            "behavior": {},
+                        })
+                    done_games += 1
+                    if done_games % 10 == 0 or done_games == total:
+                        print(f"  [collect] {done_games}/{total} 局 · 步 {writer.total_steps}"
+                              f" · {time.time() - t0:.0f}s", flush=True)
+                    continue
                 obs, info = env.reset(options={"opponent": "simpleai", "theme": opp,
                                                "modelTheme": deck, "modelSeat": seat,
                                                "seed": seed})
@@ -318,7 +540,7 @@ def cmd_collect(cli):
         writer.flush()
         env.close()
 
-    wins_by_deck = {d: [0, 0] for d in teachers}
+    wins_by_deck = {d: [0, 0] for d in decks_run}
     for g in games_meta:
         wins_by_deck[g["deck"]][1] += 1
         if g["model_win"]:
@@ -427,14 +649,17 @@ def cmd_train(cli):
             raise SystemExit(f"[!] --init-params 不存在：{init_from}")
         params = agent.init(jax.random.PRNGKey(args.seed), init_rstate(args.rnn_type), dummy)
         with open(init_from, "rb") as f:
-            params = flax.serialization.from_bytes(params, f.read())
+            # 跨树加载（决策③同口径）：init ckpt 树不同代（v21 共享 last→v22/S3）时 merge 并树
+            old_params = flax.serialization.from_bytes(None, f.read())
+            params, _merge_report = merge_params_by_shape(params, old_params)
         print(f"[student] init ← {init_from}", flush=True)
     if not len(tr_idx):
         raise SystemExit("[!] 训练集为空（全部局都进了 val？）——检查分片")
 
     def make_batch(sel):
-        """索引批 → (网络输入, 教师目标)。动作行从 flat+offsets 重建到 512×20 padded
-        （补零行 valid=0 → 网络侧自动屏蔽，与采集时口径一致）。"""
+        """索引批 → (网络输入, 教师目标)。动作行从 flat+offsets 重建到 512×26 padded
+        （补零行 valid=0 → 网络侧自动屏蔽，与采集时口径一致）。脚本 BC（--loss ce）
+        时教师目标为全零占位，标签走 chosen（由调用方随批透传）。"""
         acts = np.zeros((len(sel), MAX_ACTIONS, N_ACTION_FEATURES), dtype=np.float32)
         off = data["actions_offsets"]
         for j, i in enumerate(sel):
@@ -448,9 +673,18 @@ def cmd_train(cli):
 
     alpha, beta, tau = cli.alpha, cli.beta, cli.tau
 
-    def loss_tuple(p, cards, glob_, acts, rstate_in, t_logits, t_value):
+    def loss_tuple(p, cards, glob_, acts, rstate_in, t_logits, t_value, chosen):
         obs = {"cards_": cards, "global_": glob_, "actions_": acts, "h_actions_": None}
         _, logits_s, v_s = agent.apply(p, rstate_in, obs)
+        if cli.loss == "ce":
+            # S3-2 脚本 BC 路径（2026-11-26 二期 §5）：标签=脚本所选行（chosen），损失=
+            # 选中行交叉熵（教师 logits 占位全零不读）。chosen=-1（引擎拒绝/未匹配）的步
+            # 以 0 权重剔除；value 头不训（脚本无价值标签——β 不消费）。
+            logp = jax.nn.log_softmax(logits_s)                       # (B, A)
+            pick = jnp.take_along_axis(logp, chosen[:, None], axis=-1)[:, 0]
+            w = (chosen >= 0).astype(jnp.float32)
+            ce = -(pick * w).sum() / jnp.maximum(w.sum(), 1.0)
+            return ce, (ce, 0.0)
         # 非法行双方 logits 均已被网络置 −1e9（学生侧由重建 obs 的 [0]valid 列屏蔽，
         # 教师侧存储时即屏蔽）→ softmax 后 p_T≈0 不参与 KL——等价于只对合法行算
         lt = t_logits / tau
@@ -461,6 +695,7 @@ def cmd_train(cli):
 
     grad_fn = jax.jit(jax.value_and_grad(loss_tuple, argnums=0, has_aux=True))
     loss_fn = jax.jit(loss_tuple)
+    chosen_all = jnp.asarray(data["chosen"], dtype=jnp.int32)
     opt = optax.chain(optax.clip_by_global_norm(0.5), optax.adam(cli.lr))
     opt_state = opt.init(params)
 
@@ -475,7 +710,7 @@ def cmd_train(cli):
             perm = rng.permutation(tr_idx)
             for s in range(0, len(perm), cli.batch):
                 sel = perm[s: s + cli.batch]
-                (loss, (kl, vm)), grads = grad_fn(params, *make_batch(sel))
+                (loss, (kl, vm)), grads = grad_fn(params, *make_batch(sel), chosen_all[sel])
                 updates, opt_state = opt.update(grads, opt_state)
                 params = optax.apply_updates(params, updates)
                 upd += 1
@@ -489,7 +724,7 @@ def cmd_train(cli):
                 print(f"  [train] epoch {epoch + 1} update {upd}: loss={float(loss):.6f} "
                       f"kl={float(kl):.6f} v_mse={float(vm):.6f}", flush=True)
             if len(va_idx):
-                vloss, (vkl, vvm) = loss_fn(params, *make_batch(va_idx))
+                vloss, (vkl, vvm) = loss_fn(params, *make_batch(va_idx), chosen_all[va_idx])
                 rec = {"update": upd, "epoch": epoch + 1, "split": "val",
                        "loss": float(vloss), "kl": float(vkl), "v_mse": float(vvm),
                        "batch": int(len(va_idx))}
@@ -518,6 +753,7 @@ def cmd_train(cli):
         "criterion_era": BASELINE_ERA, "layout_version": LAYOUT_VERSION,
         "distill": {"teachers": None,   # train 侧不知教师清单——见 collect 侧 round_meta.json
                     "shards": [str(f) for f in files],
+                    "loss": cli.loss,
                     "alpha": cli.alpha, "beta": cli.beta, "tau": cli.tau,
                     "lr": cli.lr, "epochs": cli.epochs, "updates": upd,
                     "init_params": "" if cli.scratch else str(cli.init_params or STUDENT_DEFAULT_CKPT)},
@@ -536,13 +772,14 @@ def main():
     sub = ap.add_subparsers(dest="mode", required=True)
 
     c = sub.add_parser("collect", help="DAgger(--actor student)/BC(--actor teacher) 采集")
-    c.add_argument("--teachers", required=True,
-                   help="逗号分隔 teacher_manifest.json（逐 deck 一份）")
+    c.add_argument("--teachers", default="",
+                   help="逗号分隔 teacher_manifest.json（逐 deck 一份）；--actor script 时不需要")
     c.add_argument("--student-run", default="", help="学生 run（缺省最新 student run 或新建）")
     c.add_argument("--student-ckpt", default="",
                    help=f"学生权重（缺省=教师同源共享 last：{STUDENT_DEFAULT_CKPT}）")
-    c.add_argument("--actor", default="student", choices=["student", "teacher"],
-                   help="student=DAgger 4b（默认）；teacher=离线 BC 4a")
+    c.add_argument("--actor", default="student", choices=["student", "teacher", "script"],
+                   help="student=DAgger 4b（默认）；teacher=离线 BC 4a；"
+                        "script=S3-2 脚本臂 BC（C# 拦截录制，2026-11-26 二期）")
     c.add_argument("--games-per-deck", type=int, default=150)
     c.add_argument("--seed", type=int, default=20261122)
     c.add_argument("--round", type=int, default=0, help="轮次号（缺省=已有 round 数+1）")
@@ -566,7 +803,16 @@ def main():
     t.add_argument("--alpha", type=float, default=1.0)
     t.add_argument("--beta", type=float, default=0.5)
     t.add_argument("--tau", type=float, default=1.0)
+    t.add_argument("--loss", default="kl", choices=["kl", "ce"],
+                   help="kl=教师蒸馏（默认）；ce=S3-2 脚本 BC（选中行交叉熵）")
     t.set_defaults(func=cmd_train)
+
+    v = sub.add_parser("verify-shard", help="S3-0c BC shard 闸：数「PlayCard:归根」步数（0=作废）")
+    v.add_argument("--shards", required=True,
+                   help="逗号分隔：round 目录 / npz 文件 / glob 模式")
+    v.add_argument("--actions-stream", default="",
+                   help="S3-0a 动作行流（ScriptActionProbe jsonl）——对账脚本局施放数（量级）")
+    v.set_defaults(func=cmd_verify_shard)
 
     cli = ap.parse_args()
     cli.func(cli)

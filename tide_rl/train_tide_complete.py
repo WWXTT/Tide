@@ -1,4 +1,4 @@
-﻿"""
+"""
 Tide 完整 PPO 训练脚本（TCP batchmode 桥接；旧 stdio 口径 2026-10 起弃用）。
 
 目标：主题自对弈训练（默认 opponent="selfplay"——双方同一策略驱动，obs/reward 按
@@ -33,6 +33,20 @@ opponent=simpleai+theme，Unity 零改）；checkpoints=历史快照池当对手
 3. 训练统计每个 update 落盘 stats.jsonl（loss/ep_ret/ep_len/sps，可 tail 实时跟踪）
 4. YOLO 风格模型保存：best/（评估刷新纪录时覆盖）+ last/（周期覆盖，退出时也存）
 
+二期 S1 表示层（2026-11-26，docs/二期训练架构_实施计划.md §3；纯 tide_rl/ 改动，不换环境、
+LAYOUT_VERSION 保持 21）在本脚本里的三处接线：
+- 辅助头（S1-4）：loss += aux_coef·MSE(aux, [剩余步数/512, timeout])，标签由 rollout_common 按局回填；
+  不进 reward、不改最优策略。stats.jsonl 增 aux_loss / aux_labeled_frac。
+- 身份通路 dropout（S1-2）：rollout 逐步抽掩码并记录，更新期用**同一个**掩码重算
+  （ratio 首个 epoch 精确为 1）；--identity-dropout 0 可关（TIDE_TRAIN_OVERRIDE 同样可改）。
+- --init-params（S1-5）：由严格结构匹配改为形状匹配合并，启动时打印 loaded/fresh 清单。
+三路权重 α（S1-2）每个 update 读出一次写进 stats.jsonl 的 alpha 字段。
+
+GAE λ 可配置化（S3-5，2026-11-26）：--gae-lambda 显式覆盖（优先级 CLI > TIDE_TRAIN_OVERRIDE >
+默认），默认 **0.98**（用户定：直接 0.98，不再跑 0.95/0.98 两臂；0.95 仅作回退/历史对照）；须
+0<λ<1。启动横幅 / config.json / stats.jsonl（gae_lambda 字段，每行）三口同值——有效窗口
+1/(1-γλ)=50 步 ≥ 绿链「首献→施放归根」折叠后 22，判读见计划 §5。
+
 运行（推荐临时工程隔离训练，见 make_train_copy.ps1 / start_training_traincopy.ps1）：
   python tide_rl/train_tide_complete.py
   （Unity.exe 自动发现：UNITY_PATH 环境变量 → Hub 扫描匹配工程版本；
@@ -65,7 +79,8 @@ if ygo_agent_path.exists():
 from ygoai.rl.jax import clipped_surrogate_pg_loss, mse_loss, entropy_loss
 
 from tide_env import TideEnv
-from tide_agent import create_tide_agent
+from tide_agent import create_tide_agent, TideRNNAgent, merge_params_by_shape
+from tide_encoder import pathway_weights
 from tide_features import (
     init_rstate, sample_input,
     ACTION_F_TYPE, ACTION_F_TARGET_KIND, ACTION_TYPES, NEW_ACTION_TYPES,
@@ -198,6 +213,56 @@ def _seat_of(info):
     return int(to_play) if isinstance(to_play, int) and to_play >= 0 else None
 
 
+def make_ppo_update(args):
+    """PPO 更新步工厂（jit + 整批前向，N 个样本一次算，替代旧版逐样本 eager 前向——那是单
+    update 数分钟的瓶颈）。rollout 已记录每步 incoming rstate，更新期用同一 rstate 重算
+    logprob/value，与采样口径一致（ratio 初始为 1）。提成模块级（二期 S1）是为了不连 Unity
+    也能用合成批单测这条更新链路。
+
+    返回 ppo_update(ts, b_obs, b_rstates, b_actions, b_old_logprobs, b_advantages, b_returns,
+                    b_aux_labels, b_aux_mask, b_id_keep) → (ts, loss, 诊断六元组)
+      b_aux_labels (N,3) / b_aux_mask (N,)：辅助头标签与有效性（rollout_common 按局回填；
+      三维=[剩余步数/512, timeout, 到达链目标态]——S3-3 2026-11-26 扩第三维，旧 2 维
+      checkpoint 热启动时 aux 头经 merge_params_by_shape 落 fresh）
+      b_id_keep (N, MAX_CARDS, N_ID_SLOTS) 或 None：该批样本采样时用的身份 dropout 乘子
+      ——必须与 rollout 记录的同一个（ratio 首个 epoch 精确为 1），None = 关闭 dropout
+      诊断六元组 = (pg_loss, v_loss, entropy, approx_kl, clipfrac, aux_loss)
+    """
+
+    @jax.jit
+    def ppo_update(ts, b_obs, b_rstates, b_actions, b_old_logprobs, b_advantages, b_returns,
+                   b_aux_labels, b_aux_mask, b_id_keep):
+        def loss_fn(params):
+            _, logits, values, aux_pred = ts.apply_fn(
+                params, b_rstates, b_obs, id_keep=b_id_keep,
+                method=TideRNNAgent.forward_with_aux)
+            logp_all = jax.nn.log_softmax(logits)
+            logp_a = logp_all[jnp.arange(b_actions.shape[0]), b_actions]
+            logratio = logp_a - b_old_logprobs
+            ratios = jnp.exp(logratio)
+            pg_loss = clipped_surrogate_pg_loss(ratios, b_advantages, args.clip_coef,
+                                                dual_clip_coef=args.dual_clip_coef).mean()
+            # 价值损失单样本封顶（ygo 口径的 cap，非 PPO value-clip）
+            v_loss = jnp.minimum(mse_loss(b_returns, values), args.vloss_clip).mean()
+            entropy = entropy_loss(logits).mean()
+            # 辅助头损失（二期 S1-4）：两项输出的 MSE 之和，只在标签有效的样本上平均——
+            # 标签要等所属局完结才有，窗口末未完结局的步 aux_mask=0（不计）；全无效时为 0
+            # （分母护栏，梯度也是 0，不出 NaN）
+            aux_sq_err = (aux_pred - b_aux_labels) ** 2                    # (N, 3)
+            aux_loss = (aux_sq_err.sum(axis=-1) * b_aux_mask).sum() / jnp.maximum(b_aux_mask.sum(), 1.0)
+            loss = pg_loss + args.vf_coef * v_loss - args.ent_coef * entropy + args.aux_coef * aux_loss
+            # 诊断量（不进梯度）：k3 KL 估计（恒非负）与 clip 触发率——epoch≥2 才有意义
+            approx_kl = ((ratios - 1.0) - logratio).mean()
+            clipfrac = (jnp.abs(ratios - 1.0) > args.clip_coef).mean()
+            return loss, (pg_loss, v_loss, entropy, approx_kl, clipfrac, aux_loss)
+
+        (loss, diag), grads = jax.value_and_grad(loss_fn, has_aux=True)(ts.params)
+        ts = ts.apply_gradients(grads=grads)
+        return ts, loss, diag
+
+    return ppo_update
+
+
 @dataclass
 class Args:
     """训练超参。"""
@@ -219,7 +284,12 @@ class Args:
     # 2026-09-29 对齐 ygo-agent 口径：零和回合制 + 终局 ±1 + 势能塑形（γ=1 下严格
     # 策略不变），γ=1.0 不再对未来终局奖励打折（旧 0.99 无依据地压低长线回报）。
     gamma: float = 1.0
-    gae_lambda: float = 0.95
+    # GAE λ（S3-5，2026-11-26 用户定）：默认 **0.98** 进主路径——有效信用窗口 1/(1-γλ) 20→50 步，
+    # 绿链「首献→施放归根」折叠后跨度 22 ⇒ 0.95 的 20 步结构上覆盖不到（判读分母=22，旧「~10 步」
+    # 作废）。用户 2026-11-26 决定「直接 0.98，不再纠结两臂」：旧默认 0.95 仅作 --gae-lambda 回退/
+    # 历史对照，不再跑 A/B。λ 只延长信用窗口、不改变「归根是否还在手里」（C11）——漏斗不动不得
+    # 据此判 λ 无效。优先级 CLI > TIDE_TRAIN_OVERRIDE > 默认；须 0<λ<1；config/stats/横幅三口同值。
+    gae_lambda: float = 0.98
     clip_coef: float = 0.2
     dual_clip_coef: float = 3.0  # JueWu dual-clip（负优势下 ratio 下限）——ygo 默认开
     vloss_clip: float = 1.0      # 价值损失单样本封顶 min(0.5·SE, clip)——ygo 口径，防离群回报拉飞 critic
@@ -227,6 +297,25 @@ class Args:
     vf_coef: float = 0.5
     max_grad_norm: float = 0.5
     use_upgo: bool = True  # UPGO 优势项（ygo 默认开；自对弈座次修正口径下生效，不稳可关掉消融）
+    # 二期 S1-4（2026-11-26）：辅助头损失权重——aux = [剩余步数/512, timeout 概率] 的 MSE，
+    # 只做辅助任务（不进 reward、不改最优策略）；0 = 关闭辅助头
+    aux_coef: float = 0.1
+    # 二期 S1-2（2026-11-26）：身份通路训练期 dropout 概率 p——逐身份槽以 p 置 0（保留者 ×1/(1-p)），
+    # 逼网络依赖类型/参数通路；评估/导出恒关闭。掩码采样与更新期复用同一个，见 rollout_common
+    identity_dropout: float = 0.1
+    # 二期 S2a（2026-11-26，v22）：目标拾取行模式——macro=多步计划只产选项提交行（默认；
+    # 选中后 OpenAndAutoComplete 按共享序一次选满提交）/ step=A6 逐步行（现状口径）/
+    # both=并存（仅诊断，摊薄 logits 不进训练）。经 reset 协议 picksMode 下发、回显断言
+    picks_mode: str = "macro"
+    # 二期 S3-1（2026-11-26 §5）：开手交棒档位——none=关闭（缺省，零行为）；
+    # t3_lands/first_sac_done/genel_ready=模型座先用脚本策略打到触发态再交回模型
+    #（触发评估点=模型座回合开始；max_opening_turns 兜底 0=不兜底）。经 reset 协议下发
+    handoff_state: str = "none"
+    max_opening_turns: int = 0
+    # 二期 S3-3（2026-11-26 §5，用户「s3全面执行」=链进度奖励契约变更签字）：链进度势能
+    # Φ_chain 里程碑数/4 的奖励系数 λ_chain——计划初值 0.02（量级 ≪ 终局 ±1；势能形式
+    # γ=1 telescoping 只改入账位置不改轨迹总回报）；0=关。闩位计数恒进 info.chainBits
+    chain_reward_lambda: float = 0.02
 
     total_timesteps: int = 2_000_000
     eval_interval: int = 50_000  # 每 5 万步评估
@@ -275,6 +364,8 @@ class Args:
     # 热启动（2026-11-20，环境修正批次）：从既有 params.msgpack 载入权重继续训练
     # （不恢复优化器状态——Adam 从零累计）。CLI --init-params，接受 run 目录（取其 params.msgpack）
     # 或直接给 .msgpack 文件。用途：后手护甲规则补入（AI训练说明 §4.6）后保留权重续训。
+    # 二期 S1-5（2026-11-26）起为**形状匹配合并**（merge_params_by_shape）：同名同形状的叶子继承
+    # 旧权重，其余保留本次初始化——网络加新模块后旧 run 仍可部分热启。
     init_params: str = ""
 
     # 对手池（2026-11-02 C 期）：只改「和谁打」，不动 obs/奖励/网络/卡表/布局。
@@ -630,6 +721,10 @@ def train(args: Args):
         opponent=args.opponent,
         model_theme=args.model_theme,
         model_doped=args.model_doped,
+        picks_mode=args.picks_mode,
+        handoff_state=args.handoff_state,
+        max_opening_turns=args.max_opening_turns,
+        chain_lambda=args.chain_reward_lambda,
         startup_timeout=args.startup_timeout,
         step_timeout=args.step_timeout,
     )
@@ -669,8 +764,27 @@ def train(args: Args):
         if not _init_path.exists():
             raise SystemExit(f"[!] --init-params 找不到参数文件：{_init_path}")
         with open(_init_path, "rb") as f:
-            params = flax.serialization.from_bytes(params, f.read())
-        print(f"[init] 热启动：已载入参数 {_init_path}（优化器状态从零开始）", flush=True)
+            _old_params = flax.serialization.from_bytes(None, f.read())
+        print(f"[init] 热启动（形状匹配合并，二期 S1-5）：{_init_path}（优化器状态从零开始）", flush=True)
+        # 同名同形状的叶子继承旧权重、其余保留本次初始化；loaded/fresh 清单在此打印，
+        # 模块级摘要回写 config.json（config 先于建模落盘，这里补 init_merge 字段留痕）
+        params, _merge_report = merge_params_by_shape(params, _old_params)
+
+        def _modules(paths):
+            return sorted({p.rsplit("/", 1)[0] for p in paths})
+
+        cfg["init_merge"] = {
+            "source": str(_init_path),
+            "n_total_params": _merge_report["n_total_params"],
+            "n_loaded_params": _merge_report["n_loaded_params"],
+            "n_new_params": _merge_report["n_new_params"],
+            "loaded_modules": _modules(_merge_report["loaded"]),
+            "fresh_modules": _modules(_merge_report["fresh"]),
+            "reshaped": _merge_report["reshaped"],
+            "dropped": _merge_report["dropped"],
+        }
+        with open(log_dir / "config.json", "w") as f:
+            json.dump(cfg, f, indent=2)
 
     # 快照池种子：初始（随机）策略入池——checkpoints/fsp 从第 0 步起就有历史对手可打；
     # 结构模板绑定当前参数树（网络结构冻结，树形不会漂移）
@@ -718,34 +832,15 @@ def train(args: Args):
         with open(save_path / "meta.json", "w", encoding="utf-8") as f:
             json.dump(meta, f, ensure_ascii=False, indent=2)
 
-    # rollout / bootstrap / 评估共用的 jit 前向（整批编译一次，后续调用微秒级）
+    # rollout / bootstrap / 评估共用的 jit 前向（整批编译一次，后续调用微秒级）。
+    # 二期 S1：同一个 jit_apply 也承载带身份 dropout 乘子的调用形态
+    # （agent_apply(params, rstate, obs_batch, id_keep=keep)，仅 rollout 的学习者步用）
     jit_apply = jax.jit(agent.apply)
 
-    # PPO 更新：jit + 整批前向（N 个样本一次算，替代旧版逐样本 eager 前向——
-    # 那是单 update 数分钟的瓶颈）。rollout 已记录每步 incoming rstate，
-    # 更新期用同一 rstate 重算 logprob/value，与采样口径一致（ratio 初始为 1）。
-    @jax.jit
-    def ppo_update(ts, b_obs, b_rstates, b_actions, b_old_logprobs, b_advantages, b_returns):
-        def loss_fn(params):
-            _, logits, values = ts.apply_fn(params, b_rstates, b_obs)
-            logp_all = jax.nn.log_softmax(logits)
-            logp_a = logp_all[jnp.arange(b_actions.shape[0]), b_actions]
-            logratio = logp_a - b_old_logprobs
-            ratios = jnp.exp(logratio)
-            pg_loss = clipped_surrogate_pg_loss(ratios, b_advantages, args.clip_coef,
-                                                dual_clip_coef=args.dual_clip_coef).mean()
-            # 价值损失单样本封顶（ygo 口径的 cap，非 PPO value-clip）
-            v_loss = jnp.minimum(mse_loss(b_returns, values), args.vloss_clip).mean()
-            entropy = entropy_loss(logits).mean()
-            loss = pg_loss + args.vf_coef * v_loss - args.ent_coef * entropy
-            # 诊断量（不进梯度）：k3 KL 估计（恒非负）与 clip 触发率——epoch≥2 才有意义
-            approx_kl = ((ratios - 1.0) - logratio).mean()
-            clipfrac = (jnp.abs(ratios - 1.0) > args.clip_coef).mean()
-            return loss, (pg_loss, v_loss, entropy, approx_kl, clipfrac)
-
-        (loss, aux), grads = jax.value_and_grad(loss_fn, has_aux=True)(ts.params)
-        ts = ts.apply_gradients(grads=grads)
-        return ts, loss, aux
+    # PPO 更新步（jit + 整批前向）：定义在模块级 make_ppo_update——不连 Unity 也能单测更新链路。
+    # rollout 记录每步 incoming rstate，更新期用同一 rstate（及同一身份 dropout 乘子）重算
+    # logprob/value，与采样口径一致（ratio 首个 epoch 精确为 1）。
+    ppo_update = make_ppo_update(args)
 
     # eval.jsonl 追加行（2026-11-02 训练管线加固）：每次评估每个口径一行——
     # win_rate 均为该口径自身数值；best 选点只消费 vs SimpleAI（vs_script）口径，
@@ -839,6 +934,7 @@ def train(args: Args):
                     log_every_steps=64,
                     seat=seat,
                     prune_loop_steps=args.prune_loop_steps,
+                    identity_dropout=args.identity_dropout,
                 )
                 rollout_data.append(data)
                 carries[env_id] = [obs, rstate, pending[0], pending[1], pending[2], data["next_seat"]]
@@ -933,8 +1029,9 @@ def train(args: Args):
                 # 学习者样本可更新，跳过本窗口 PPO（梯度无定义），其余统计照记
                 print(f"[!] update {update}: 本窗口无学习者决策步，跳过 PPO 更新", flush=True)
                 loss = float("nan")
-                pg_loss = v_loss = entropy = approx_kl = clipfrac = 0.0
+                pg_loss = v_loss = entropy = approx_kl = clipfrac = aux_loss = 0.0
                 explained_var = 0.0
+                aux_labeled_frac = 0.0
                 skip_update = True
             else:
                 skip_update = False
@@ -963,15 +1060,27 @@ def train(args: Args):
                 b_old_logprobs = jnp.array(b_old_logprobs, dtype=jnp.float32)
                 b_advantages = jnp.array(b_advantages, dtype=jnp.float32)
                 b_returns = jnp.array(b_returns, dtype=jnp.float32)
+                # 辅助头标签 + 身份 dropout 乘子（二期 S1-4/S1-2）：与学习者批次同序同过滤。
+                # 乘子必须是 rollout 采样时用的那一份（data["id_keep"]），不得在此重新采样
+                b_aux_labels = jnp.array(np.concatenate(
+                    [d["aux_labels"][d["learner"]] for d in rollout_data]), dtype=jnp.float32)
+                b_aux_mask = jnp.array(np.concatenate(
+                    [d["aux_mask"][d["learner"]] for d in rollout_data]), dtype=jnp.float32)
+                b_id_keep = None
+                if all(d["id_keep"] is not None for d in rollout_data):
+                    b_id_keep = jnp.array(np.concatenate(
+                        [d["id_keep"][d["learner"]] for d in rollout_data]), dtype=jnp.float32)
+                aux_labeled_frac = float(np.asarray(b_aux_mask).mean())
 
             # ==================== PPO Update（jit 整批，update 1 编译一次后亚秒级） ====================
             # 多 epoch 复用同批：epoch1 ratio=1（params 未动，等价纯 PG），epoch≥2 偏离
             # 采样口径、clip 窗口接管——单 epoch 时代 clip 恒不触发（2026-09-29 修正）。
             if not skip_update:
                 for _ in range(args.update_epochs):
-                    train_state, loss, (pg_loss, v_loss, entropy, approx_kl, clipfrac) = ppo_update(
+                    train_state, loss, (pg_loss, v_loss, entropy, approx_kl, clipfrac, aux_loss) = ppo_update(
                         train_state, b_obs, b_rstates, b_actions,
                         b_old_logprobs, b_advantages, b_returns,
+                        b_aux_labels, b_aux_mask, b_id_keep,
                     )
 
             update_time = time.time() - update_start
@@ -1006,8 +1115,18 @@ def train(args: Args):
                 "approx_kl": float(approx_kl),
                 "clipfrac": float(clipfrac),
                 "explained_var": round(explained_var, 4),
+                # 二期 S1（2026-11-26）：辅助头损失 / 标签覆盖率（批内拿到标签的样本占比——
+                # 局比窗口长时偏低属正常）/ 身份 dropout 概率 / 三路权重 α=3·softmax(α)
+                # （[身份, 类型, 参数]，和为 3；初值 [1,1,1]——「模型多信哪条通路」直接读这一项）
+                "aux_loss": float(aux_loss),
+                "aux_labeled_frac": round(aux_labeled_frac, 4),
+                "identity_dropout": args.identity_dropout,
+                "alpha": [round(w, 4) for w in pathway_weights(train_state.params)],
                 # 塑形配置与占比（2026-11-02 补）：λ=0 基线跑出的行 share 恒 0 可直接对账
                 "shaping_lambda": args.reward_lambda,
+                # GAE λ（S3-5 2026-11-26）：每行都带——默认 0.98 / 回退 0.95 口径行级留痕，
+                # 与 config.json / 启动横幅三口同值
+                "gae_lambda": args.gae_lambda,
                 "shaping_share": round(float(np.mean(episode_shaping_shares)), 4)
                                  if episode_shaping_shares else 0.0,
                 "ep_ret": mean_return,
@@ -1070,6 +1189,11 @@ def train(args: Args):
                       f"绿[牺牲 {green_stats['sacrifice_frac']:.1%}·Any {green_stats['any_gain']}·"
                       f"大哥 {green_stats['big_play_frac']:.1%}] | "
                       f"循环 L1 {loop_events} L2 {loop_budget} 剪 {pruned_frac:.1%} 峰值 {max_turn_actions}", flush=True)
+                # 二期 S1 行：辅助头损失 + 三路权重 α（3·softmax，[身份/类型/参数]，和为 3）
+                _a = pathway_weights(train_state.params)
+                print(f"  [S1] aux_loss {float(aux_loss):.4f}（标签覆盖 {aux_labeled_frac:.0%}）| "
+                      f"α 身份/类型/参数 {_a[0]:.2f}/{_a[1]:.2f}/{_a[2]:.2f} | "
+                      f"身份 dropout p={args.identity_dropout}", flush=True)
                 # 对手池轮换证据（2026-11-02 C 期）：累计来源分布单独成行——分主题/分快照
                 # 可直接对账（与 stats.jsonl 的 oppPool 字段、info.opponentSource 同口径）
                 if args.opponent_pool != "current" or args.fsp:
@@ -1359,6 +1483,10 @@ if __name__ == "__main__":
                         help="塑形 λ 显式覆盖（默认不变）：0 = 关闭塑形——非终局奖励恒 0，"
                              "只留终局 ±1（λ=0 基线消融。旧口径 λ=0 发不下去、Unity 缺省回落 "
                              "0.005，塑形关不掉；现经 shapingSet=1 显式协议下发，含 0）")
+    parser.add_argument("--gae-lambda", type=float, default=None,
+                        help="GAE λ 显式覆盖（S3-5 2026-11-26：默认已改 0.98，"
+                             "不再跑 0.95/0.98 两臂——本旗标仅作回退/历史对照手段，如 0.95）。"
+                             "0.98=信用窗口 1/(1-γλ)≈50 步 > 折叠后跨度 22；优先于 TIDE_TRAIN_OVERRIDE 的同名字段；须 0<λ<1")
     parser.add_argument("--opponent-pool", default=None, choices=POOL_MODES,
                         help="对手池（2026-11-02 C 期，只改「和谁打」不动 obs/奖励/网络/卡表）："
                              "current=旧行为同策略自对弈（默认）；themes=三预组整组轮换"
@@ -1382,7 +1510,26 @@ if __name__ == "__main__":
                              "收口回合的步重新进 PPO 批次——环境异常误报时退回旧行为用）")
     parser.add_argument("--init-params", default="",
                         help="热启动参数：run 目录（取其 params.msgpack）或 .msgpack 路径；"
-                             "只载权重、不载优化器状态（2026-11-20 §4.6 环境修正后续训用）")
+                             "只载权重、不载优化器状态（2026-11-20 §4.6 环境修正后续训用）。"
+                             "二期 S1-5（2026-11-26）起为形状匹配合并：同名同形状的叶子继承旧权重、"
+                             "其余保留本次初始化，启动时打印 loaded/fresh 清单")
+    parser.add_argument("--identity-dropout", type=float, default=None,
+                        help="身份通路训练期 dropout 概率 p（二期 S1-2，默认 0.1）；0 = 关闭"
+                             "（身份 Embed 恒等进入，消融用）。优先于 TIDE_TRAIN_OVERRIDE 的同名字段")
+    # 二期 S3（§5.5 首轮配置 / B5 纯 S2b）：handoff/chain 按次覆盖——B5 必须显式
+    # --chain-reward-lambda 0 --handoff-state none（缺省值=正式 run 口径 0.02/genel_ready 由
+    # §5.5 定义、命令行照传，不靠隐式缺省）
+    parser.add_argument("--handoff-state", default=None,
+                        choices=("none", "t3_lands", "first_sac_done", "genel_ready"),
+                        help="S3-1 开手交棒档位（none=关）")
+    parser.add_argument("--max-opening-turns", type=int, default=None,
+                        help="S3-1 交棒兜底回合（0=不兜底）")
+    parser.add_argument("--chain-reward-lambda", type=float, default=None,
+                        help="S3-3 链进度势能系数（0=关；§5.5 正式=0.02，B5=0）")
+    parser.add_argument("--picks-mode", default=None, choices=("macro", "step", "both"),
+                        help="目标拾取行模式（二期 S2a v22，默认 macro）：macro=多步计划只产选项"
+                             "提交行（一次完成）；step=A6 逐步行（现状）；both=并存（仅诊断）。"
+                             "优先于 TIDE_TRAIN_OVERRIDE 的同名字段")
     parser.add_argument("--opponent", default=None, choices=("selfplay", "simpleai", "script"),
                         help="对手位口径（A1 2026-11-24 回到一期训练目标）：一期验收只认 simpleai"
                              "（script=simpleai 别名，进协议前归一）；优先于 TIDE_TRAIN_OVERRIDE——"
@@ -1438,6 +1585,35 @@ if __name__ == "__main__":
     if cli.shaping_lambda is not None:
         args.reward_lambda = cli.shaping_lambda
 
+    # --gae-lambda（S3-5 2026-11-26）同理：命令行显式指定优先于 TIDE_TRAIN_OVERRIDE
+    #（优先级 CLI > env > 默认；0.95 回退/历史对照走本参数）；须 0<λ<1——λ≤0 退化为无
+    # advantage 平滑、λ≥1 非标准 GAE，越界在此响亮失败（否则错误口径静默跑完整个 run）
+    if cli.gae_lambda is not None:
+        args.gae_lambda = cli.gae_lambda
+    if not 0.0 < args.gae_lambda < 1.0:
+        raise SystemExit(f"[!] gae_lambda 须在 (0, 1) 内，得到 {args.gae_lambda}")
+
+    # --identity-dropout 同理（二期 S1-2）：命令行显式指定优先于 TIDE_TRAIN_OVERRIDE；
+    # p 须在 [0, 1)——p=1 会让乘子的 1/(1-p) 除零，p<0 无意义，统一在这里响亮失败
+    if cli.identity_dropout is not None:
+        args.identity_dropout = cli.identity_dropout
+    if not 0.0 <= args.identity_dropout < 1.0:
+        raise SystemExit(f"[!] identity_dropout 须在 [0, 1) 内，得到 {args.identity_dropout}")
+
+    # --picks-mode（二期 S2a，v22）：命令行显式指定优先于 TIDE_TRAIN_OVERRIDE；非法值在此
+    # 响亮失败（打到 Unity 才回落 = 整个 run 白跑错口径）
+    if cli.picks_mode is not None:
+        args.picks_mode = cli.picks_mode
+    # 二期 S3（§5.5）：handoff/chain 按次覆盖（None=沿用 Args 缺省）
+    if cli.handoff_state is not None:
+        args.handoff_state = cli.handoff_state
+    if cli.max_opening_turns is not None:
+        args.max_opening_turns = cli.max_opening_turns
+    if cli.chain_reward_lambda is not None:
+        args.chain_reward_lambda = cli.chain_reward_lambda
+    if args.picks_mode not in ("macro", "step", "both"):
+        raise SystemExit(f"[!] picks_mode 须为 macro/step/both，得到 {args.picks_mode!r}")
+
     # A1（2026-11-24 回到一期训练目标）：口径显式化——命令行 --opponent 优先于 TIDE_TRAIN_OVERRIDE
     #（口径不是超参：环境变量 JSON 只许改超参，不许无感换口径）。script=simpleai 别名，进协议前归一。
     if cli.opponent is not None:
@@ -1457,6 +1633,10 @@ if __name__ == "__main__":
     print(f"  Project: {args.project_path or 'auto-detect'}")
     print(f"  Max episode steps: {args.max_episode_steps}")
     print(f"  Total timesteps: {args.total_timesteps:,}")
+    # S3-5（2026-11-26）：GAE λ 启动即打印——默认 0.98 / 回退 0.95 口径从日志第一眼可分，
+    # 与 config.json / stats.jsonl 的 gae_lambda 字段三口对账
+    print(f"  GAE λ: {args.gae_lambda}（信用窗口 1/(1-γ·λ)≈{1.0 / (1.0 - args.gamma * args.gae_lambda):.0f} 步；"
+          f"CLI --gae-lambda 可改（0.95 回退），优先级 CLI > TIDE_TRAIN_OVERRIDE > 默认）")
     print(f"  Opponent: {args.opponent}")
     if args.opponent == "simpleai":
         print(f"  [口径] 一期验收口径（对手=脚本；preflight_phase1/certify_phase1 只认 simpleai）")

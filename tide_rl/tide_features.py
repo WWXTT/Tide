@@ -18,9 +18,10 @@ TideObservation 产出的扁平特征向量：
   对方牌库被展示 4 → 每人 77 槽 + 尾块 35 = 189）
 - global_: (100,) — 全局状态（v9：+8 对方牌库开局标签 g[50..57]；v19：+12 剩余可用元素块 g[58..69]；
   v20：+9 占用码 g[70..78] + 9 格团结邻接 g[79..87]；v21：+8 己方牌库开局标签 g[88..95]
-  + g[96] 己方牌库唯一卡超 30 种的截断标记；v21 定稿（2026-11-24 拍板，不再讨论 v22）：
-  +g[97]/g[98] 双方手牌上限 + g[99] 己方超上限剩余待弃张数——A0 逐张弃配套）
-- actions_: (max_actions, N_ACTION_FEATURES) — 每动作特征维（v8=11→v14 起=14→v20 起=20）
+  + g[96] 己方牌库唯一卡超 30 种的截断标记；v21 定稿 → 2026-11-26 v22：LAYOUT_VERSION 21→22、
+  动作特征 20→26（二期 S2a；globals 保持 100）：+g[97]/g[98] 双方手牌上限 + g[99] 己方超上限
+  剩余待弃张数——A0 逐张弃配套）
+- actions_: (max_actions, N_ACTION_FEATURES) — 每动作特征维（v8=11→v14 起=14→v20 起=20→v22 起=26）
 - h_actions_: (32, 14) — 历史动作（暂未实现，传 None）
 
 v3 布局（2026-10-14 精确对齐期）权威契约见 docs/action_space_v3_contract.md——
@@ -182,7 +183,13 @@ MAX_CARDS = 191 # v15 场地特殊化（2026-11-18）：189→191 = 尾部场地
 # ③同批补盲（维度不变、身份换血）：生物攻/守资格按「带发动条件的主动效果」进内容身份——原子槽
 # [10]=攻击/[11]=守卫、结构哈希含其骨架、卡特征 [7] 可攻击粗判加攻资格闸（此前火灵·攻/守仅攻守
 # 资格不同、观测逐位相同）。旧 checkpoint/ONNX/fixture 全部作废；副本须同步后再开训。
-LAYOUT_VERSION = 21
+# v22（2026-11-26 二期 S2a，docs/二期训练架构_实施计划.md §4）：**时域/粒度修复**——多步目标
+# 拾取折叠为「选项行」（macro，TargetPickGate.OpenAndAutoComplete 按共享序一次完成），动作特征
+# 20→26：+[20]pickMode（0=普通行/1=选项提交行/2=闸内选项步〔诊断〕）+[21..24] 效果前 4 个原子的
+# AtomTypeIndex/4096（不足补 0，无效果行全 0）+[25] 原子数/16；同批 PlayLand 折叠键并来源卡身份
+#（C8：放地行此前被折成 1 行、模型不能选「烧哪张」）。globals/卡特征/卡槽不变。旧 checkpoint/
+# ONNX/fixture 全部作废（动作编码器输入 276→282）。
+LAYOUT_VERSION = 22
 # 动作截断上限 512（v2 起）：逐目标展开（出牌/发动 × 候选目标）+ 守卫/响应行。
 # v3 起 C# 枚举器侧带同值守卫（超限保前 511 + 恒保末位兜底行）——本侧 pad_or_truncate_actions
 # 的头截断永不会切掉 EndTurn/PassPriority（v2 理论死锁修复，契约 §6）。
@@ -213,7 +220,13 @@ MAX_ACTIONS = 512
 #   Activate/RespondActivate 行此前恒 -1 被 FoldEquivalentRows 折叠，战斗母巢 9 锚点行塌成 1）；
 #   +[18]summonPlan（0=默认/1..9=锚点/-1=非召唤）、+[19]summonUnityHits（该计划落位后团结
 #   达标数 0..6/-1，PredictUnityHits 单源——与 [5]actionCost 同层非观测泄露，拍板保留）。
-N_ACTION_FEATURES = 20
+# v22（2026-11-26 二期 S2a）20→26 维：+[20]pickMode（0=普通行 / 1=选项提交行〔macro，选中后
+#   OpenAndAutoComplete 按共享序一次选满提交〕/ 2=闸内选项步〔step 路径的诊断标记〕）+
+#   [21..24]=效果（a.Effect）前 4 个原子的 AtomTypeIndex/4096（不足补 0；无效果行全 0——
+#   补盲动柞：[6]effectIdentity 是 1024 池标量，玩家自组卡组时等于随机数；原子类型对未见卡可读）、
+#   [25]=原子数/16。选项行 Targets=空、[10] 语义保持（-1/FixedTotal）；[20] 进 LAE.Signature
+#   （防与无目标行同键被误摘）。模式开关 reset 选项 picksMode=macro/step/both（默认 macro）。
+N_ACTION_FEATURES = 26
 # 全局特征 v3 49→50（重排序+归一化；对账报告 D5/D7/D14）：
 #   g[15][16] 放逐计数（新增）；生命/30、回合/40、势能/30、地牌上限/14、弹药/5 归一化；
 #   英雄技能块 [38..41]/[42..45]（[b+3]=角色攻击弹药）；g[47] 栈顶来源/MaxCardsTotal；
@@ -234,7 +247,8 @@ N_ACTION_FEATURES = 20
 # v21（2026-11-24 卡组分布与策略分界）88→97：+g[88..95] 己方牌库开局标签（源=GameCore.OriginalDeckOf(me)
 #   入局快照，DeckTagsOf 与对方块 g[50..57] 同函数同口径、整局恒定、原始计数不归一化——「我是哪套」
 #   显式可见，此前只有对方有）；+g[96] deckTruncated（己方牌库唯一卡 >30 种、牌库块被截断=1，否则 0）。
-# v21 定稿（2026-11-24 回到一期训练目标 B0.3 拍板：globals 100，不再讨论 v22）97→100：
+# v21 定稿（2026-11-24 回到一期训练目标 B0.3）97→100 → 2026-11-26 v22（二期 S2a：
+# LAYOUT_VERSION 21→22、动作特征 20→26；globals 不变）：
 #   +g[97] 己方手牌上限 / g[98] 对方手牌上限（RuleHooks.GetHandLimit 单源线性计数——修改链如
 #   纳川仪典的额外上限直接可见）；+g[99] 己方超上限剩余待弃张数（弃牌进行中=HandLimitDiscardGate
 #   快照剩余；否则己方回合 max(0, 有效手牌−上限)；对手回合恒 0——对手回合超限走入手闸改投除外区）。
@@ -260,6 +274,10 @@ ACTION_F_TARGET3 = 9
 ACTION_F_NTARGETS = 10  # A6（2026-11-24 逐目标单选）：语义=nTargets→picksRemaining（见上方 A6 段注）；常量名保留（槽位不变）
 # v13 参照槽位（2026-11-08 目标选择重构步5）：Reference 角色选位镜像——与 C# BuildFeatures [11] 对齐
 ACTION_F_REF_INDEX = 11
+# v22（2026-11-26 二期 S2a）动作语义补盲三组：
+ACTION_F_PICK_MODE = 20        # [20] 0=普通行 / 1=选项提交行（macro） / 2=闸内选项步（诊断）
+ACTION_F_ATOM_TYPE_FIRST = 21  # [21..24] 效果前 4 个原子的 AtomTypeIndex/4096（不足补 0；无效果=0）
+ACTION_F_ATOM_COUNT = 25       # [25] 原子数/16（无效果行=0）
 
 # ---- 全局特征命名下标（v3 契约 §5）----
 GLOBAL_F_IS_MY_TURN = 4         # 决策座次是否回合玩家（v3 删 g[48] 冗余，本位即权威）

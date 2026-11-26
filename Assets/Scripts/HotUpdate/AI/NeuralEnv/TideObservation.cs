@@ -127,9 +127,15 @@ namespace CardCore.AI.NeuralEnv
         // 语义变更**——[8]/[9] 次目标维废止恒 -1（组合行退役）；[10] 由 nTargets 改 **PicksRemaining
         // 剩余待选数**（0=无目标/提交行、1=单步行/最后一步、N=纯固定计划剩余步数、-1=计划含可变
         // 数量 spec）。多目标效果改「每步选 1 个目标」（TargetPickGate 累积，提交按计划序拼全集）。
-        // LAYOUT_VERSION 保持 21（v21 尚未产出权重、无非兼容旧件），但旧 ONNX/checkpoint/夹具
-        // 即使维度相同也不得复用（[1]/[10] 语义漂移）。
-        public const int LayoutVersion = 21;
+        // v22（2026-11-26 二期 S2a，docs/二期训练架构_实施计划.md §4——时域/粒度修复）：动作特征
+        // 20→**26**——+[20]pickMode（0=普通行/1=选项提交行〔macro：多步拾取计划的一次性完成行，
+        // Targets=空、[10] 语义保持，TargetPickGate.OpenAndAutoComplete 按共享序选满提交〕/
+        // 2=闸内选项步〔step 路径诊断〕；进 LAE.Signature 防误摘）+[21..24] 效果前 4 个原子的
+        // AtomTypeIndex/4096 +[25] 原子数/16；同批 PlayLand 折叠键并来源卡身份（C8）。模式开关
+        // reset 选项 picksMode=macro（默认）/step/both。卡特征 158/卡槽 191/globals 100 不变；
+        // 动作编码器输入 276→282——旧 checkpoint/ONNX/fixture 全部作废（热启动走
+        // merge_params_by_shape 并树，v21 动作编码器 kernel 变 reshaped）。
+        public const int LayoutVersion = 22;
         public const int MaxCardsPerPlayer = 77; // v10：43→77（墓地 4→30、除外 8 入册）
         // v9 己方牌库块（尾接全局块，不走 ZoneLayout 每玩家偏移语义——专用 DeckBase+排序名次路径）：
         // v21 起槽=**唯一卡种类**上限（每种唯一卡一槽、[157] 写张数）——超过 30 种按排序键截断
@@ -252,7 +258,13 @@ namespace CardCore.AI.NeuralEnv
         //   Activate/RespondActivate 行——类型闸修复）；+[18]summonPlan（0=默认/1..9=锚点/-1=非召唤）、
         //   +[19]summonUnityHits（该计划落位后团结达标数 0..6/-1——与 [5]actionCost 同层非观测泄露，
         //   2026-11-20 拍板保留）。
-        public const int NAction = 20;
+        // + v22（2026-11-26 二期 S2a）动作语义补盲三组：[20]pickMode（0=普通行/1=选项提交行〔macro，
+        //   选中后 OpenAndAutoComplete 按共享序一次选满提交〕/2=闸内选项步〔诊断〕——多步拾取折叠
+        //   为选项行 = 时域/粒度修复：链折叠后跨度 35→22 步、每局步数 40.4→28.4）、
+        //   [21..24]=效果前 4 个原子的 AtomTypeIndex/4096（不足补 0；无效果行全 0——[6]effectIdentity
+        //   是 1024 池标量，玩家自组卡组时近似随机数，原子类型让「这条行在做什么」对未见卡可读）、
+        //   [25]=原子数/16（无效果=0）。
+        public const int NAction = 26;
 
         public float[] Cards = new float[MaxCardsTotal * NCard];
         public float[] Globals = new float[NGlobal];

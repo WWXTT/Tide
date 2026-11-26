@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using CardCore;
 using CardCore.AI;
+using CardCore.AI.NeuralEnv; // S3-2（2026-11-26 二期）：脚本 BC 拦截录制（ScriptBcRecorder；未启用=零开销）
 using CardCore.Attribute;
 
 namespace SynergyUI
@@ -286,7 +287,11 @@ namespace SynergyUI
             //    游戏已结束则不再 EndTurn（避免"★ 游戏结束"之后又出现阶段推进）
             SettleStack(core);
             if (!core.IsGameOver)
-                GameActions.EndTurn(core, me);
+            {
+                var __bc = ScriptBcRecorder.BeginAction(core, me, _board); // S3-2 拦截（未启用=null）
+                bool __ok = GameActions.EndTurn(core, me);
+                ScriptBcRecorder.CommitEndTurn(__bc, me, __ok);
+            }
         }
 
         // ======================================== 资源准备 ========================================
@@ -327,7 +332,9 @@ namespace SynergyUI
                 if (CanPlayCard(core, me, card, Zone.Hand) && !_strategy.WantLand(core, me, card))
                     continue;
                 var lc = _strategy.LandColorChoice(core, me, card);
-                GameActions.AddToElementPool(core, me, card, lc);
+                var __bc = ScriptBcRecorder.BeginAction(core, me, _board); // S3-2 拦截（未启用=null）
+                bool __ok = GameActions.AddToElementPool(core, me, card, lc);
+                ScriptBcRecorder.CommitPlayLand(__bc, me, card, lc, __ok);
             }
         }
 
@@ -512,9 +519,11 @@ namespace SynergyUI
             if (skillEffects.Count > 0
                 && !TryBuildInteraction(core, me, skillCard2, skillEffects[effectIndex], heroTargets, out skillInter))
                 return false;
+            var __bcSkill = ScriptBcRecorder.BeginAction(core, me, _board); // S3-2 拦截（未启用=null）
             var ok = heroTargets != null || skillInter != null
                 ? GameActions.ActivateHeroSkill(core, me, effectIndex, heroTargets, null, skillInter, out _)
                 : await GameActions.ActivateHeroSkill(core, me, effectIndex);
+            ScriptBcRecorder.CommitHeroSkill(__bcSkill, me, effectIndex, heroTargets, ok); // S3-2（未启用=null 直通）
             if (ok)
             {
                 _strategy.OnHeroSkillActivated(core, me);
@@ -544,7 +553,10 @@ namespace SynergyUI
                 // P1 v0.3：含移动/宣言原子的待发效果构造交互参数后随队入栈（候选空=跳过）
                 if (!TryBuildInteraction(core, me, effect.Source as Card, effect.Effect, effect.SelectedTargets, out var inter)) continue;
                 if (inter != null) effect.Interaction = inter;
-                if (core.StackEngine.PlayerActivateVoluntary(effect))
+                var __bcVol = ScriptBcRecorder.BeginAction(core, me, _board); // S3-2 拦截（未启用=null）
+                bool __okVol = core.StackEngine.PlayerActivateVoluntary(effect);
+                ScriptBcRecorder.CommitVoluntary(__bcVol, me, effect, __okVol);
+                if (__okVol)
                     any = true;
             }
             return any;
@@ -570,11 +582,17 @@ namespace SynergyUI
                     if (!executor.CanActivate(def, source, me, me, phase, core.TurnEngine.TurnNumber)) continue;
                     // P1 v0.3：含移动/宣言原子的效果先构造交互参数（候选空=跳过该能力）
                     if (!TryBuildInteraction(core, me, source, def, null, out var interaction)) continue;
+                    var __bcAct = ScriptBcRecorder.BeginAction(core, me, _board); // S3-2 拦截（未启用=null）
                     if (GameActions.ActivateEffect(core, me, def, source, null, null, 0, interaction, out _))
                     {
+                        ScriptBcRecorder.CommitActivate(__bcAct, me, def, source, true);
                         any = true;
                         await SettleAfterAiActionAsync(core, me); // 阶段2：给人响应窗
                         if (core.IsGameOver) return any;
+                    }
+                    else
+                    {
+                        ScriptBcRecorder.CommitActivate(__bcAct, me, def, source, false);
                     }
                 }
             }
@@ -633,14 +651,17 @@ namespace SynergyUI
                 var targets = pinned ?? ChooseTargets(core, me, card, mode);
                 // P1（2026-11-19 v0.3）：含移动/宣言原子的效果先构造交互参数（无空格/候选空=不打出）
                 if (!TryBuildInteraction(core, me, card, chosenDef, targets, out var interaction)) continue;
+                var __bcPlay = ScriptBcRecorder.BeginAction(core, me, _board); // S3-2 拦截（未启用=null）
                 if (GameActions.PlayCard(core, me, card, targets, Zone.Hand, mode, null, null, interaction, out _))
                 {
+                    ScriptBcRecorder.CommitPlayCard(__bcPlay, me, card, mode, targets, true);
                     TryPinPlacement(core, me, card); // 阶段5：永久物钉格（声明成功即 Pin，与人类 PlayCardFinal 同时点）
                     await StageCastAsync(core, card, targets); // 出牌舞台：亮 1 秒（卡面+箭头）再结算
                     // 阶段2（2026-11-15 A0）：cast 已上栈——人类在场走响应窗泵（可反制），无头双 Pass 排干
                     await SettleAfterAiActionAsync(core, me);
                     return true;
                 }
+                ScriptBcRecorder.CommitPlayCard(__bcPlay, me, card, mode, targets, false);
             }
             return false;
         }
@@ -982,15 +1003,24 @@ namespace SynergyUI
                 // 先按要求把牌打出去并结算，再宣言攻击（打不动/无牌则原样继续）。
                 var preTargets = new List<Entity>();
                 var preCard = _strategy.PickAttackTimeSpell(core, me, unit, target, preTargets);
-                if (preCard != null && GameActions.PlayCard(core, me, preCard, preTargets, Zone.Hand, 0))
+                if (preCard != null)
                 {
-                    SettleStack(core);
-                    if (core.IsGameOver) return;
-                    // 血偿可能把原定目标打掉 → 重新择目标（重选不到就跳过这一攻）
-                    target = _strategy.PickAttackTarget(core, me, unit, opp);
-                    if (target == null) continue;
+                    var __bcPre = ScriptBcRecorder.BeginAction(core, me, _board); // S3-2 拦截（未启用=null）
+                    bool __okPre = GameActions.PlayCard(core, me, preCard, preTargets, Zone.Hand, 0);
+                    ScriptBcRecorder.CommitPlayCard(__bcPre, me, preCard, 0, preTargets, __okPre);
+                    if (__okPre)
+                    {
+                        SettleStack(core);
+                        if (core.IsGameOver) return;
+                        // 血偿可能把原定目标打掉 → 重新择目标（重选不到就跳过这一攻）
+                        target = _strategy.PickAttackTarget(core, me, unit, opp);
+                        if (target == null) continue;
+                    }
                 }
-                if (!GameActions.DeclareAttack(core, me, unit, target)) continue;
+                var __bcAtk = ScriptBcRecorder.BeginAction(core, me, _board); // S3-2 拦截（未启用=null）
+                bool __okAtk = GameActions.DeclareAttack(core, me, unit, target);
+                ScriptBcRecorder.CommitAttack(__bcAtk, me, unit, target, __okAtk);
+                if (!__okAtk) continue;
                 await GameActions.SettleResponseWindowAsync(core); // 窗口+结算（含级联触发/SBA 轮）
                 await PaceAsync(); // 人机节奏：等本次攻击演出（走位/交击/死亡漩涡）演完再宣言下一攻
             }
@@ -1000,10 +1030,16 @@ namespace SynergyUI
             if (!core.IsGameOver && core.CombatSystem.CanDeclareAttack(me, me))
             {
                 var heroTarget = PickHeroAttackTarget(core, me, opp);
-                if (heroTarget != null && GameActions.DeclareAttack(core, me, me, heroTarget))
+                if (heroTarget != null)
                 {
-                    await GameActions.SettleResponseWindowAsync(core);
-                    await PaceAsync(); // 人机节奏：角色攻击演出同样等演完
+                    var __bcHero = ScriptBcRecorder.BeginAction(core, me, _board); // S3-2 拦截（未启用=null）
+                    bool __okHero = GameActions.DeclareAttack(core, me, me, heroTarget);
+                    ScriptBcRecorder.CommitAttack(__bcHero, me, null, heroTarget, __okHero); // 角色攻：卡=null→行侧 HeroAttacker
+                    if (__okHero)
+                    {
+                        await GameActions.SettleResponseWindowAsync(core);
+                        await PaceAsync(); // 人机节奏：角色攻击演出同样等演完
+                    }
                 }
             }
         }

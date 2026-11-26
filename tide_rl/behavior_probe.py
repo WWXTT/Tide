@@ -38,7 +38,7 @@ from pathlib import Path
 import jax
 import flax.serialization
 
-from tide_agent import create_tide_agent
+from tide_agent import create_tide_agent, merge_params_by_shape
 from tide_features import (
     init_rstate, sample_input, ACTION_F_TYPE, ACTION_F_SOURCE,
 )
@@ -199,7 +199,11 @@ def main():
     dummy_obs = jax.tree.map(lambda x: x[None, ...] if x is not None else None, dummy_obs)
     params = agent.init(jax.random.PRNGKey(args.seed), init_rstate(args.rnn_type), dummy_obs)
     with open(ckpt, "rb") as f:
-        params = flax.serialization.from_bytes(params, f.read())
+        # 跨树加载（2026-11-26 用户定，决策③）：strict from_bytes 在参数树变更（S3-3 aux 2→3 等）
+        # 后拒载旧 ckpt——与 eval_checkpoint/train --init-params 同策 merge_params_by_shape
+        # （同名同形状继承，形状变化/new 模块保留本次初始化）。
+        old_params = flax.serialization.from_bytes(None, f.read())
+        params, _merge_report = merge_params_by_shape(params, old_params)
     jit_apply = jax.jit(agent.apply)
     print(f"[ckpt] {ckpt}（split={meta.get('_split')} step={meta.get('step')}）", flush=True)
 

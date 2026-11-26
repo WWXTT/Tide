@@ -12,7 +12,9 @@ import numpy as np
 import jax
 from collections import namedtuple
 
-from tide_features import init_rstate
+from tide_features import init_rstate, MAX_CARDS, N_ID_SLOTS
+# 辅助头标签的归一化除数与模型输出共用一个常量（AUX_REMAIN_STEPS_DIV）——两侧各写一份就会漂
+from tide_agent import AUX_REMAIN_STEPS_DIV
 
 # 完结对局统计（2026-11-02 训练管线加固扩容，原 3 元组 (ret, len, timeout)）：
 #   ret         整局回报（双座 actor-centric 原始累计——自对弈下混两座次，仅作监控量）
@@ -33,8 +35,12 @@ EpisodeStats = namedtuple("EpisodeStats", "ret len timeout shaping_ret winner mo
 
 def _behavior_of(info):
     """2026-11-23 B4：终局 info → 本局模型行为计数（老协议无字段 → 空 dict，下游按 0 处理）。
-    追加（同日晚）：绿成长 grow/land_t1/land_t3、红法术线 blood/bomb/combo。"""
-    if not isinstance(info, dict) or ("mSac" not in info and "mAgros" not in info):
+    追加（同日晚）：绿成长 grow/land_t1/land_t3、红法术线 blood/bomb/combo。
+    二期 S3（2026-11-26 §5）追加：开手交棒 handoff_*（命中率/交棒点分布 → stats.jsonl）
+    与链进度 chain_bits/chain_done（decider 座位闩位；chain_done=aux 第三标签「本局是否
+    到达目标态」的标签源）。老协议无字段时按缺省 0/""——零破坏。"""
+    if not isinstance(info, dict) or ("mSac" not in info and "mAgros" not in info
+                                      and "handoffState" not in info):
         return {}
     return {"sac": int(info.get("mSac", 0)), "rec": int(info.get("mRec", 0)),
             "chain": int(info.get("mChain", 0)), "agros": int(info.get("mAgros", 0)),
@@ -47,12 +53,23 @@ def _behavior_of(info):
             "atk_safe": int(info.get("mAtkSafe", 0)),
             "atk_risky": int(info.get("mAtkRisky", 0)),
             "atk_face": int(info.get("mAtkFace", 0)),
-            "atk_any": int(info.get("mAtkAny", 0))}
+            "atk_any": int(info.get("mAtkAny", 0)),
+            # 二期 S3-1：开手交棒（handoffState="" 老协议→"none"）
+            "handoff_state": str(info.get("handoffState", "") or "none"),
+            "handoff_done": 1 if info.get("handoffDone") else 0,
+            "handoff_turn": int(info.get("handoffTurn", 0)),
+            "handoff_lands": int(info.get("handoffLands", 0)),
+            "handoff_gen_cost": float(info.get("handoffGenCost", -1.0)),
+            "handoff_gen_in_hand": 1 if info.get("handoffGenInHand") else 0,
+            "handoff_miss": str(info.get("handoffMiss", "") or ""),
+            # 二期 S3-3：链进度闩位（decider 座位；终局步=全量）
+            "chain_bits": int(info.get("chainBits", 0)),
+            "chain_done": 1 if info.get("chainDone") else 0}
 
 
 def rollout_single_env(agent_apply, params, env, obs, rstate, num_steps, rng, rnn_type="gru",
                        pending=(0.0, 0, 0.0), log_every_steps=0, seat=None,
-                       prune_loop_steps=True):
+                       prune_loop_steps=True, identity_dropout=0.0):
     """从 (obs, rstate) 续跑 num_steps；episode 结束自动 reset 并重置 rstate。
 
     Args:
@@ -66,6 +83,14 @@ def rollout_single_env(agent_apply, params, env, obs, rstate, num_steps, rng, rn
               出现 info.loopPruned 时，该回合在本窗口内的全部步 learner 置 0
               （回合级回溯：空转步不进 PPO 批次，与「对手步剔除」同一条通道；
               GAE 仍在全序列上算，只在入批时过滤行）。--no-prune 回退旧口径。
+        identity_dropout: 身份通路训练期 dropout 概率 p（二期 S1-2，2026-11-26）。>0 时
+              每个学习者步先抽乘子 keep = Bernoulli(1-p)/(1-p)，形状 (1, MAX_CARDS,
+              N_ID_SLOTS)（逐身份槽独立；期望保持），记入 data["id_keep"]，并以
+              agent_apply(params, rstate, obs_batch, id_keep=keep) 前向——更新期必须把
+              **同一个**乘子传回模型（train_tide_complete.ppo_update），采样 logprob 与首个
+              epoch 重算才同口径（ratio 精确为 1）。对手步的学习者链前向与价值 bootstrap
+              不带 dropout（eval 口径）。=0（默认）逐字走旧调用形态
+              agent_apply(params, rstate, obs_batch) 且不产 id_keep（quick_train_tcp 等旧调用方零差）。
 
     对手池快照对手（2026-11-02 C 期）：env 带 opponent_params/learner_seat 属性
     （OpponentPoolEnv，checkpoints/fsp 来源）时，非学习者座次的决策由快照参数驱动——
@@ -78,12 +103,21 @@ def rollout_single_env(agent_apply, params, env, obs, rstate, num_steps, rng, rn
 
     Returns:
         data: dict{obs, rstates, actions, logprobs, rewards, dones, values,
-                   seats(可 None), next_seat(可 None), learner}
+                   seats(可None), next_seat(可None), learner,
+                   aux_labels, aux_mask, id_keep(可None)}
               rstates = 每步前向实际使用的 incoming rstate（更新期重算 logprob 用，
               与采样口径一致——不能在更新期用重置态重算，否则 ratio 错位）
               seats = 每步行动方座次；next_seat = 窗口末携带 obs 的行动方座次
               （bootstrap 符号用）；中途 toPlay 缺失则两者置 None
               learner = 每步是否学习者决策（无快照对手时恒 True）
+              aux_labels (num_steps, 3) float32 = 辅助头标签 [剩余步数/512, timeout,
+              本局到达链目标态]——二期 S1-4 + S3-3（2026-11-26），
+              aux_mask (num_steps,) float32 = 1 表示该步标签有效——二期 S1-4
+              （2026-11-26）：标签只在**所属局完结时**才知道，按局回填到该局在本窗口内的
+              全部步。跨窗口续跑的局，前段步在更早的窗口（当时已入批、无法追溯），只有
+              本窗口内的步拿得到标签；窗口末仍未完结的局 aux_mask=0（aux loss 不计）
+              id_keep (num_steps, MAX_CARDS, N_ID_SLOTS) float32 = 身份通路 dropout 乘子
+              （identity_dropout>0 时才有；对手步占位为全 1——该步本就不入学习者批次）
         next_obs, next_rstate: 窗口末尾状态（交给下一窗口续跑）
         rng
         episodes: 本窗口内完结 episode 的 [EpisodeStats, ...]（含跨窗口累计）
@@ -102,6 +136,16 @@ def rollout_single_env(agent_apply, params, env, obs, rstate, num_steps, rng, rn
     ep_ret, ep_len, ep_shaping = pending
     # 对手链跨窗口续跑（env 是 OpponentPoolEnv 且本局有快照对手时非 None）
     rstate_opp = getattr(env, "carry_rstate_opp", None)
+
+    # ---- 辅助头标签（二期 S1-4；S3-3 2026-11-26 扩第三维）：局完结时回填，见 docstring ----
+    # [0]=剩余步数/512（线性）、[1]=timeout（0/1）、[2]=本局是否到达链目标态（0/1——
+    # info.chainDone，decider 座位 bit3；随机卡组/未达=0。旧 checkpoint 的 aux 头 2 维
+    # ≠3 维，经 merge_params_by_shape 热启动时该头自动落 fresh 初始化）
+    aux_labels = np.zeros((num_steps, 3), dtype=np.float32)
+    aux_mask = np.zeros((num_steps,), dtype=np.float32)
+    id_keep_list = []
+    ep_win_start = 0        # 当前局在本窗口的首步下标（跨窗口续跑的局 = 0）
+    ep_len_at_start = ep_len  # 当前局在窗口首步之前已累计的步数（跨窗口前段；新局 = 0）
 
     # ---- L3-A 循环空转步剪枝状态（2026-11-18 循环治理 §5.4）----
     # 回合边界用 info.turn 跳变检测：cur_turn = 本步行动时的回合号（上一步响应的
@@ -132,10 +176,22 @@ def rollout_single_env(agent_apply, params, env, obs, rstate, num_steps, rng, rn
                 "对手池快照对手在局但 info.toPlay 座次缺失——无法归属决策点，拒绝继续 rollout")
         opp_step = opp_active and seat != env.learner_seat
 
+        # 身份通路 dropout 乘子（二期 S1-2）：只在学习者步抽；对手步不带（eval 口径）
+        keep = None
+        if not opp_step and identity_dropout > 0.0:
+            rng, drop_key = jax.random.split(rng)
+            keep = jax.random.bernoulli(
+                drop_key, 1.0 - identity_dropout, shape=(1, MAX_CARDS, N_ID_SLOTS)
+            ) / (1.0 - identity_dropout)
+
         # 学习者链前向（记录 incoming rstate 供更新期同口径重算；对手步也走——
         # critic 值保证 GAE 全序列递推不缺位，链动态与纯 selfplay 单链同构）
         rstates_list.append(rstate)
-        rstate, logits, value = agent_apply(params, rstate, obs_batch)
+        if keep is None:
+            rstate, logits, value = agent_apply(params, rstate, obs_batch)
+        else:
+            rstate, logits, value = agent_apply(params, rstate, obs_batch, id_keep=keep)
+        id_keep_list.append(None if keep is None else np.asarray(keep[0], dtype=np.float32))
         logits = logits[0]
         value = value[0]
         values_list.append(float(value))
@@ -202,10 +258,21 @@ def rollout_single_env(agent_apply, params, env, obs, rstate, num_steps, rng, rn
 
         obs = next_obs
         if done or truncated:
+            ep_timeout = bool(info.get("timeout", False))
             episodes.append(EpisodeStats(
-                ep_ret, ep_len, bool(info.get("timeout", False)),
+                ep_ret, ep_len, ep_timeout,
                 ep_shaping, str(info.get("winner", "") or ""), int(info.get("modelSeat", -1)),
                 getattr(env, "carry_ep_theme", ""), _behavior_of(info)))
+            # ---- 辅助头标签回填（二期 S1-4）：该局在本窗口内的步 [ep_win_start, step] ----
+            # 局内第 i 步（0 基）的剩余步数（含本步）= 该局总步数 ep_len − i；timeout 标签整局同值。
+            # ep_len 此刻已含本步；跨窗口前段局的局内序号从 ep_len_at_start 起算。
+            lo, hi = ep_win_start, step + 1
+            idx_in_ep = np.arange(ep_len_at_start, ep_len_at_start + (hi - lo))
+            aux_labels[lo:hi, 0] = (ep_len - idx_in_ep) / AUX_REMAIN_STEPS_DIV
+            aux_labels[lo:hi, 1] = 1.0 if ep_timeout else 0.0
+            aux_labels[lo:hi, 2] = 1.0 if info.get("chainDone") else 0.0  # S3-3 第三标签
+            aux_mask[lo:hi] = 1.0
+            ep_win_start, ep_len_at_start = step + 1, 0
             ep_ret, ep_len, ep_shaping = 0.0, 0, 0.0
             obs, info = env.reset()
             rstate = init_rstate(rnn_type)
@@ -249,6 +316,14 @@ def rollout_single_env(agent_apply, params, env, obs, rstate, num_steps, rng, rn
                 learner_list[i] = False
                 loop_pruned_steps += 1
 
+    # 身份 dropout 乘子整窗堆叠（二期 S1-2）；对手步占位全 1（该步本就不入学习者批次）
+    id_keep_arr = None
+    if identity_dropout > 0.0:
+        id_keep_arr = np.stack([
+            k if k is not None else np.ones((MAX_CARDS, N_ID_SLOTS), dtype=np.float32)
+            for k in id_keep_list
+        ])  # (num_steps, MAX_CARDS, N_ID_SLOTS)
+
     data = {
         "obs": obs_list,
         "rstates": rstates_list,
@@ -260,6 +335,10 @@ def rollout_single_env(agent_apply, params, env, obs, rstate, num_steps, rng, rn
         "seats": np.array(seats_list, dtype=np.int32) if seats_list is not None else None,
         "next_seat": seat if seats_list is not None else None,
         "learner": np.array(learner_list, dtype=np.bool_),
+        # 辅助头标签 + 身份 dropout 乘子（二期 S1-4/S1-2；口径见 docstring）
+        "aux_labels": aux_labels,
+        "aux_mask": aux_mask,
+        "id_keep": id_keep_arr,
         # L3-A 循环治理指标（§5.4/§5.6，train 侧聚合进 stats.jsonl）：
         #   events/budget = 收口次数（loopReason 分桶）/ pruned = 被剪步数 / steps = 窗口步数
         #   max_turn_actions = 单回合步数峰值（info.turnActions 的 max，健康值 ≤60）

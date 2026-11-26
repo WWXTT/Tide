@@ -121,12 +121,25 @@ namespace CardCore.AI.NeuralEnv
             }
         }
 
-        /// <summary>开闸（驱动 Step：模型选中首步行 PickPlan!=null）。首步行的目标即第一拾取。</summary>
+        /// <summary>开闸（驱动 Step：模型选中首步行 PickPlan!=null）。首步行的目标即第一拾取。
+        /// v22 S2a 拆出 <see cref="OpenCore"/>（选项行 Targets=null 不走本口）。</summary>
         public static void Open(TideAction firstRow, ResponseOption parkedOption)
         {
+            if (!OpenCore(firstRow, parkedOption)) return;
+            if (firstRow.Targets == null || firstRow.Targets.Count == 0)
+                return; // 防御：非计划行/无目标行不开闸
+            var t = firstRow.Targets[0];
+            int cur = CurrentSpecIndex;
+            if (cur >= 0 && !AlreadyPicked(cur, t)) _picked[cur].Add(t);
+            RecomputeCompleted();
+        }
+
+        /// <summary>开闸初始化（v22 S2a 拆出，Open/OpenAndAutoComplete 共用）：proto 拷贝自首行/
+        /// 选项行（Targets/PickPlan 清空、PicksRemaining=1），拾取状态清零。plan 缺失=false。</summary>
+        private static bool OpenCore(TideAction firstRow, ResponseOption parkedOption)
+        {
             var plan = firstRow.PickPlan;
-            if (plan == null || firstRow.Targets == null || firstRow.Targets.Count == 0)
-                return; // 防御：非计划行不开闸
+            if (plan == null) return false;
             _plan = plan;
             _proto = firstRow; // struct 拷贝
             _proto.Targets = null;
@@ -137,10 +150,39 @@ namespace CardCore.AI.NeuralEnv
             _specDone = new bool[plan.Specs.Count];
             foreach (var s in plan.Specs) _picked.Add(new List<Entity>());
             _completed = false;
-            var t = firstRow.Targets[0];
-            int cur = CurrentSpecIndex;
-            if (cur >= 0 && !AlreadyPicked(cur, t)) _picked[cur].Add(t);
+            return true;
+        }
+
+        /// <summary>v22 S2a（时域/粒度修复，docs/二期训练架构_实施计划.md §4）：选项提交行
+        /// （PickMode=1，Targets=null）的一次性完成——开闸后按计划序用**候选快照序**自动选满：
+        /// Fixed=前 K 个候选；Variable=全选（动态可付不满足时从尾裁剪，留 ≥1 交引擎终审）。
+        /// 候选序=计划构建时的 HeroSkillTargetPolicy 共享序（牺牲/蛰伏 OrderSacrifice/OrderDormancy
+        /// 与脚本 GreenRampStrategy 同源）——**不新写选目标策略**，「选哪几张」=共享序前缀。
+        /// BuildFinal 后调用方必须 <see cref="ConsumeParked"/> 取停靠来源并清闸。
+        /// 返回开闸失败防御：原行直发（引擎终审拒绝 → 驱动重观测）。</summary>
+        public static TideAction OpenAndAutoComplete(GameCore core, Player me, TideAction optionRow,
+            ResponseOption parkedOption)
+        {
+            if (!OpenCore(optionRow, parkedOption)) return optionRow;
+            for (int i = 0; i < _plan.Specs.Count; i++)
+            {
+                var s = _plan.Specs[i];
+                if (s.Kind == TargetPickPlan.SpecKind.Forced || s.Candidates == null) continue;
+                if (s.Kind == TargetPickPlan.SpecKind.Fixed)
+                {
+                    for (int k = 0; k < s.K && k < s.Candidates.Count; k++)
+                        _picked[i].Add(s.Candidates[k]); // 共享序前 K（候选不足=全取，BuildFinal 交引擎）
+                }
+                else // Variable：全选；动态计价不可付时从尾裁剪（非动态恒可付不裁）
+                {
+                    foreach (var c in s.Candidates) _picked[i].Add(c);
+                    while (_picked[i].Count > 1
+                           && !CompletionExists(core, me, _plan, _picked, i, 0))
+                        _picked[i].RemoveAt(_picked[i].Count - 1);
+                }
+            }
             RecomputeCompleted();
+            return BuildFinal(core, me);
         }
 
         /// <summary>拾取步（闸内候选行）：本步只收 1 个目标，不 Apply、不推进。</summary>

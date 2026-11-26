@@ -55,9 +55,15 @@ namespace CardCore.Editor.TideHeadless
         ///                                                  0 = 不钉缺省）。同 seed+同座次+同卡组 = 逐局
         ///                                                  精确重播——两检查点打同一批对局（配对评估）。
         ///                                                  info.seed 回显实际种子（0=未钉），Python 断言。
+        ///   请求  {"op":"reset","picksMode":"macro|step|both"}
+        ///                                                → v22 二期 S2a（2026-11-26）：目标拾取行模式——
+        ///                                                  macro（默认）=多步计划只产选项提交行（[20]=1，
+        ///                                                  OpenAndAutoComplete 按共享序一次选满提交）；
+        ///                                                  step=A6 逐步行；both=并存（诊断）。不带=macro；
+        ///                                                  非法回落 macro（LogWarning）。info.picksMode 回显。
         ///   请求  {"op":"step","action":N}                → 响应同上
         ///   响应 {op, obs{cards,globals,actions,nActions}, reward, done,
-        ///         info{toPlay,winner,reason,turn,modelSeat,theme,modelTheme,modelDoped,layoutVersion,dims,decisionSeat,seed}}
+        ///         info{toPlay,winner,reason,turn,modelSeat,theme,modelTheme,modelDoped,layoutVersion,dims,decisionSeat,seed,picksMode}}
         ///   obs 恒为「当前决策座次」视角（v2：Main=回合玩家 / 响应窗口=优先权持有方；vs 脚本恒为模型视角），
         ///   reward 归属同视角；
         ///   info.toPlay：下一决策点行动方座次（0=P1 / 1=P2，终局 -1）——v2 起含响应窗口座次，Python 自对弈
@@ -197,7 +203,9 @@ namespace CardCore.Editor.TideHeadless
 
                     TideStepResult result = req.op == "reset"
                         ? HandleReset(driver, req.opponent, req.shapingLambda, req.theme, req.modelTheme,
-                                      req.modelDoped, req.shapingSet != 0, req.modelSeat, req.seed)
+                                      req.modelDoped, req.shapingSet != 0, req.modelSeat, req.seed,
+                                      req.picksMode, req.chainLambda, req.chainSet != 0,
+                                      req.handoff, req.maxOpeningTurns)
                         : HandleStep(driver, req.action);
 
                     string resp = Serialize(req.op, result);
@@ -315,8 +323,32 @@ namespace CardCore.Editor.TideHeadless
         private static TideStepResult HandleReset(TideHeadlessDriver driver, string opponent,
             float shapingLambda = 0f, string themeKey = null, string modelThemeKey = null,
             string modelDopedKey = null, bool shapingExplicit = false, string modelSeatKey = null,
-            int seed = 0)
+            int seed = 0, string picksModeKey = null, float chainLambda = 0f,
+            bool chainExplicit = false, string handoffKey = null, int maxOpeningTurns = 0)
         {
+            // S3-3（2026-11-26 二期 §5）：链进度奖励系数——chainSet=1 显式下发（0=关奖励，
+            // 闩位计数照常进 info.chainBits）；缺省不调用=驱动默认 0（旧行为零差）
+            if (chainExplicit)
+                driver.SetChainLambda(chainLambda);
+
+            // S3-1（2026-11-26 二期 §5）：开手交棒档位（none/t3_lands/first_sac_done/genel_ready；
+            // 缺省 none=关闭）+ maxOpeningTurns 兜底（0=不兜底）。落静态，随 vs 分支的 Reset
+            // 透传（脚本局/自对弈不消费）；非法档位驱动侧 LogWarning 回落 none。
+            _handoffReq = string.IsNullOrEmpty(handoffKey) ? "none" : handoffKey;
+            _maxOpeningTurnsReq = maxOpeningTurns;
+            // v22 S2a（2026-11-26 二期）：拾取行模式——macro（默认）=多步计划只产选项提交行
+            //（OpenAndAutoComplete 按共享序一次选满提交，时域/粒度修复）；step=A6 逐步行；
+            // both=并存（诊断）。老客户端不带该键 = 缺省 macro（v22 默认口径）；非法值回落
+            // macro 并 LogWarning（不静默）。写 LAE.PicksMode（枚举器单源）+ 回显字段。
+            string picks = string.IsNullOrEmpty(picksModeKey) ? "macro" : picksModeKey;
+            if (picks != "macro" && picks != "step" && picks != "both")
+            {
+                UnityEngine.Debug.LogWarning($"[TideHeadless] picksMode '{picksModeKey}' 非法（认 macro/step/both），本局回落 macro");
+                picks = "macro";
+            }
+            LegalActionEnumerator.PicksMode = picks;
+            _lastPicksMode = picks;
+
             // 按局塑形 λ（2026-11-02 显式协议）：shapingSet=1 = 客户端显式下发，shapingLambda
             // 原样生效（0 = 关闭塑形只留终局 ±1，驱动内联动关掉无进展扣分）；旧客户端不带该组
             // 键 = 不调用，保持驱动默认 0.005（旧行为，塑形常开）
@@ -453,8 +485,10 @@ namespace CardCore.Editor.TideHeadless
                     }
                     var strategy = AiStrategy.AutoMatch(theme.deck);
                     return modelIsP1
-                        ? driver.Reset(modelDeck, theme.deck, true, strategy, rngSeed, modelSkill, theme.skillCardId)
-                        : driver.Reset(theme.deck, modelDeck, false, strategy, rngSeed, theme.skillCardId, modelSkill);
+                        ? driver.Reset(modelDeck, theme.deck, true, strategy, rngSeed, modelSkill, theme.skillCardId,
+                                       _handoffReq, _maxOpeningTurnsReq)
+                        : driver.Reset(theme.deck, modelDeck, false, strategy, rngSeed, theme.skillCardId, modelSkill,
+                                       _handoffReq, _maxOpeningTurnsReq);
                 }
 
                 // 自对弈：主题整组 vs Cards 随机 30，主题侧随机先后手。
@@ -520,6 +554,11 @@ namespace CardCore.Editor.TideHeadless
         private static readonly object DeckRngLock = new object();
         // 评估协议 v2：本局实际种子（0=未钉），info.seed 回显供 Python 断言
         private static int _lastSeed;
+        // v22 S2a：本局拾取行模式（macro/step/both），info.picksMode 回显供 Python 断言
+        private static string _lastPicksMode;
+        // S3-1（2026-11-26 二期）：本局交棒档位与兜底回合（vs 分支 Reset 透传；info.handoffState 回显）
+        private static string _handoffReq = "none";
+        private static int _maxOpeningTurnsReq;
 
         private static TideStepResult HandleStep(TideHeadlessDriver driver, int action)
             => driver.Step(action);
@@ -548,6 +587,7 @@ namespace CardCore.Editor.TideHeadless
                     turn = r.Turn,
                     modelSeat = r.ModelSeat,
                     seed = _lastSeed, // 评估协议 v2（2026-11-22）：回显实际种子，Python 断言防老版静默忽略
+                    picksMode = _lastPicksMode ?? "macro", // v22 S2a：回显拾取行模式（Python 断言防 v21 对端静默忽略）
                     theme = _opponentTheme ?? "",
                     modelTheme = _modelTheme ?? "",
                     modelDoped = _modelDoped ?? "",
@@ -592,6 +632,18 @@ namespace CardCore.Editor.TideHeadless
                     mAtkRisky = r.ModelAtkRisky,
                     mAtkFace = r.ModelAtkFace,
                     mAtkAny = r.ModelAtkAny,
+                    // S3-1（2026-11-26 二期 §5）：开手交棒打点（命中率/交棒点分布 → stats.jsonl）
+                    handoffState = r.HandoffState ?? "none",
+                    handoffDone = r.HandoffDone,
+                    handoffTurn = r.HandoffTurn,
+                    handoffLands = r.HandoffLands,
+                    handoffGenCost = r.HandoffGenCost,
+                    handoffGenInHand = r.HandoffGenInHand,
+                    handoffMiss = r.HandoffMiss ?? "",
+                    // S3-3（2026-11-26 二期 §5）：链进度闩位（decider 座位；终局步=全量）——
+                    // aux 第三标签「本局是否到达目标态」的回传源
+                    chainBits = r.ChainBits,
+                    chainDone = r.ChainDone,
                 },
             };
             return JsonUtility.ToJson(resp);
@@ -609,12 +661,17 @@ namespace CardCore.Editor.TideHeadless
         // modelSeat 用字符串（2026-11-22 评估协议 v2）：JsonUtility 缺省 int=0，若用 int 型
         // 老客户端不发该键会被误钉 P1；字符串缺省 null=掷币。"0"=P1/"1"=P2。
         // seed int，0=不钉（缺省兼容），>0=钉对局种子。
-        [Serializable] public class HeadlessRequest { public string op; public int action; public string opponent; public float shapingLambda; public int shapingSet; public string theme; public string modelTheme; public string modelDoped; public string modelSeat; public int seed; }
+        [Serializable] public class HeadlessRequest { public string op; public int action; public string opponent; public float shapingLambda; public int shapingSet; public string theme; public string modelTheme; public string modelDoped; public string modelSeat; public int seed; public string picksMode; public float chainLambda; public int chainSet; public string handoff; public int maxOpeningTurns; }
         [Serializable] public class HeadlessObs { public List<float> cards; public List<float> globals; public List<float> actions; public int nActions; }
         // v2 布局握手字段（2026-09-30 契约第 5 节）：layoutVersion / dims / decisionSeat；
         // P-1（2026-11-19）dims 增 cardPoolSize/typePoolSize（稳定下标池尺寸两侧对账）
         [Serializable] public class HeadlessDims { public int nCard; public int nGlobal; public int nAction; public int maxActions; public int maxCards; public int cardPoolSize; public int typePoolSize; }
-        [Serializable] public class HeadlessInfo { public int toPlay; public string winner; public string reason; public int turn; public int modelSeat; public string theme; public string modelTheme; public string modelDoped; public int layoutVersion; public HeadlessDims dims; public int decisionSeat; public bool loopPruned; public string loopReason; public int turnActions; public int seed;
+        [Serializable] public class HeadlessInfo { public int toPlay; public string winner; public string reason; public int turn; public int modelSeat; public string theme; public string modelTheme; public string modelDoped; public int layoutVersion; public HeadlessDims dims; public int decisionSeat; public bool loopPruned; public string loopReason; public int turnActions; public int seed; public string picksMode;
+            // S3-1/S3-3（2026-11-26 二期）：开手交棒打点 + 链进度闩位（JsonUtility 只序列化字段——
+            // bool/int/float/string 全兼容；旧 Python 客户端读不到新键=缺省，零破坏）
+            public string handoffState; public bool handoffDone; public int handoffTurn; public int handoffLands;
+            public float handoffGenCost; public bool handoffGenInHand; public string handoffMiss;
+            public int chainBits; public bool chainDone;
             // 2026-11-23 行为仪表（B4 用户口径）：模型侧「牺牲 + 回收」链与 14 费大哥落地（每局累计）
             public int mSac; public int mRec; public int mChain; public int mAgros; public int mAgrosTurn;
             // 2026-11-23 追加：绿成长（沃土打出 / T1·T3 地数）+ 红法术线（血偿/炸弹/同回合斩杀尝试）

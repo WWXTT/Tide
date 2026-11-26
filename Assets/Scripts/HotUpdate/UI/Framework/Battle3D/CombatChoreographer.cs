@@ -475,7 +475,7 @@ namespace SynergyUI
         }
 
         /// <summary>回放驱动模式（2026-10-19 逆结算步进定案·战斗严格按结算序）：置位=StackEmpty
-        /// 不自动开演，战斗演出改由 BattleResolutionDirector 在回放到攻击步时调 PerformCapturedNow
+        /// 不自动开演，战斗演出改由 BattlePlayhead 在回放到攻击步时调 PerformCapturedNow
         /// 驱动（效果步逐个演完、轮到攻击步才播战斗）。未置位=旧行为（栈空即演）。</summary>
         public bool ReplayDriven { get; set; }
 

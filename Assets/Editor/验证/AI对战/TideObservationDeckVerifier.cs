@@ -23,10 +23,10 @@ namespace CardCore.Editor.Tests
     ///   Mathf.RoundToInt 口径 + 总数），且抽牌后不变（随卡组创建保留，非剩余重算）。
     /// ⑤ 超量与截断——skipOpeningDraw+deferStart 双闸满库：同种第 31 张入库**不再截断**（并组、张数
     ///   合计 31、g[13]=31）；座次切换 Build(p2)——牌库块换 p2 分组、标签换 OriginalDeckOf(p1)。
-    /// v21（2026-11-24 观测·卡组分布与策略分界，docs/观测_卡组分布与策略分界_实施方案.md §6.1）：
-    /// ⓪ 维度握手 21/158/100/20/191（CountSlot=157/OwnDeckTagStart=88/DeckTruncatedSlot=96/
-    /// HandLimitSelfSlot=97/HandLimitOppSlot=98/PendingDiscardSlot=99——v21 定稿 2026-11-24 拍板
-    /// globals 100，不再讨论 v22）；① 尾接手牌上限三槽断言（起手 8 张>7 → g[99]=1、对手座次=0）、
+    /// v21（2026-11-24 观测·卡组分布与策略分界，docs/观测_卡组分布与策略分界_实施方案.md §6.1）
+    /// → v22（2026-11-26 二期 S2a：动作特征 20→26、LayoutVersion 21→22；「不再讨论 v22」旧定稿语作废）：
+    /// ⓪ 维度握手 **22/158/100/26/191**（CountSlot=157/OwnDeckTagStart=88/DeckTruncatedSlot=96/
+    /// HandLimitSelfSlot=97/HandLimitOppSlot=98/PendingDiscardSlot=99）；① 尾接手牌上限三槽断言（起手 8 张>7 → g[99]=1、对手座次=0）、
     /// ⑪ 三套预组 g[97]/g[98]==7（回到一期训练目标 B0.3）；
     /// ⑪ 三套预组实测：绿 60 张=**4 组 19/19/11/11**（v21 前 30 槽按物理卡截断只见 2 种）、红 30=5 组、
     ///   蓝 30=4 组；⑫ 己方标签 g[88..95] == 手工口径且抽牌后恒定（对方块回归不变）；⑬ 实例态不同
@@ -97,9 +97,11 @@ namespace CardCore.Editor.Tests
 
             // ================= ⓪ 维度握手（v21 卡组分布与策略分界 2026-11-24：+countInZone [157]/
             //     己方牌库标签 g[88..95]/牌库截断标记 g[96]；场地块 [189]/[190] 自 v15 不变；
-            //     v21 定稿（2026-11-24 回到一期目标 B0.3）：+手牌上限三槽 g[97..99]，globals 100） =================
-            checks.Add(new Check(TideObservation.LayoutVersion == 21 && TideObservation.NCard == 158
-                && TideObservation.NGlobal == 100 && TideObservation.NAction == 20
+            //     v21 定稿（2026-11-24 回到一期目标 B0.3）：+手牌上限三槽 g[97..99]，globals 100；
+            //     v22（2026-11-26 二期 S2a）：动作 20→26（+[20]pickMode/[21..24] 原子类型/[25] 原子数），
+            //     LayoutVersion 21→22——其余维度不变 =================
+            checks.Add(new Check(TideObservation.LayoutVersion == 22 && TideObservation.NCard == 158
+                && TideObservation.NGlobal == 100 && TideObservation.NAction == 26
                 && TideObservation.MaxCardsTotal == 191
                 && TideObservation.MaxCardsPerPlayer == 77 && TideObservation.DeckBase == 154
                 && TideObservation.DeckSlots == 30 && TideObservation.DeckTopSlot == 184
@@ -109,7 +111,7 @@ namespace CardCore.Editor.Tests
                 && TideObservation.DeckTruncatedSlot == 96
                 && TideObservation.HandLimitSelfSlot == 97 && TideObservation.HandLimitOppSlot == 98
                 && TideObservation.PendingDiscardSlot == 99,
-                $"布局常量期望 v21 定稿：21/158/100/20/191/77/154/30/184/185/4/189/2/157/88/96/97/98/99，实际 "
+                $"布局常量期望 v22：22/158/100/26/191/77/154/30/184/185/4/189/2/157/88/96/97/98/99，实际 "
                 + $"{TideObservation.LayoutVersion}/{TideObservation.NCard}/{TideObservation.NGlobal}/{TideObservation.NAction}"
                 + $"/{TideObservation.MaxCardsTotal}/{TideObservation.MaxCardsPerPlayer}/{TideObservation.DeckBase}"
                 + $"/{TideObservation.DeckSlots}/{TideObservation.DeckTopSlot}/{TideObservation.OppDeckExposedBase}"
