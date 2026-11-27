@@ -84,9 +84,6 @@ class TideEnvTcp(gym.Env):
         model_theme: str = "",
         model_doped: str = "",
         picks_mode: str = "macro",
-        handoff_state: str = "none",
-        max_opening_turns: int = 0,
-        chain_lambda: float = 0.0,
     ):
         """
         Args:
@@ -118,10 +115,6 @@ class TideEnvTcp(gym.Env):
         self.model_theme = model_theme
         self.model_doped = model_doped
         self.picks_mode = picks_mode  # v22 二期 S2a：macro/step/both（reset 可按次覆盖）
-        # S3-1/S3-3（2026-11-26 二期 §5）：开手交棒与链进度势能（每局 reset 显式下发）
-        self.handoff_state = handoff_state      # none/t3_lands/first_sac_done/genel_ready
-        self.max_opening_turns = int(max_opening_turns)  # 交棒兜底回合（0=不兜底）
-        self.chain_lambda = float(chain_lambda)  # Φ_chain 奖励系数（0=关；计划初值 0.02）
         self._last_model_theme = ""  # 最近一局实际下发的模型卡组主题（"all" 随机后的具体 key）
 
         self.sock = None
@@ -271,14 +264,6 @@ class TideEnvTcp(gym.Env):
         if picks not in ("macro", "step", "both"):
             raise ValueError(f"[TideEnv] picksMode 非法 {picks!r}（可选 macro/step/both）")
         payload["picksMode"] = picks
-        # S3-3（2026-11-26 二期 §5）：链进度势能奖励系数——恒显式下发（chainSet=1），0=关奖励
-        #（C# 闩位计数照常，info.chainBits 免费仪表）。缺省 0 = 旧行为；训练侧 Args 显式传 0.02。
-        payload["chainLambda"] = float((options or {}).get("chainLambda", self.chain_lambda))
-        payload["chainSet"] = 1
-        # S3-1（2026-11-26 二期 §5）：开手交棒档位（none/t3_lands/first_sac_done/genel_ready；
-        # none=关闭零行为）+ maxOpeningTurns 兜底（0=不兜底）。仅 vs 脚本口径消费。
-        payload["handoff"] = str((options or {}).get("handoff") or self.handoff_state or "none")
-        payload["maxOpeningTurns"] = int(self.max_opening_turns)
         self._send_json(payload)
 
         # 读取初始 obs

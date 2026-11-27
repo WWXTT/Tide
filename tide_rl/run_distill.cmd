@@ -1,6 +1,6 @@
 @echo off
 rem ============================================================
-rem run_distill.cmd - distill student CLI launcher (collect / train / verify-shard)
+rem run_distill.cmd - script-BC CLI launcher (collect / train / verify-shard)
 rem
 rem Why this wrapper (2026-11-27):
 rem   the main repo root has NO ygo-agent-main (env fact 2026-11-20); only the
@@ -13,10 +13,10 @@ rem   2) <repo root>\ygo-agent-main
 rem   3) C:\UnityProject\Tide_train\ygo-agent-main (default training copy)
 rem
 rem usage (from tide_rl):
-rem   run_distill.cmd collect --teachers logs\<green>\teacher_manifest.json,...
+rem   run_distill.cmd collect --student-run logs\tide_ppo_simpleai_student__42__<ts> --games-per-deck 700
 rem   run_distill.cmd train --shards logs\<student>\distill\round_1 --epochs 3
 rem   run_distill.cmd --help
-rem ASCII-only body on purpose (GBK codepage safety), same as start_teacher_run.cmd.
+rem ASCII-only body on purpose (GBK codepage safety).
 rem ============================================================
 setlocal
 cd /d "%~dp0"
@@ -38,3 +38,4 @@ set "PYTHONPATH=%YGO%;%PYTHONPATH%"
 set "PYTHONIOENCODING=utf-8"
 "%PY%" distill_student.py %*
 exit /b %ERRORLEVEL%
+

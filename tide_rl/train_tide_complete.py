@@ -307,15 +307,6 @@ class Args:
     # 选中后 OpenAndAutoComplete 按共享序一次选满提交）/ step=A6 逐步行（现状口径）/
     # both=并存（仅诊断，摊薄 logits 不进训练）。经 reset 协议 picksMode 下发、回显断言
     picks_mode: str = "macro"
-    # 二期 S3-1（2026-11-26 §5）：开手交棒档位——none=关闭（缺省，零行为）；
-    # t3_lands/first_sac_done/genel_ready=模型座先用脚本策略打到触发态再交回模型
-    #（触发评估点=模型座回合开始；max_opening_turns 兜底 0=不兜底）。经 reset 协议下发
-    handoff_state: str = "none"
-    max_opening_turns: int = 0
-    # 二期 S3-3（2026-11-26 §5，用户「s3全面执行」=链进度奖励契约变更签字）：链进度势能
-    # Φ_chain 里程碑数/4 的奖励系数 λ_chain——计划初值 0.02（量级 ≪ 终局 ±1；势能形式
-    # γ=1 telescoping 只改入账位置不改轨迹总回报）；0=关。闩位计数恒进 info.chainBits
-    chain_reward_lambda: float = 0.02
 
     total_timesteps: int = 2_000_000
     eval_interval: int = 50_000  # 每 5 万步评估
@@ -722,9 +713,6 @@ def train(args: Args):
         model_theme=args.model_theme,
         model_doped=args.model_doped,
         picks_mode=args.picks_mode,
-        handoff_state=args.handoff_state,
-        max_opening_turns=args.max_opening_turns,
-        chain_lambda=args.chain_reward_lambda,
         startup_timeout=args.startup_timeout,
         step_timeout=args.step_timeout,
     )
@@ -998,42 +986,7 @@ def train(args: Args):
                         behav_win["atk_risky"] = behav_win.get("atk_risky", 0) + int(b.get("atk_risky", 0))
                         behav_win["atk_face"] = behav_win.get("atk_face", 0) + int(b.get("atk_face", 0))
                         behav_win["atk_any"] = behav_win.get("atk_any", 0) + int(b.get("atk_any", 0))
-                        # ---- 二期 S3-1/S3-3（2026-11-26 补批）：交棒与链闩位验收读数 ----
-                        # S3-1：交棒打点聚合（handoff_state=none 的局不进 handoff_* 计数）
-                        _hs = str(b.get("handoff_state", "") or "")
-                        if _hs and _hs != "none":
-                            behav_win["handoff_cfg"] = _hs
-                            behav_win["handoff_games"] = behav_win.get("handoff_games", 0) + 1
-                            _hd = int(b.get("handoff_done", 0) or 0)
-                            behav_win["handoff_done"] = behav_win.get("handoff_done", 0) + _hd
-                            _ht = int(b.get("handoff_turn", 0) or 0)
-                            if _ht > 0:
-                                behav_win["handoff_turn_sum"] = behav_win.get("handoff_turn_sum", 0) + _ht
-                                behav_win["handoff_turn_n"] = behav_win.get("handoff_turn_n", 0) + 1
-                            if _hd:
-                                _hl = int(b.get("handoff_lands", 0) or 0)
-                                behav_win["handoff_lands_sum"] = behav_win.get("handoff_lands_sum", 0) + _hl
-                                behav_win["handoff_lands_n"] = behav_win.get("handoff_lands_n", 0) + 1
-                                _hg = float(b.get("handoff_gen_cost", -1) or -1)
-                                if _hg >= 0:
-                                    _k = "handoff_gencost_" + str(_hg)
-                                    behav_win[_k] = behav_win.get(_k, 0) + 1
-                                _s2g = int(b.get("handoff_steps_to_genel", -1) or -1)
-                                if 0 < _s2g <= 3:
-                                    behav_win["handoff_fast_cast"] = behav_win.get("handoff_fast_cast", 0) + 1
-                                if _s2g > 0:
-                                    behav_win["handoff_casted"] = behav_win.get("handoff_casted", 0) + 1
-                                behav_win["handoff_s2g_sum"] = behav_win.get("handoff_s2g_sum", 0) + max(_s2g, 0)
-                            if not _hd:
-                                _hm = str(b.get("handoff_miss", "") or "unknown")
-                                _k = "handoff_miss_" + _hm
-                                behav_win[_k] = behav_win.get(_k, 0) + 1
-                            behav_win["handoff_gen_in_hand"] = (behav_win.get("handoff_gen_in_hand", 0)
-                                                                + int(b.get("handoff_gen_in_hand", 0) or 0))
-                            # S3-1 补批：强制交棒（回合兜底）计数——区分 genel_ready 真实触发
-                            behav_win["handoff_forced"] = (behav_win.get("handoff_forced", 0)
-                                                           + int(b.get("handoff_forced", 0) or 0))
-                        # S3-3：链里程碑闩位分布 + 链奖励份额（telescoping：局总量=λ×bits/4）
+                        # 链里程碑闩位分布（只读仪表；链奖励已随 S3-3 于 2026-11-28 删除）
                         _bits = int(b.get("chain_bits", 0) or 0)
                         behav_win["phi_games"] = behav_win.get("phi_games", 0) + 1
                         for _i in range(4):
@@ -1042,8 +995,6 @@ def train(args: Args):
                                 behav_win[_k] = behav_win.get(_k, 0) + 1
                         if b.get("chain_done"):
                             behav_win["phi_done"] = behav_win.get("phi_done", 0) + 1
-                        behav_win["phi_reward_sum"] = (behav_win.get("phi_reward_sum", 0.0)
-                                                       + args.chain_reward_lambda * _bits / 4.0)
 
             global_step += args.num_envs * args.num_steps
 
@@ -1568,16 +1519,6 @@ if __name__ == "__main__":
     parser.add_argument("--identity-dropout", type=float, default=None,
                         help="身份通路训练期 dropout 概率 p（二期 S1-2，默认 0.1）；0 = 关闭"
                              "（身份 Embed 恒等进入，消融用）。优先于 TIDE_TRAIN_OVERRIDE 的同名字段")
-    # 二期 S3（§5.5 首轮配置 / B5 纯 S2b）：handoff/chain 按次覆盖——B5 必须显式
-    # --chain-reward-lambda 0 --handoff-state none（缺省值=正式 run 口径 0.02/genel_ready 由
-    # §5.5 定义、命令行照传，不靠隐式缺省）
-    parser.add_argument("--handoff-state", default=None,
-                        choices=("none", "t3_lands", "first_sac_done", "genel_ready"),
-                        help="S3-1 开手交棒档位（none=关）")
-    parser.add_argument("--max-opening-turns", type=int, default=None,
-                        help="S3-1 交棒兜底回合（0=不兜底）")
-    parser.add_argument("--chain-reward-lambda", type=float, default=None,
-                        help="S3-3 链进度势能系数（0=关；§5.5 正式=0.02，B5=0）")
     parser.add_argument("--picks-mode", default=None, choices=("macro", "step", "both"),
                         help="目标拾取行模式（二期 S2a v22，默认 macro）：macro=多步计划只产选项"
                              "提交行（一次完成）；step=A6 逐步行（现状）；both=并存（仅诊断）。"
@@ -1656,13 +1597,6 @@ if __name__ == "__main__":
     # 响亮失败（打到 Unity 才回落 = 整个 run 白跑错口径）
     if cli.picks_mode is not None:
         args.picks_mode = cli.picks_mode
-    # 二期 S3（§5.5）：handoff/chain 按次覆盖（None=沿用 Args 缺省）
-    if cli.handoff_state is not None:
-        args.handoff_state = cli.handoff_state
-    if cli.max_opening_turns is not None:
-        args.max_opening_turns = cli.max_opening_turns
-    if cli.chain_reward_lambda is not None:
-        args.chain_reward_lambda = cli.chain_reward_lambda
     if args.picks_mode not in ("macro", "step", "both"):
         raise SystemExit(f"[!] picks_mode 须为 macro/step/both，得到 {args.picks_mode!r}")
 

@@ -1,4 +1,4 @@
-﻿"""
+"""
 共享 rollout 工具（quick_train_tcp / train_tide_complete 共用）。
 
 核心约定：对局跨更新窗口延续。
@@ -36,11 +36,9 @@ EpisodeStats = namedtuple("EpisodeStats", "ret len timeout shaping_ret winner mo
 def _behavior_of(info):
     """2026-11-23 B4：终局 info → 本局模型行为计数（老协议无字段 → 空 dict，下游按 0 处理）。
     追加（同日晚）：绿成长 grow/land_t1/land_t3、红法术线 blood/bomb/combo。
-    二期 S3（2026-11-26 §5）追加：开手交棒 handoff_*（命中率/交棒点分布 → stats.jsonl）
-    与链进度 chain_bits/chain_done（decider 座位闩位；chain_done=aux 第三标签「本局是否
-    到达目标态」的标签源）。老协议无字段时按缺省 0/""——零破坏。"""
-    if not isinstance(info, dict) or ("mSac" not in info and "mAgros" not in info
-                                      and "handoffState" not in info):
+    链进度 chain_bits/chain_done（decider 座位闩位；chain_done=aux 第三标签「本局是否
+    到达目标态」的标签源）。老协议无字段时按缺省 0——零破坏。"""
+    if not isinstance(info, dict) or ("mSac" not in info and "mAgros" not in info):
         return {}
     return {"sac": int(info.get("mSac", 0)), "rec": int(info.get("mRec", 0)),
             "chain": int(info.get("mChain", 0)), "agros": int(info.get("mAgros", 0)),
@@ -54,21 +52,10 @@ def _behavior_of(info):
             "atk_risky": int(info.get("mAtkRisky", 0)),
             "atk_face": int(info.get("mAtkFace", 0)),
             "atk_any": int(info.get("mAtkAny", 0)),
-            # 二期 S3-1：开手交棒（handoffState="" 老协议→"none"）
-            "handoff_state": str(info.get("handoffState", "") or "none"),
-            "handoff_done": 1 if info.get("handoffDone") else 0,
-            "handoff_turn": int(info.get("handoffTurn", 0)),
-            "handoff_lands": int(info.get("handoffLands", 0)),
-            "handoff_gen_cost": float(info.get("handoffGenCost", -1.0)),
-            "handoff_gen_in_hand": 1 if info.get("handoffGenInHand") else 0,
-            "handoff_miss": str(info.get("handoffMiss", "") or ""),
-            # 二期 S3-3：链进度闩位（decider 座位；终局步=全量）
+            # 链进度闩位（decider 座位；终局步=全量；只作读数/aux 标签，无奖励）
             "chain_bits": int(info.get("chainBits", 0)),
             "chain_done": 1 if info.get("chainDone") else 0,
-            # 二期 S3-1 验收补批（2026-11-26 DSH 定位）：交棒后首次归根施放步距与强制交棒标记——
-            # 上批冒烟 s2g 恒 0 的根因=本表缺这两个键（C# 已回传、Python 没读）。
-            "handoff_steps_to_genel": int(info.get("handoffStepsToGenel", -1)),
-            "handoff_forced": 1 if info.get("handoffForced") else 0}
+            }
 
 
 def rollout_single_env(agent_apply, params, env, obs, rstate, num_steps, rng, rnn_type="gru",

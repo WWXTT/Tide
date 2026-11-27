@@ -32,17 +32,6 @@ namespace CardCore.AI.NeuralEnv
         public LoopStepStatus Status;
     }
 
-    /// <summary>S3-1 开手交棒钩子返回值（driver→loop）：模型座回合开始停靠口的三态。</summary>
-    public enum ModelTurnIntercept
-    {
-        /// <summary>无需处理/交棒已完成——loop 落本停靠口问模型（原 CompleteHandoff 后落穿）。</summary>
-        None,
-        /// <summary>开手脚本链已在途（原 AdvanceToDecision 的 _scriptTurnChainActive 防御 return）。</summary>
-        ChainInFlight,
-        /// <summary>钩子刚起了开手脚本链（原 RunOpeningTurnAsync 分支：防御停车判定后 continue 重查）。</summary>
-        ChainStarted,
-    }
-
     /// <summary>策略接口（S2 游戏侧接入，计划 §2）：游戏侧=OnnxTidePolicy（argmax）；
     /// 训练侧不经本接口（宿主=TCP 外发协议，driver 保留「每决策点发一次请求」现状——
     /// S1 有意未引入，S2 仅游戏侧消费）。Select 返回停靠表行下标。</summary>
@@ -73,11 +62,11 @@ namespace CardCore.AI.NeuralEnv
     /// 决策点推进（Main / Standby 响应窗 / 目标拾取步 / 弃牌停靠 / 终局）、停靠枚举、
     /// 动作应用、L1/L2/L3 循环收口、D2d 停靠泵——**逐行迁移自 driver，逻辑零改动**
     /// （S1 验收=同种子对拍逐位一致；只允许成员归属搬家与下列三处结构性替换：
-    /// ① TrackModelBehavior → AfterActionApplied 钩子；② S3-1 交棒块 → InterceptModelTurn 钩子；
-    /// ③ Step 早退 BuildResult(x) → LoopStepStatus 状态码）。
+    /// ① TrackModelBehavior → AfterActionApplied 钩子；
+    /// ② Step 早退 BuildResult(x) → LoopStepStatus 状态码）。
     ///
     /// 职责边界（计划 §2）：loop 只吃「已初始化好的 GameCore + 棋盘 + 座次装配 + 配置」；
-    /// 奖励计算（λ·ΔΦ/链势能/战斗伤害修正）、行为仪表、S3-1 交棒、S3-3 链闩位、协议 info 组装
+    /// 奖励计算（λ·ΔΦ/战斗伤害修正）、行为仪表、链闩位、协议 info 组装
     /// 全部留在 driver。常量（预算/阈值/保险）随迁且数值不动——观测/动作布局（v22）与超参零改动。
     ///
     /// 时序与防死循环口径（原 driver 类注全文随迁）：
@@ -179,10 +168,6 @@ namespace CardCore.AI.NeuralEnv
         /// <summary>动作引擎应用成功后即调（推进前——回合号口径与原 driver Step 内联位一致）。
         /// driver 挂 TrackModelBehavior（B4 行为仪表：Apply 成功才计数）。</summary>
         public Action<TideAction> AfterActionApplied;
-        /// <summary>S3-1 开手交棒钩子（模型座回合开始停靠口调；null=无交棒语义恒直接停靠）。
-        /// driver 侧实现：交棒前起开手脚本链（ChainStarted/ChainInFlight），触发/兜底则 CompleteHandoff
-        /// 后返回 None 落停靠口。（原 AdvanceToDecision 内联 handoff 块，2026-11-27 S1 换钩子。）</summary>
-        public Func<ModelTurnIntercept> InterceptModelTurn;
 
         // ==== 终态/停靠只读口（driver 协议与奖励消费）====
         public bool IsGameOver => _gameOver;
@@ -256,7 +241,7 @@ namespace CardCore.AI.NeuralEnv
         }
 
         /// <summary>终局事件收口（driver 的 GameOverEvent 订阅转发）：置终局三态 + 两门清理
-        ///（原 driver OnGameOver 前半，2026-11-27 S1 迁入；_handoffMiss 归 driver 侧）。</summary>
+        ///（原 driver OnGameOver 前半，2026-11-27 S1 迁入）。</summary>
         public void MarkGameOver(Player winner, string reason)
         {
             _gameOver = true;
@@ -513,8 +498,6 @@ namespace CardCore.AI.NeuralEnv
         /// vs SimpleAI 模式：非模型回合不逐相位推进，整回合交 SimpleAI 异步链（D2d：TakeTurnAsync
         /// 不阻塞，链内响应窗经 OnEngineAsyncResponse 停靠模型座）；模型回合内的响应窗口按 D2c
         /// 口径处理（模型座停靠/脚本座策略响应，见 TryResolveResponseWindow）。
-        /// S3-1（2026-11-27 S1 换钩子）：模型座回合开始的交棒评估由 InterceptModelTurn 钩子承担
-        ///（driver 侧 HandoffTriggerMet/CompleteHandoff/开手脚本链——原内联块三态语义逐位保留）。
         /// </summary>
         public void AdvanceToDecision()
         {
@@ -544,22 +527,6 @@ namespace CardCore.AI.NeuralEnv
                     RunSimpleAiTurnAsync();
                     if (_parkTcs != null) return;       // D2d：脚本回合响应窗停靠模型座
                     continue;
-                }
-
-                // S3-1 开手交棒钩子位（原内联 handoff 块，2026-11-27 S1 抽钩子——三态语义不变）：
-                // 交棒前模型座回合整段交开手脚本（ChainStarted——防御停车判定后重查；ChainInFlight=
-                // 开手链在途防御 return）；触发/兜底交棒后返回 None 落本停靠口问模型。
-                if (_modelPlayer != null && ReferenceEquals(turnPlayer, _modelPlayer)
-                    && InterceptModelTurn != null)
-                {
-                    switch (InterceptModelTurn())
-                    {
-                        case ModelTurnIntercept.ChainInFlight:
-                            return; // 开手链在途（防御——链上不应再停靠）
-                        case ModelTurnIntercept.ChainStarted:
-                            if (_parkTcs != null) return; // 防御：开手链不应停靠（模型座回合语境）
-                            continue;
-                    }
                 }
 
                 var engine = _core.StackEngine;
@@ -670,8 +637,7 @@ namespace CardCore.AI.NeuralEnv
         /// 有停靠 = 链挂起、控制返回调用方（AdvanceToDecision 见 _parkTcs 即返），模型 Apply 的
         /// TrySetResult 后续跑**内联在本线程**（2026-11-22 探针实证，无 player loop 依赖）。
         /// 链内完成 End→Standby 折返（原同步口的补泵时点）；异常按 SimpleAIError 收口
-        /// （无胜者 → Python 记平局，不炸训练服务）。driver 侧 S3-1 开手脚本回合经
-        /// RunExternalTurnChain(_openingAi, "开手脚本") 复用同一链结构。
+        /// （无胜者 → Python 记平局，不炸训练服务）。
         /// </summary>
         private void RunSimpleAiTurnAsync() => RunExternalTurnChain(_simpleAI, "SimpleAI ");
 

@@ -33,7 +33,8 @@ GATE_ONLY, NO_GATE = "gate-only", "no-gate"
 def check_gates(run_dir: Path, require_simpleai_name: bool = True):
     """A1 硬闸四条；返回 (ok, [失败项描述])。
 
-    `require_simpleai_name=False` 供 teacher_gate.py 使用（2026-11-27）：教师 run 可能是
+    `require_simpleai_name=False` 原供旧教师取证工具使用（2026-11-27；该工具与三教师
+    路线 2026-11-28 一并删除，参数保留仅为兼容旧调用）：教师 run 可能是
     `*_teacher_600k` 这类续训名，但 config.opponent 才是口径的权威来源；学生认证仍默认要求
     目录名带 `simpleai`（A1 证书口径）。"""
     fails = []

@@ -1,23 +1,17 @@
-"""蒸馏学生（Stage 4·三专精→教师→蒸馏框架 §9，第二批工具 2026-11-26）。
+"""脚本示范模仿（2026-11-28 训练路线调整：三教师/教师蒸馏已删除）。
 
-两个子命令（本文件不含 PPO 微调与教师 KL 锚——延后项，损失只实现 KL + 价值 MSE）：
+两个子命令（本文件不含 PPO 微调与 KL 锚——延后项，损失只实现 KL/CE + 价值 MSE）：
 
-  collect —— DAgger（4b，--actor student，默认）/ 离线 BC（4a，--actor teacher）采集：
+  collect —— 脚本示范 BC 采集（--actor script，唯一模式）：
     python distill_student.py collect \
-        --teachers logs/<green_run>/teacher_manifest.json,logs/<red_run>/teacher_manifest.json \
-        [--student-run logs/tide_ppo_simpleai_student__42__<ts>] [--student-ckpt <msgpack>] \
-        [--actor student|teacher] [--games-per-deck 150] [--seed 20261122] \
-        [--round <n>] [--allow-missing] [--unity-path ...] [--project-path ...]
-    · 教师清单逐个校验 sha256/layout_version/criterion_era，不符硬错；缺整套 deck 硬错
-      （--allow-missing 才放行并跳过该 deck）；
-    · 学生采样行动、自维护 rstate（DAgger）；教师链同观测流前向，每决策步记录
-      obs（cards 191×158 / global 100 / 动作行截到 n_actions）+ 学生 incoming rstate(512)
-      + 教师 logits(512) + 教师 value + n_actions + 选中行——τ/软化的位置在 train 侧；
-    · 采集权重：缺省用**学生本 run 的 last**（第 2 轮起的 DAgger 必须采当前学生），
-      首轮没有学生 last 才用共享 last（自动解析，见 resolve_shared_ckpt；--student-ckpt 可覆盖）；
-    · 种子方案同 eval_matrix（对偏移×1000 + 座次×500 + 序号），与教师矩阵同批对局；
+        [--student-run logs/tide_ppo_simpleai_student__42__<ts>] \
+        [--games-per-deck 700] [--seed 20261128] \
+        [--round <n>] [--unity-path ...] [--project-path ...]
+    · 脚本局整局在 reset 内打完（scriptVsScript），C# ScriptBcRecorder 拦截录制；
+    · 每步记录 obs（cards 191×158 / global 100 / 动作行截到 n_actions）+ incoming rstate(512)
+      + 选中行动作行 + chosen_card_id；
     · 分片 logs/<student_run>/distill/round_<n>/shard_<k>.npz（≤2000 步/片，压缩）
-      + round_meta.json（逐局行为计数 + 学生胜率 + 教师清单 + 种子口径）。
+      + round_meta.json（逐局行为计数 + 学生胜率 + 种子口径）。
 
   train —— 读分片训练学生：
     python distill_student.py train --shards <round目录|npz|glob,...> \
@@ -108,61 +102,6 @@ def sha256_file(p: Path) -> str:
         for chunk in iter(lambda: f.read(65536), b""):
             h.update(chunk)
     return h.hexdigest()
-
-
-def resolve_ckpt(spec: str, run_name: str = "") -> Path:
-    """ckpt 路径解析：绝对/相对 CWD（tide_rl 根，'logs\\...' 形态）/相对 logs/<run>。"""
-    p = Path(spec)
-    if p.is_file():
-        return p
-    if run_name:
-        q = Path("logs") / run_name / spec
-        if q.is_file():
-            return q
-    raise SystemExit(f"[!] 找不到 checkpoint：{spec}"
-                     + (f"（也试了 logs/{run_name}/{spec}）" if run_name else ""))
-
-
-def load_teacher(mf_path: str):
-    """teacher_manifest.json → (deck, jit_apply, params, manifest)。校验三条硬闸。"""
-    p = Path(mf_path)
-    if not p.exists():
-        raise SystemExit(f"[!] 教师清单不存在：{p}")
-    mf = json.loads(p.read_text(encoding="utf-8"))
-    deck = mf.get("deck")
-    if deck not in DECKS:
-        raise SystemExit(f"[!] 教师清单 {p} 的 deck={deck!r} 非法")
-    if mf.get("layout_version") != LAYOUT_VERSION:
-        raise SystemExit(f"[!] 教师 {deck} layout_version={mf.get('layout_version')!r} ≠ "
-                         f"当前 {LAYOUT_VERSION}（{p}）")
-    if mf.get("criterion_era") != BASELINE_ERA:
-        raise SystemExit(f"[!] 教师 {deck} criterion_era={mf.get('criterion_era')!r} ≠ "
-                         f"当前 {BASELINE_ERA}（{p}）")
-    ckpt = resolve_ckpt(mf.get("checkpoint") or "", mf.get("run", ""))
-    sha = sha256_file(ckpt)
-    if mf.get("sha256") and mf["sha256"] != sha:
-        raise SystemExit(f"[!] 教师 {deck} 权重哈希不符：{ckpt}\n    manifest={mf['sha256']}"
-                         f"\n    实际  ={sha}（清单与权重不同源——冻结被打破）")
-    run_dir = Path("logs") / mf.get("run", "")
-    if not run_dir.is_dir():
-        run_dir = Path(mf.get("run", ""))
-    targs, _ = args_from_run(run_dir if run_dir.is_dir() else Path("."))
-    agent = create_tide_agent(channels=targs.channels, rnn_channels=targs.rnn_channels,
-                              rnn_type=targs.rnn_type)
-    dummy = sample_input()
-    dummy = jax.tree.map(lambda x: x[None, ...] if x is not None else None, dummy)
-    params = agent.init(jax.random.PRNGKey(targs.seed), init_rstate(targs.rnn_type), dummy)
-    with open(ckpt, "rb") as f:
-        # 跨树加载（2026-11-26 用户定，决策③）：教师 ckpt 树不同代（如 aux 2→3）时 merge 并树
-        old_params = flax.serialization.from_bytes(None, f.read())
-        params, _merge_report = merge_params_by_shape(params, old_params)
-        # 跨树加载留痕（决策③）：loaded/fresh 打一行——教师树缺/换的模块（如 aux 头）落 fresh
-        _fm = sorted({p.rsplit("/", 1)[0] for p in _merge_report["fresh"]})
-        print(f"[teacher:merge] 同形状继承 {_merge_report['n_loaded_params']}/{_merge_report['n_total_params']}"
-              f" 参数；fresh {_merge_report['n_new_params']}（模块: {', '.join(_fm) or '—'}）", flush=True)
-    print(f"[teacher] {deck} ← {ckpt}（run={mf.get('run')} step={mf.get('step')} "
-          f"tier={mf.get('tier')} sha256={sha[:12]}…）", flush=True)
-    return deck, jax.jit(agent.apply), params, mf
 
 
 def _params_tree_nonempty(path: Path) -> bool:
@@ -466,28 +405,10 @@ class ShardWriter:
 
 
 def cmd_collect(cli):
-    if cli.actor == "script" and cli.teachers:
-        raise SystemExit("[!] --actor script 不吃教师清单（脚本臂即标签源）——去掉 --teachers")
-    teachers = {}
-    manifests = []
-    teachers_by_deck = {}
+    """脚本示范 BC 采集（2026-11-28：教师/DAgger 标签路径已删除，只留 --actor script）。"""
     if cli.actor != "script":
-        for spec in cli.teachers.split(","):
-            spec = spec.strip()
-            if not spec:
-                continue
-            deck, apply_t, params_t, mf = load_teacher(spec)
-            if deck in teachers:
-                raise SystemExit(f"[!] deck={deck} 有两份教师清单（{spec}）——逐 deck 只认一个教师")
-            teachers[deck] = (apply_t, params_t)
-            manifests.append(spec)
-            teachers_by_deck[deck] = spec
-        missing = [d for d in DECKS if d not in teachers]
-        if missing and not cli.allow_missing:
-            raise SystemExit(f"[!] 缺教师 deck：{missing}（--allow-missing 才放行跳过该 deck）")
-        if missing:
-            print(f"[warn] --allow-missing：跳过无教师 deck {missing}", flush=True)
-
+        raise SystemExit("[!] 三教师已废止：只剩 --actor script（脚本示范 BC）；"
+                         "DAgger 将由后续 dagger-script 另建")
     student_run = resolve_student_run(cli.student_run)
     student_cfg = student_run / "config.json"
     sargs, _ = args_from_run(student_run) if student_cfg.exists() else (Args(), None)
@@ -504,50 +425,22 @@ def cmd_collect(cli):
     round_dir.mkdir(parents=True)
     writer = ShardWriter(round_dir)
 
-    if cli.actor == "script":
-        # S3-2（2026-11-26 二期 §5）：脚本臂 BC——C# ScriptBcRecorder 拦截录制（拦截匹配，
-        # 见其头注），本侧只读流转 shard。TIDE_PROBE_BC_DIR 必须在 TideEnv 拉起 Unity
-        # **之前**进环境（batchmode 子进程继承）；C# 侧每局写 bc_<gameId>.bin + .meta.json。
-        # rstate 全零=逐步独立口径（脚本标签不绑学生递归上下文——DAgger 路径才需要）。
-        bc_raw = round_dir / "bc_raw"
-        bc_raw.mkdir(parents=True)
-        os.environ["TIDE_PROBE_BC_DIR"] = str(bc_raw)
-        student_ckpt = None
-        print(f"[script-bc] TIDE_PROBE_BC_DIR={bc_raw}（C# 拦截录制）", flush=True)
-    else:
-        # 第 2 轮起必须用学生自己的 last 采集（DAgger 的状态分布是「当前学生」的）；
-        # 首轮没有学生 last 才回落到共享 last（解析顺序见 resolve_shared_ckpt）。
-        run_last = student_run / "last" / "params.msgpack"
-        student_ckpt = Path(cli.student_ckpt) if cli.student_ckpt else (
-            run_last if run_last.is_file() else resolve_shared_ckpt())
-        if not student_ckpt.is_file():
-            raise SystemExit(f"[!] 学生权重不存在：{student_ckpt}（--student-ckpt 指定，"
-                             f"缺省=本 run 的 last / 共享 last）")
-        print(f"[student] 采集用权重 ← {student_ckpt}", flush=True)
-        s_agent = create_tide_agent(channels=sargs.channels, rnn_channels=sargs.rnn_channels,
-                                    rnn_type=sargs.rnn_type)
-        dummy = sample_input()
-        dummy = jax.tree.map(lambda x: x[None, ...] if x is not None else None, dummy)
-        s_params = s_agent.init(jax.random.PRNGKey(sargs.seed), init_rstate(sargs.rnn_type), dummy)
-        with open(student_ckpt, "rb") as f:
-            # 跨树加载（决策③同口径）：学生 ckpt 树不同代时 merge 并树
-            old_params = flax.serialization.from_bytes(None, f.read())
-            s_params, _merge_report = merge_params_by_shape(s_params, old_params)
-            # 跨树加载留痕（决策③同口径）：loaded/fresh 打一行
-            _sm = sorted({p.rsplit("/", 1)[0] for p in _merge_report["fresh"]})
-            print(f"[student:merge] 同形状继承 {_merge_report['n_loaded_params']}/{_merge_report['n_total_params']}"
-                  f" 参数；fresh {_merge_report['n_new_params']}（模块: {', '.join(_sm) or '—'}）", flush=True)
-        apply_s = jax.jit(s_agent.apply)
-        print(f"[student] {student_ckpt} → run {student_run.name}（actor={cli.actor}）", flush=True)
+    # S3-2（2026-11-26 二期 §5）：脚本臂 BC——C# ScriptBcRecorder 拦截录制（拦截匹配，
+    # 见其头注），本侧只读流转 shard。TIDE_PROBE_BC_DIR 必须在 TideEnv 拉起 Unity
+    # **之前**进环境（batchmode 子进程继承）；C# 侧每局写 bc_<gameId>.bin + .meta.json。
+    # rstate 全零=逐步独立口径（脚本标签不绑学生递归上下文）。
+    bc_raw = round_dir / "bc_raw"
+    bc_raw.mkdir(parents=True)
+    os.environ["TIDE_PROBE_BC_DIR"] = str(bc_raw)
+    print(f"[script-bc] TIDE_PROBE_BC_DIR={bc_raw}（C# 拦截录制）", flush=True)
 
     env = TideEnv(
         unity_path=sargs.unity_path,
         project_path=sargs.project_path,
         max_steps=sargs.max_episode_steps,
         reward_lambda=sargs.reward_lambda,
-        opponent="script" if cli.actor == "script" else "simpleai",
+        opponent="script",
         model_theme="all",
-        model_doped="" if cli.actor == "script" else sargs.model_doped,
         startup_timeout=sargs.startup_timeout,
         step_timeout=sargs.step_timeout,
     )
@@ -555,86 +448,43 @@ def cmd_collect(cli):
     cells = [(opp, seat) for opp in DECKS for seat in (0, 1)]
     games_meta = []
     t0 = time.time()
-    decks_run = list(DECKS) if cli.actor == "script" else sorted(teachers)
+    decks_run = list(DECKS)
     total = len(decks_run) * cli.games_per_deck
     done_games = 0
-    print(f"\n[collect] 采集：decks={decks_run} × {cli.games_per_deck} 局/deck"
-          f"（对手三脚本 × 双座轮转）= {total} 局 · actor={cli.actor} · 种子基 {cli.seed}\n",
+    print(f"\n[collect] 脚本示范 BC：decks={decks_run} × {cli.games_per_deck} 局/deck"
+          f"（对手三脚本 × 双座轮转）= {total} 局 · actor=script · 种子基 {cli.seed}\n",
           flush=True)
     seen_bc_games = set()
     try:
         for deck in decks_run:
-            apply_t, params_t = teachers.get(deck, (None, None))
             for i in range(cli.games_per_deck):
                 opp, seat = cells[i % len(cells)]
                 ep = i // len(cells)
                 seed = cli.seed + pair_seed_offset((deck,), DECKS, deck, opp) + seat * 500 + ep
-                if cli.actor == "script":
-                    # S3-2：脚本局整局在 reset 内打完（scriptVsScript）——C# 侧录制，Python 收流
-                    env.reset(options={"opponent": "script", "theme": opp,
-                                       "modelTheme": deck, "modelSeat": seat, "seed": seed})
-                    for meta_p in sorted(bc_raw.glob("bc_*.meta.json")):
-                        gid = meta_p.name[: -len(".meta.json")]  # bc_<gameId>
-                        if gid in seen_bc_games:
-                            continue
-                        seen_bc_games.add(gid)
-                        # C# File.WriteAllText(UTF8) 带 BOM——utf-8-sig 容错读
-                        meta = json.loads(meta_p.read_text(encoding="utf-8-sig"))
-                        game_idx = len(games_meta)
-                        n_unmatched = 0
-                        for rec in parse_bc_bin(bc_raw / (gid + ".bin")):
-                            if rec["chosen"] < 0:
-                                n_unmatched += 1
-                            writer.add_script_bc(rec, game_idx)
-                        games_meta.append({
-                            "deck": deck, "opp": opp, "seat": f"P{seat + 1}", "seed": seed,
-                            "winner": str(meta.get("winner", "")),
-                            "model_win": str(meta.get("winner", "")) == str(seat),
-                            "steps": int(meta.get("steps", 0)),
-                            "bc_unmatched": n_unmatched,
-                            "bc_game": int(meta.get("game", -1)),
-                            "behavior": {},
-                        })
-                    done_games += 1
-                    if done_games % 10 == 0 or done_games == total:
-                        print(f"  [collect] {done_games}/{total} 局 · 步 {writer.total_steps}"
-                              f" · {time.time() - t0:.0f}s", flush=True)
-                    continue
-                obs, info = env.reset(options={"opponent": "simpleai", "theme": opp,
-                                               "modelTheme": deck, "modelSeat": seat,
-                                               "seed": seed})
-                if str(info.get("modelTheme", "")) != deck:
-                    raise RuntimeError(f"[collect] modelTheme 回显 {info.get('modelTheme')!r}"
-                                       f" ≠ 请求 {deck!r}——教师路由拒绝继续")
-                game_idx = len(games_meta)
-                rstate_s = init_rstate(sargs.rnn_type)
-                rstate_t = init_rstate(sargs.rnn_type)
-                rng = jax.random.fold_in(jax.random.PRNGKey(0xE0A1), seed & 0xFFFFFFFF)
-                steps = 0
-                done = False
-                while not done and steps < sargs.max_episode_steps:
-                    obs_batch = jax.tree.map(
-                        lambda x: x[None, ...] if x is not None else None, obs)
-                    rstate_s_in = rstate_s
-                    rstate_s, logits_s, _v_s = apply_s(s_params, rstate_s, obs_batch)
-                    rstate_t, logits_t, value_t = apply_t(params_t, rstate_t, obs_batch)
-                    rng, sub = jax.random.split(rng)
-                    if cli.actor == "teacher":      # BC 4a：教师自走自标
-                        a = int(jax.random.categorical(sub, logits_t[0]))
-                    else:                            # DAgger 4b：学生采样行动
-                        a = int(jax.random.categorical(sub, logits_s[0]))
-                    writer.add(obs, rstate_s_in, logits_t[0], value_t[0], game_idx, a)
-                    obs, _r, done, truncated, info = env.step(a)
-                    steps += 1
-                    done = done or truncated
-                winner = str(info.get("winner", "") or "")
-                m_seat = int(info.get("modelSeat", -1))
-                games_meta.append({
-                    "deck": deck, "opp": opp, "seat": f"P{seat + 1}", "seed": seed,
-                    "winner": winner, "model_win": bool(winner) and m_seat in (0, 1)
-                              and int(winner) == m_seat,
-                    "steps": steps, "behavior": behavior_of(info),
-                })
+                env.reset(options={"opponent": "script", "theme": opp,
+                                   "modelTheme": deck, "modelSeat": seat, "seed": seed})
+                for meta_p in sorted(bc_raw.glob("bc_*.meta.json")):
+                    gid = meta_p.name[: -len(".meta.json")]  # bc_<gameId>
+                    if gid in seen_bc_games:
+                        continue
+                    seen_bc_games.add(gid)
+                    # C# File.WriteAllText(UTF8) 带 BOM——utf-8-sig 容错读
+                    meta = json.loads(meta_p.read_text(encoding="utf-8-sig"))
+                    game_idx = len(games_meta)
+                    n_unmatched = 0
+                    for rec in parse_bc_bin(bc_raw / (gid + ".bin")):
+                        if rec["chosen"] < 0:
+                            n_unmatched += 1
+                        writer.add_script_bc(rec, game_idx)
+                    games_meta.append({
+                        "deck": deck, "opp": opp, "seat": f"P{seat + 1}", "seed": seed,
+                        "winner": str(meta.get("winner", "")),
+                        "model_win": str(meta.get("winner", "")) == str(seat),
+                        "steps": int(meta.get("steps", 0)),
+                        "bc_unmatched": n_unmatched,
+                        "bc_game": int(meta.get("game", -1)),
+                        "behavior": {},
+                    })
                 done_games += 1
                 if done_games % 10 == 0 or done_games == total:
                     print(f"  [collect] {done_games}/{total} 局 · 步 {writer.total_steps}"
@@ -650,11 +500,8 @@ def cmd_collect(cli):
             wins_by_deck[g["deck"]][0] += 1
     meta_doc = {
         "round": round_n,
-        "actor": cli.actor,
-        "teachers": manifests,                      # 清单路径列表（deck 归属见 teachers_by_deck）
-        "teachers_by_deck": teachers_by_deck,        # {deck: manifest 路径}
+        "actor": "script",
         "student_run": student_run.name,
-        "student_ckpt": str(student_ckpt),
         "games": len(games_meta),
         "games_per_deck": cli.games_per_deck,
         "seed": cli.seed,
@@ -882,19 +729,13 @@ def main():
                     "（PPO 微调+教师 KL 锚延后未实现）")
     sub = ap.add_subparsers(dest="mode", required=True)
 
-    c = sub.add_parser("collect", help="DAgger(--actor student)/BC(--actor teacher) 采集")
-    c.add_argument("--teachers", default="",
-                   help="逗号分隔 teacher_manifest.json（逐 deck 一份）；--actor script 时不需要")
+    c = sub.add_parser("collect", help="脚本示范 BC 采集（--actor script，唯一模式）")
     c.add_argument("--student-run", default="", help="学生 run（缺省最新 student run 或新建）")
-    c.add_argument("--student-ckpt", default="",
-                   help="学生权重（缺省=本 run 的 last〔第 2 轮起〕；没有则共享 last（自动解析））")
-    c.add_argument("--actor", default="student", choices=["student", "teacher", "script"],
-                   help="student=DAgger 4b（默认）；teacher=离线 BC 4a；"
-                        "script=S3-2 脚本臂 BC（C# 拦截录制，2026-11-26 二期）")
-    c.add_argument("--games-per-deck", type=int, default=150)
-    c.add_argument("--seed", type=int, default=20261122)
+    c.add_argument("--actor", default="script", choices=["script"],
+                   help="script=脚本示范 BC（C# 拦截录制；2026-11-28 起唯一模式）")
+    c.add_argument("--games-per-deck", type=int, default=700)
+    c.add_argument("--seed", type=int, default=20261128)
     c.add_argument("--round", type=int, default=0, help="轮次号（缺省=已有 round 数+1）")
-    c.add_argument("--allow-missing", action="store_true", help="缺整套 deck 教师时放行跳过")
     c.add_argument("--unity-path", default="")
     c.add_argument("--project-path", default="",
                    help="Unity 工程根（默认脚本父目录；从主仓脚本跑副本局时必传副本根）")

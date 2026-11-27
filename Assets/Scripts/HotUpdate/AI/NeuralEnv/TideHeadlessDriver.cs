@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using CardCore;
@@ -67,28 +67,7 @@ namespace CardCore.AI.NeuralEnv
         public int ModelAtkFace;
         /// <summary>攻击宣言事件全量（排查用）</summary>
         public int ModelAtkAny;
-        // ---- S3-1（2026-11-26 二期 §5）：开手交棒（协议 info.handoff*；未命中进 stats.jsonl）----
-        /// <summary>交棒档位（none/t3_lands/first_sac_done/genel_ready；none=关闭）。</summary>
-        public string HandoffState;
-        /// <summary>本局是否已交棒（true=模型接管；false=终局仍未触发）。</summary>
-        public bool HandoffDone;
-        /// <summary>交棒时全局回合号（0=未交棒）。</summary>
-        public int HandoffTurn;
-        /// <summary>交棒时模型座池地张数（0=未交棒）。</summary>
-        public int HandoffLands;
-        /// <summary>交棒时归根动态费（×0.1 粒度，6.0/8.0 并存口径；-1=未交棒或不适用）。</summary>
-        public float HandoffGenCost;
-        /// <summary>交棒时手牌是否含归根（genel_ready 档恒 true；其它档如实）。</summary>
-        public bool HandoffGenInHand;
-        /// <summary>未交棒原因（""=已交棒；"ended"=终局仍未触发）。</summary>
-        public string HandoffMiss;
-        /// <summary>交棒后第几步首次施放归根（1 起；-1=未交棒或交棒后整局未施放）——
-        /// 「交棒后 3 步内施放率」的原始读数（S3-1 验收）。</summary>
-        public int HandoffStepsToGenel;
-        /// <summary>本次交棒是否为回合兜底强制（true=兜底/maxOpeningTurns，false=genel_ready 真实触发）
-        /// ——S3-1 验收按本位拆分读，防兜底污染命中率与 gen_in_hand 统计。</summary>
-        public bool HandoffForced;
-        // ---- S3-3（2026-11-26 二期 §5）：链进度（协议 info.chainBits/chainDone；decider 座位）----
+        // ---- S3-3 遗留：链进度只读仪表（协议 info.chainBits/chainDone；无奖励）----
         /// <summary>decider 座位的链里程碑闩位（bit0..3；本步结算后的值——终局步=全量）。</summary>
         public int ChainBits;
         /// <summary>decider 座位是否到达链终点里程碑（bit3：绿=大哥落地 / 红=combo / 蓝=潮痕碑召唤）——
@@ -162,35 +141,10 @@ namespace CardCore.AI.NeuralEnv
         private int _mSpellTurn = -1;      // 本轮记录的血偿/炸弹所属回合
         private bool _mBloodThisTurn, _mBombThisTurn;
 
-        // ---- S3-1（2026-11-26 二期 §5）：开手交棒 —— 模型座先用脚本策略打到触发态，再把
-        // 驱动权交回模型（单向，永不回脚本）。触发评估点=模型座回合开始（loop.AdvanceToDecision
-        // 的 InterceptModelTurn 钩子位）；开手回合整段脚本驱动（含响应窗=开手策略 PickFor），
-        // 中途不折返——genel_ready 若在开手回合内才达成，脚本会把本回合（含归根施放）打完，
-        // 下回合开始才交棒。none=关闭（缺省，零行为变化）；三档按计划 §5。
-        private string _handoffState = "none";
-        private int _maxOpeningTurns;      // 兜底：全局回合 ≥ 此值强制交棒（0=不兜底；协议下发）
-        private bool _handoffDone;         // 已交棒（handoffState=none 时恒 true=直通模型）
-        private SimpleAI _openingAi;       // 模型座开手脚本（AutoMatch(模型卡组)——每局重建）
-        private int _handoffTurn, _handoffLands, _handoffGenCostX10 = -1; // 交棒打点（费×10 存整数）
-        private bool _handoffGenInHand;
-        private string _handoffMiss = "";  // 终局未触发原因（"ended"=未交棒即终局；""=已交棒）
-        // S3-1 验收读数（2026-11-26 补）：交棒后模型座决策步计数与首次归根施放步距——
-        // 「交棒后 3 步内施放率」的数据源（开手回合动作不走 Step，天然只计交棒后）。
-        private int _stepsAfterHandoff;       // 交棒后的模型座决策步（1 起，0=未交棒）
-        private int _handoffStepsToGenel = -1; // 交棒后第几步首次施放归根（-1=整局未施放）
-        private bool _handoffForced;           // 本次交棒=回合兜底强制（true）/ genel_ready 真实触发（false）
-
-        // ---- S3-3（2026-11-26 二期 §5）：链进度势能 Φ_chain —— 三预组各自的 4 段里程碑闩位
-        //（按座位独立计数；事件层更新，含脚本开手/对手回合）。闩位只进不出（单调——势能
-        // 塑形 γ=1 telescoping 前提；G5 漏斗的「窗口内定序」口径不在此复刻）。
-        // 绿 = 0:池地≥3  1:施放归根  2:重铺(归根施放后再放地)  3:阿格洛斯落地
-        // 红 = 0:池地≥3  1:血偿打出   2:活体炸弹打出        3:同回合双法术(combo)
-        // 蓝 = 0:池地≥2  1:深潭碑打出  2:潮汐施放           3:潮痕碑衍生物召唤
-        // 卡组不命中三预组（随机 30/掺卡等）→ 主题空串，闩位恒 0（Φ=0，无链奖励）——
-        // 契约例外（§2 非目标唯一豁免）只覆盖三预组目标态，随机卡组不写专用奖励。用户 2026-11-26
-        // 「s3全面执行」指令=对 §5 S3-3 契约变更的签字。
-        private float _chainLambda = 0f;           // 奖励系数（协议 chainLambda 显式下发；0=关奖励，
-                                                   // 闩位计数照常——info.chainBits 是免费过程仪表）
+        // ---- 链进度闩位（S3-3 遗留的**只读仪表**；2026-11-28 链奖励已删）----
+        // 三预组各自的 4 段里程碑闩位（按座位独立计数；事件层更新，含脚本开手/对手回合）。
+        // 只进不出（单调）；绿=池地≥3/施放归根/重铺/阿格洛斯落地；红=池地≥3/血偿/炸弹/双法术；
+        // 蓝=池地≥2/深潭碑/潮汐/潮痕碑衍生物。info.chainBits/chainDone 仍供 stats 与 aux 第三标签。
         private readonly int[] _chainBits = new int[2];       // 每座位里程碑闩位 bit0..3
         private readonly string[] _seatTheme = { "", "" };    // 每座位卡组主题（green/red/blue/""）
         private readonly int[] _redSpellTurn = { -1, -1 };    // 红链：本回合已打出的法术记账
@@ -246,10 +200,8 @@ namespace CardCore.AI.NeuralEnv
         public TideHeadlessDriver()
         {
             // 决策循环钩子（2026-11-27 S1 抽取后 driver 侧外挂，时位与原内联调用逐位一致）：
-            // ① B4 行为仪表——动作引擎应用成功后、推进前即时计（原 Step 内联 TrackModelBehavior）；
-            // ② S3-1 开手交棒——模型座回合开始停靠口的三态判定（原 AdvanceToDecision 内联块）。
+            // B4 行为仪表——动作引擎应用成功后、推进前即时计（原 Step 内联 TrackModelBehavior）。
             _loop.AfterActionApplied = TrackModelBehavior;
-            _loop.InterceptModelTurn = DriverInterceptModelTurn;
             // 订阅终局（全局事件总线；Dispose 反订阅，避免跨局泄漏）
             EventManager.Instance.Subscribe<GameOverEvent>(OnGameOver);
             // 2026-11-23 战斗伤害计价（用户口径）：战斗伤害按 0.5 费/点计（法术/效果伤害仍 1.0）。
@@ -330,11 +282,9 @@ namespace CardCore.AI.NeuralEnv
         /// </summary>
         public TideStepResult Reset(List<CardData> deck1, List<CardData> deck2, bool modelIsP1,
             AiStrategy opponentStrategy = null, int? rngSeed = null,
-            string skillCardId1 = null, string skillCardId2 = null,
-            string handoffState = "none", int maxOpeningTurns = 0)
+            string skillCardId1 = null, string skillCardId2 = null)
             => ResetCore(deck1, deck2, modelIsP1, opponentStrategy, rngSeed: rngSeed,
-                skillCardId1: skillCardId1, skillCardId2: skillCardId2,
-                handoffState: handoffState, maxOpeningTurns: maxOpeningTurns);
+                skillCardId1: skillCardId1, skillCardId2: skillCardId2);
 
         /// <summary>
         /// 初始化一局全脚本对局（协议 opponent="script"，2026-11-22 「绿打红 0%」归因取证）：
@@ -358,8 +308,7 @@ namespace CardCore.AI.NeuralEnv
 
         private TideStepResult ResetCore(List<CardData> deck1, List<CardData> deck2, bool? modelIsP1,
             AiStrategy opponentStrategy = null, bool scriptVsScript = false, int? rngSeed = null,
-            string skillCardId1 = null, string skillCardId2 = null,
-            string handoffState = "none", int maxOpeningTurns = 0)
+            string skillCardId1 = null, string skillCardId2 = null)
         {
             // 变形目标形态解析器：组合根注入（镜像 AiBattleDriver / BattleController）
             CardCore.Attribute.Handlers.SummonTokenHandler.ResolveTemplate = CardCatalog.GetById;
@@ -397,11 +346,6 @@ namespace CardCore.AI.NeuralEnv
             if (modelIsP1.HasValue)
             {
                 simpleAI = new SimpleAI(opponentStrategy); // vs 模式：每局按注入策略重建（自对弈不用）
-                // S3-1（2026-11-26 二期）：开手交棒开启时，模型座也绑开手策略——开手回合的响应窗
-                //（AiStrategyRegistry.PickFor）走脚本决策；交棒后停靠口（TryResolveResponseWindow
-                // 的模型座分支 / D2d 泵停靠）先于脚本口命中，绑定惰性无害。
-                if (!_handoffDone && _openingAi != null)
-                    AiStrategyRegistry.Bind(_modelPlayer, _openingAi.Strategy);
                 // 阶段 D2c（2026-11-22 模型侧响应停靠）：vs 模式脚本座响应接线——镜像 AiDuelRunner/
                 // D2b 脚本局：AiStrategyRegistry.Bind(脚本玩家) + ResponseWindowService.AiResponder=PickFor。
                 // 两处消费：① 决策循环响应窗口的脚本座（GameActions.TryApplyAiResponse 单轮决策+应用）；
@@ -461,43 +405,12 @@ namespace CardCore.AI.NeuralEnv
             _seatTheme[1] = DetectTheme(deck2);
             _redSpellTurn[0] = _redSpellTurn[1] = -1;
             _redBlood[0] = _redBlood[1] = _redBomb[0] = _redBomb[1] = false;
-            // S3-1（2026-11-26 二期）：开手交棒配置落位（none/非法=关，零行为变化）；
-            // 开启时建模型座开手脚本（AutoMatch(模型卡组)）并给模型座绑响应策略——开手回合
-            // 响应窗经 PickFor 同步决策（模型座停靠口对「回合方=模型」的语境不接管，见其守卫），
-            // 交棒后绑定惰性无害（停靠口先于脚本口命中）。
-            _handoffState = handoffState == "t3_lands" || handoffState == "first_sac_done"
-                         || handoffState == "genel_ready" ? handoffState : "none";
-            if (!string.IsNullOrEmpty(handoffState) && handoffState != "none" && _handoffState == "none")
-                UnityEngine.Debug.LogWarning($"[TideHeadless] handoffState '{handoffState}' 非法"
-                    + "（认 none/t3_lands/first_sac_done/genel_ready），本局关闭交棒");
-            _maxOpeningTurns = maxOpeningTurns;
-            _handoffTurn = 0;
-            _handoffLands = 0;
-            _handoffGenCostX10 = -1;
-            _handoffGenInHand = false;
-            _handoffMiss = "";
-            _handoffDone = _handoffState == "none";
-            _stepsAfterHandoff = 0;        // S3-1：交棒后步距读数每局清零
-            _handoffStepsToGenel = -1;
-            _handoffForced = false;
-            if (!_handoffDone && modelIsP1.HasValue && _modelPlayer != null)
-            {
-                var modelDeck = ReferenceEquals(_modelPlayer, _core.Player1) ? deck1 : deck2;
-                _openingAi = new SimpleAI(AiStrategy.AutoMatch(modelDeck));
-            }
-            else
-            {
-                _handoffDone = true; // 自对弈/防御：交棒只对 vs 模式有意义
-                _openingAi = null;
-            }
             // P3（2026-11-19 §4.1 建·A0 2026-11-24 逐张弃）：模型座手牌上限弃牌改停靠决策
             //（DiscardChoice 行=每张手牌一行，引擎有界循环逐张推进）——
-            // 自对弈（_modelPlayer=null）双座皆模型；vs 模式仅模型座；
-            // S3-1：交棒前模型座弃牌也归脚本代选（闭包实时读 _handoffDone——开手回合超限
-            // 自动代弃，交棒后才停靠问模型）
+            // 自对弈（_modelPlayer=null）双座皆模型；vs 模式仅模型座。
             HandLimitDiscardGate.Reset();
             HandLimitDiscardGate.Bind(p => _modelPlayer == null
-                || (_handoffDone && ReferenceEquals(p, _modelPlayer)));
+                || ReferenceEquals(p, _modelPlayer));
 
             // 决策循环每局装配（2026-11-27 S1）：停靠链/循环治理状态归零 + 本局引用注入
             //（原 ResetCore 内联的终局/停靠/摘除/L1-L2 状态复位全部在 loop.BeginGame——
@@ -563,9 +476,6 @@ namespace CardCore.AI.NeuralEnv
             if (_loop.IsGameOver) return BuildResult(0f); // 已终局：无动作可执行
 
             var me = _loop.Decider ?? _core.TurnEngine.TurnPlayer; // 本步决策座次（Main=回合玩家 / 响应=优先权方）
-            // S3-1 验收读数：交棒后步距计数（每模型座决策步 +1；开手回合不走 Step 故只计交棒后）
-            if (_handoffState != "none" && _handoffDone && _handoffStepsToGenel < 0)
-                _stepsAfterHandoff++;
             // 2026-11-23 成长指标：本步动手前的 T1/T3 地数快照（红/绿招牌操作分析用）
             SnapshotGrowth(me);
             // 2026-11-23 战斗伤害计价：每步清零（本步内的 CombatDamageEvent 由 OnCombatDamage 记账）
@@ -579,8 +489,6 @@ namespace CardCore.AI.NeuralEnv
             float before = _shapingLambda > 0f
                 ? FieldValueReward.ComputePotential(_core, me, includeHand: true)
                 : 0f;
-            // S3-3：链进度势能基线（本步动手前 decider 的闩位——与 Φ 塑形独立，λ=0 塑形基线不影响）
-            int chainBefore = SeatOf(me) is >= 0 and <= 1 ? _chainBits[SeatOf(me)] : 0;
 
             // 决策循环单源：应用→推进→L1 指纹（loop 内；B4 仪表经 AfterActionApplied 钩子在
             // 推进前即时计——与原 Step 内联位逐位一致，回合号口径不变）
@@ -619,25 +527,9 @@ namespace CardCore.AI.NeuralEnv
                 delta += 0.5f * (_combatDmgSelfStep - _combatDmgOppStep);
                 reward = _shapingLambda * delta;
             }
-            // S3-3 链进度势能（独立于 λ·ΔΦ 塑形与终局 ±1；γ=1 下 telescoping——轨迹总回报不变、
-            // 只改入账位置，验收读入账步距不读总量）。λ_chain=0 关；里程碑只在 decider 自己的
-            // 动作结算里闩立 → Δ≥0 单调。
-            if (_chainLambda != 0f)
-            {
-                int seatMe = SeatOf(me);
-                if (seatMe is >= 0 and <= 1)
-                    reward += _chainLambda * ((_chainBits[seatMe] & 1) - (chainBefore & 1)
-                                              + ((_chainBits[seatMe] & 2) - (chainBefore & 2)) / 2f
-                                              + ((_chainBits[seatMe] & 4) - (chainBefore & 4)) / 4f
-                                              + ((_chainBits[seatMe] & 8) - (chainBefore & 8)) / 8f) / 4f;
-            }
 
             return BuildResult(reward);
         }
-
-        /// <summary>按局覆盖链进度奖励系数（S3-3，reset 协议透传）。0=关奖励（闩位计数照常）；
-        /// 计划初值 0.02（势能量级 ≪ 终局 ±1，与 §2 塑形历史坑同口径）；不调用保持 0（旧行为）。</summary>
-        public void SetChainLambda(float lambda) => _chainLambda = lambda;
 
         /// <summary>闩位（bit0..3；幂等——重复达成不重复计）。</summary>
         private void LatchChain(int seat, int bit)
@@ -727,69 +619,6 @@ namespace CardCore.AI.NeuralEnv
             return "";
         }
 
-        // ===================================================== S3-1 开手交棒 =====================================================
-
-        /// <summary>交棒触发态评估（模型座回合开始时调；handoffState 语义见字段注释）。
-        /// genel_ready = 手牌含归根（未在施放中）且引擎口径可付（CanAffordCast 含动态费 6.0/8.0
-        /// ——不按印刷 8 费硬编码）且池地≥3（计划 §5 触发条件三要素）。</summary>
-        private bool HandoffTriggerMet()
-        {
-            if (_modelPlayer == null || _core == null) return true;
-            switch (_handoffState)
-            {
-                case "t3_lands": return LandCountOf(_modelPlayer) >= 3;
-                case "first_sac_done": return _mSacSeen;
-                case "genel_ready":
-                    if (LandCountOf(_modelPlayer) < 3) return false;
-                    var genel = (_core.ZoneManager.GetCards(_modelPlayer, Zone.Hand) ?? new List<Card>())
-                        .FirstOrDefault(c => c != null && c.ID == IdGreenRecall && !_core.StackEngine.IsPendingCast(c));
-                    if (genel == null) return false;
-                    _handoffGenCostX10 = (int)Math.Round(GameActions.GetCardCost(genel, 0).Total * 10f);
-                    return GameActions.CanAffordCast(_core, _modelPlayer, genel, 0);
-                default: return true; // 未知档位=立即交棒（防御）
-            }
-        }
-
-        /// <summary>完成交棒：打点（回合/池地/剩余元素/动态费/手牌是否含归根/是否强制）+ 摘除开手脚本。
-        /// forced=**回合兜底**（maxOpeningTurns 到顶强制交棒，与 genel_ready 触发无关）——
-        /// forced 局的 gen_in_hand 可为 false（手无归根）；S3-1 验收按 forced 拆分读，防兜底污染
-        ///（2026-11-26 DSH：上批冒烟 5/7 局是兜底，gen_in_hand 2/7 由此解释）。</summary>
-        private void CompleteHandoff(bool forced)
-        {
-            if (_handoffDone) return;
-            _handoffDone = true;
-            _handoffForced = forced;
-            _handoffTurn = _core.TurnEngine.TurnNumber;
-            _handoffLands = LandCountOf(_modelPlayer);
-            var genel = (_core.ZoneManager.GetCards(_modelPlayer, Zone.Hand) ?? new List<Card>())
-                .FirstOrDefault(c => c != null && c.ID == IdGreenRecall);
-            _handoffGenInHand = genel != null;
-            if (_handoffGenInHand)
-                _handoffGenCostX10 = (int)Math.Round(GameActions.GetCardCost(genel, 0).Total * 10f);
-            else if (_handoffState != "genel_ready")
-                _handoffGenCostX10 = -1; // 非 genel_ready 档位不承诺归根在手
-            _openingAi = null;           // 交棒后开手脚本退役（GC）
-            _stepsAfterHandoff = 1;      // 交棒即起算（首个停靠步=第 1 步）
-        }
-
-        /// <summary>S3-1 开手交棒钩子（loop.AdvanceToDecision 的模型座回合停靠口调；
-        /// 原 AdvanceToDecision 内联 handoff 块 + RunOpeningTurnAsync，2026-11-27 S1 换钩子——
-        /// 三态语义逐位保留：交棒前模型座回合整段交开手脚本〔开手回合响应窗经 AiStrategyRegistry
-        /// （模型座已绑开手策略）同步决策，不停靠〕；触发/兜底交棒后返回 None 落停靠口问模型）。</summary>
-        private ModelTurnIntercept DriverInterceptModelTurn()
-        {
-            if (_handoffDone) return ModelTurnIntercept.None; // 交棒后（或 none 档）恒直通模型
-            if (_loop.ScriptTurnChainActive) return ModelTurnIntercept.ChainInFlight; // 开手链在途（防御）
-            bool forced = _maxOpeningTurns > 0 && _core.TurnEngine.TurnNumber >= _maxOpeningTurns;
-            if (!forced && !HandoffTriggerMet())
-            {
-                _loop.RunExternalTurnChain(_openingAi, "开手脚本"); // 模型座开手回合整段脚本驱动
-                return ModelTurnIntercept.ChainStarted;
-            }
-            CompleteHandoff(forced); // 触发（或 maxOpeningTurns 兜底）→ 交棒，loop 落本停靠口问模型
-            return ModelTurnIntercept.None;
-        }
-
         /// <summary>释放：反订阅终局、撤销棋盘接线（静态扩展点归零）。</summary>
         public void Dispose()
         {
@@ -824,8 +653,6 @@ namespace CardCore.AI.NeuralEnv
             // 终局三态 + 两门清理（弃牌门 CompleteDefault / 拾取闸 Reset）随决策循环在 loop 侧收口
             //（2026-11-27 S1 迁入 BattleDecisionLoop.MarkGameOver——原 OnGameOver 前半逐位一致）
             _loop.MarkGameOver(e.Winner, e.Reason.ToString());
-            // S3-1：终局仍未交棒 → 未命中原因（协议 info.handoffMiss；命中率进 stats.jsonl 用）
-            if (!_handoffDone) _handoffMiss = "ended";
         }
 
         private int SeatOf(Player p)
@@ -873,9 +700,6 @@ namespace CardCore.AI.NeuralEnv
                 if (!asCard) return;           // 归根当地落不算「回收」
                 _mRec++;
                 if (_mSacSeen) _mChain = 1;    // 先牺牲 → 后归根 = 走通回收链
-                // S3-1 验收读数：交棒后首次归根施放步距（开手回合不经过本函数——天然只计交棒后）
-                if (_handoffState != "none" && _handoffDone && _handoffStepsToGenel < 0)
-                    _handoffStepsToGenel = Math.Max(_stepsAfterHandoff, 1);
             }
             else if (id == IdGreenAgros)
             {
@@ -993,16 +817,7 @@ namespace CardCore.AI.NeuralEnv
                 ModelAtkRisky = _mAtkRisky,
                 ModelAtkFace = _mAtkFace,
                 ModelAtkAny = _mAtkAny,
-                // S3-1/S3-3（2026-11-26 二期）：交棒打点 + decider 链闩位（终局步=全量）
-                HandoffState = _handoffState,
-                HandoffDone = _handoffDone,
-                HandoffTurn = _handoffTurn,
-                HandoffLands = _handoffLands,
-                HandoffGenCost = _handoffGenCostX10 / 10f,
-                HandoffGenInHand = _handoffGenInHand,
-                HandoffMiss = _handoffMiss ?? "",
-                HandoffStepsToGenel = _handoffStepsToGenel,
-                HandoffForced = _handoffForced,
+                // S3-3 遗留：decider 链闩位（只读仪表；终局步=全量）
                 ChainBits = SeatOf(stop.Decider) is >= 0 and <= 1 ? _chainBits[SeatOf(stop.Decider)] : 0,
                 ChainDone = SeatOf(stop.Decider) is >= 0 and <= 1 && (_chainBits[SeatOf(stop.Decider)] & 8) != 0,
             };

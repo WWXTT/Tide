@@ -56,9 +56,6 @@ class TideEnv(TideEnvTcp):
         model_theme: str = "",        # vs 脚本口径模型侧卡组主题（""=Cards 随机 30；红镜像传 "red"）
         model_doped: str = "",        # 掺卡口径主题（""=旧行为；阶段二传 "red"=整组每种−1+池随机补足）
         picks_mode: str = "macro",    # v22 二期 S2a：目标拾取行模式 macro/step/both（默认 macro）
-        handoff_state: str = "none",  # S3-1（二期 §5）：开手交棒档位 none/t3_lands/first_sac_done/genel_ready
-        max_opening_turns: int = 0,   # S3-1：交棒兜底回合（0=不兜底）
-        chain_lambda: float = 0.0,    # S3-3（二期 §5）：链进度势能奖励系数（0=关；计划初值 0.02）
         startup_timeout: float = 300.0,
         step_timeout: float = 120.0,
         connect_retry_interval: float = 2.0,
@@ -105,9 +102,6 @@ class TideEnv(TideEnvTcp):
             model_theme=model_theme,
             model_doped=model_doped,
             picks_mode=picks_mode,
-            handoff_state=handoff_state,
-            max_opening_turns=max_opening_turns,
-            chain_lambda=chain_lambda,
         )
 
     # ===================================================== Unity 发现 =====================================================

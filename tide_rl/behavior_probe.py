@@ -1,10 +1,10 @@
-"""绿行为门探针（Stage 3 配套·三专精→教师→蒸馏框架 §8.2，第二批工具 2026-11-26）。
+"""绿行为探针（原三专精教师门证据工具；2026-11-28 教师路线废止后**保留为只读读数工具**）。
 
-跑真局产出 teacher_behavior.json——teacher_gate 绿行为门的四项证据：
+跑真局产出 teacher_behavior.json——绿的四项行为到达率：
   t5_agros_rate（mAgrosTurn ∈ 1..10 的局 / 总局）、chain_rate（mChain>0 的局 / 总局）、
   full_sac_rate（单次献祭目标数 ≥11 的局 / 总局）、wotu_per_game（mGrow 合计 / 总局）。
-**键名与 teacher_gate.DEFAULT_BEHAVIOR_THRESHOLDS 逐字一致**（本文件 import 该表取
-thresholds_used，不复制常量）。红/蓝也可跑（诊断用），但行为门语义只对绿定义。
+四项阈值随文件保留作**参考线**（原教师门阈值，2026-11-28 起不再有门语义）；BC/DAgger
+阶段用这四项判行为保持率。红/蓝也可跑（诊断用），但阈值语义只对绿定义。
 
 口径：
   - 动作 = **categorical 采样**（与教师矩阵/评估协议 v2 同式，caliber="sample"）——
@@ -28,7 +28,7 @@ thresholds_used，不复制常量）。红/蓝也可跑（诊断用），但行�
 
 输出：控制台摘要 + teacher_behavior.json（四项门键 + sac_hist 直方图 + thresholds_used
 + per_game 逐局明细 + deck/run/step/opponent/games/seed/caliber/source 戳）。
-退出码：0=正常产出（行为过不过门由 teacher_gate 判，本工具不打分）。
+退出码：0=正常产出（本工具只报读数，不判过门）。
 """
 import argparse
 import json
@@ -47,7 +47,14 @@ from tide_env import TideEnv
 from train_tide_complete import Args, THEME_KEYS
 from eval_checkpoint import resolve_run_dir, pick_ckpt, args_from_run
 from eval_matrix import pair_seed_offset
-from teacher_gate import DEFAULT_BEHAVIOR_THRESHOLDS
+
+# 原教师门阈值（2026-11-26 定，2026-11-28 教师路线废止后只作参考线/读数基线，不再判过门）
+DEFAULT_BEHAVIOR_THRESHOLDS = {
+    "t5_agros_rate": 0.20,   # T5 阿格洛斯（作为卡打出·全局 ≤10 回合）≥ 20% 绿局
+    "chain_rate": 0.50,      # 牺牲→回收链（mChain）≥ 50% 绿局
+    "full_sac_rate": 0.30,   # 满献（单次牺牲目标数 ≥11）≥ 30% 绿局
+    "wotu_per_game": 1.5,    # 沃土打出 ≥ 1.5 次/绿局
+}
 
 DECKS = ("red", "green", "blue")
 CN = {"red": "红", "green": "绿", "blue": "蓝"}
@@ -287,3 +294,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
