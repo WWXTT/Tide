@@ -1364,15 +1364,21 @@ def train(args: Args):
                         if n_i > 0 and (mt_k, opp_k, seat) in SCRIPT_MATRIX_BASELINES:
                             matrix_cells[(mt_k, opp_k, seat)] = (w_i, n_i)
                 if matrix_cells:
-                    sel_val, worst_key = select_value(matrix_cells)
+                    # select_value 的返回契约是 (median_delta, worst)，
+                    # 其中 worst = ((模型卡组, 对手主题, 座位), Δ)——**不是**一个三元格键。
+                    # 2026-11-27 修复：旧代码按 worst_key[0]/[1]/[2] 取格键，18 格齐备的
+                    # 首次全三主题评估一落地就 IndexError（red 50k eval 现场复现，
+                    # 三个教师 run 均会撞上；单主题评估因覆盖不齐走 None 分支未暴露）。
+                    sel_val, worst = select_value(matrix_cells)
                     gate = training_gate(matrix_cells)
                     cand = candidate_gate(matrix_cells)
                     select_rate = sel_val if sel_val is not None else win_rate
                     select_label = "17格中位Δ(P1)"
                     target_hit = gate["pass"]
                     select_extra = {"cells": len(matrix_cells),
-                                    "worst": (f"{worst_key[0]}|{worst_key[1]}/P{worst_key[2]+1}"
-                                              if worst_key else None),
+                                    "worst": (f"{worst[0][0]}|{worst[0][1]}/P{worst[0][2]+1}"
+                                              if worst else None),
+                                    "worst_delta": (round(worst[1], 4) if worst else None),
                                     "delta_median": (round(gate["median_delta"], 4)
                                                      if gate["median_delta"] is not None else None),
                                     "robust_cells": gate["robust_cells"],

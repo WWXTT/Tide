@@ -116,7 +116,7 @@ namespace CardCore.Editor.Tests
         /// 节奏（本工具 P1 恒先手、P2 恒后手护甲）。
         /// </summary>
         public BattleRunResult RunFullGame(List<CardData> deck1, List<CardData> deck2, int maxTurns,
-            AiBrain brain1, AiBrain brain2, OnnxTidePolicy policy,
+            AiBrain brain1, AiBrain brain2, CardCore.AI.NeuralEnv.IBattlePolicy policy,
             AiStrategy strategy1 = null, AiStrategy strategy2 = null,
             string skillCardId1 = null, string skillCardId2 = null,
             List<DeckTokenBinding> tokenBindings1 = null, List<DeckTokenBinding> tokenBindings2 = null,
@@ -235,6 +235,7 @@ namespace CardCore.Editor.Tests
                 EventManager.Instance.Unsubscribe<GameOverEvent>(OnGameOver);
                 AiStrategyRegistry.Clear(); // 响应策略整局解绑（2026-11-02 响应窗任务A）——恢复内置守卫启发
                 ResponseWindowService.AiResponder = null;
+                ResponseWindowService.AiAsyncResponder = null; // S2（2026-11-27）：NeuralAI 的神经座内联响应接线随局清零（防串入后续局）
                 CombatSystem.AdjacentResolver = null; // 撤销本局的棋盘接线（静态扩展点归零）
                 GameBoard.LinkAuraSystem.Detach();    // 连接光环接线同步归零
                 CardCore.Attribute.Handlers.SummonTokenHandler.ResolveTemplate = null; // 召唤模板接线同步归零

@@ -9,14 +9,17 @@ namespace SynergyUI
 {
     /// <summary>
     /// 神经 AI 活体接入（2026-10-14 镜像对决定案）：IAiTurnDriver 适配器——把 NeuralAI
-    /// （tide_policy.onnx 整回合策略）接进 BattleController 的 AI 槽位（此前只由编辑器
-    /// 对战窗口直调，不接入活体对局）。
+    /// （tide_policy.onnx 逐步策略，2026-11-27 S2 起逐步驱动）接进 BattleController 的
+    /// AI 槽位（此前只由编辑器对战窗口直调，不接入活体对局）。
     /// 接线（P-1 2026-11-19 稳定下标后）：身份下标纯派生（无 manifest/Register）→
     /// OnnxTidePolicy（进程共享 worker；ValidateModelLayout 按图输入维度 + pool size
     /// 拒旧代模型）→ 新对局换脑（GRU rstate 归零）。
     /// 模型缺失/布局不符：一次性失败标记 + 响亮回落 SimpleAI（对局可继续，Console 留因）。
-    /// 注意：战斗时序=训练口径 DrainStack——镜像局里人类的守卫响应窗口不开启
-    /// （守卫交互在教学剧本局验证，ScriptedAi 走 SettleResponseWindowAsync）。
+    /// 战斗时序（S2 2026-11-27 逐步驱动共享，用户口径）：NeuralAI 经 BattleDecisionLoop 逐步
+    /// 停靠（Main/响应窗/目标拾取，与训练同口径）；**人类/非神经座的响应窗维持现状**——
+    /// 神经座回合内人类座不弹新窗（自动让过），人类自己回合内的窗口照旧走 HumanResponder；
+    /// 神经座在对手回合的响应由 NeuralAI 注册的 AiAsyncResponder 内联决策（随
+    /// BattleController.Shutdown 还原）。
     /// </summary>
     public sealed class NeuralAiDriver : IAiTurnDriver
     {
@@ -36,7 +39,7 @@ namespace SynergyUI
             }
             try
             {
-                _brain.TakeTurn(ctrl); // 同步整回合（CPU 推理；测试期可接受）
+                _brain.TakeTurn(ctrl); // 同步逐步整回合（CPU 推理；测试期可接受——S2 起 loop 逐步停靠）
             }
             catch (Exception ex)
             {

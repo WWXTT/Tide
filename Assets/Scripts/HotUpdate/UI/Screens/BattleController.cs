@@ -214,6 +214,9 @@ namespace SynergyUI
             DetachBoard();
             // AI 响应策略解绑（2026-11-02 响应窗任务A）：Player 每局新建，清空防跨局累积
             CardCore.AI.AiStrategyRegistry.Clear();
+            // S2（2026-11-27 逐步驱动共享）：神经座内联响应接线（NeuralAI 注册的 AiAsyncResponder）
+            // 随战斗结束还原——全局静态不清理会串入后续脚本局
+            ResponseWindowService.AiAsyncResponder = null;
             // 教学态静态接线还原（AiResponder 是全局委托——不还原会泄漏到后续普通局：机器人永不让守卫）
             if (_passiveResponderOn)
             {

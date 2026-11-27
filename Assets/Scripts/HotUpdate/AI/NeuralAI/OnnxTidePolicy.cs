@@ -30,7 +30,7 @@ namespace CardCore.AI.NeuralEnv
     /// ValidateModelLayout 按图输入维度 + **embedding 池尺寸**（16384/4096，扫模型常量）拦——
     /// 旧 1024/256 池模型在这里被拒，不再静默 clip。
     /// </summary>
-    public sealed class OnnxTidePolicy : IDisposable
+    public sealed class OnnxTidePolicy : IBattlePolicy, IDisposable // S2：实现 IBattlePolicy（Select/Reset 既有签名）
     {
         // 与 tide_rl/tide_features.py 对齐（模型图内写死，改维度必须重导出）
         public const int RnnChannels = 512;

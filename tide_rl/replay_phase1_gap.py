@@ -135,8 +135,10 @@ def main():
             lines.append(f"- judge：{'**达标**' if r['pass'] else '未达标'}（中位数 "
                          f"{r['median_delta']*100:+.1f}pp；needs_more {len(r['needs_more'])} 格）")
             if worst:
-                lines.append(f"- 最差格：{worst[0]}|{worst[1]}/P{worst[2] + 1}"
-                             f"（Wilson 下界 Δ {sel * 100:+.1f}pp）")
+                # select_value 返回 (median_delta, ((模型卡组, 对手主题, 座位), Δ)) ——
+                # 2026-11-27 修复：旧写法把二元组当三元格键用（worst[2] 取不到）。
+                lines.append(f"- 最差格：{worst[0][0]}|{worst[0][1]}/P{worst[0][2] + 1}"
+                             f"（最差格 Δ {worst[1] * 100:+.1f}pp；中位 Δ {sel * 100:+.1f}pp）")
             fails = [c for c in r["per_cell"] if c.get("verdict") == "fail"]
             if fails:
                 worst3 = sorted(fails, key=lambda c: c["delta"])[:3]
