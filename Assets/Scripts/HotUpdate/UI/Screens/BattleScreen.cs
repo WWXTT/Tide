@@ -471,7 +471,7 @@ namespace SynergyUI
             _choreo = new CombatChoreographer(_field, () => _view, RefreshField, listenEvents: !netMode && !replayMode, selfPlayer: () => P1);
             _choreo.ReplayDriven = true; // 战斗演出改由步进回放导演驱动（2026-10-19 严格结算序：攻击步到位才开演）
             _audioBridge?.Dispose();
-            _audioBridge = new Tide.HotUpdate.BattleAudioBridge(() => P1); // 音效事件桥全模式订阅（2026-11-22 B2：网络/回放事件同走 EventManager；快进机关枪由服务内 0.1s 节流闸兜）
+            _audioBridge = new Tide.HotUpdate.BattleAudioBridge(() => P1, () => Core); // 音效事件桥全模式订阅；激昂判定本地走 Core 精确攻击力，联机/复盘回落视图（2026-11-27）
             _cellPicker = new BattleCellPicker();
             BattleStageDirector.MountBoardAndDawnAsync().Forget(); // 转场③④：装载棋盘（分区表注入）→ 日出
             // 棋盘就绪后首刷（英雄柱/初始摆位）：staged 开局局挪到段五起步——段一~四无 Core 恒不就绪，

@@ -8,11 +8,18 @@
       "fadeInSec": 1.0
     },
     {
-      "id": "Battle",
-      "clip": "music_battle_loop",
-      "intro": "music_battle_intro",
-      "outro": "music_battle_outro",
+      "id": "BattleCalm",
+      "clip": "music_battle_calm",
+      "intro": null,
+      "outro": null,
       "fadeInSec": 1.5
+    },
+    {
+      "id": "BattleFierce",
+      "clip": "music_battle_fierce",
+      "intro": "music_battle_transition",
+      "outro": null,
+      "fadeInSec": 0.25
     }
   ],
   "screens": [
@@ -24,7 +31,7 @@
     { "screen": "EffectComposerScreen", "music": "Menu" },
     { "screen": "MatchHistoryScreen", "music": "Menu" },
     { "screen": "ChallengeScreen", "music": "Menu" },
-    { "screen": "BattleScreen", "music": "Battle" }
+    { "screen": "BattleScreen", "music": "BattleCalm" }
   ],
   "sfx": [
     { "id": "Draw", "clip": "sfx_draw_01" },

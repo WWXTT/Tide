@@ -196,12 +196,13 @@ def run():
           and not (r7 / "teacher_manifest.json").exists(),
           f"硬闸：era 失配 rc={rc} 拒绝出证、零产物（复用 certify check_gates）")
 
-    # ---- ⑧ 硬闸拒绝：run 名不含 simpleai（自对弈旧名一眼可辨）----
+    # ---- ⑧ 硬闸拒绝：opponent≠simpleai（2026-11-27 起目录名不参与硬闸）----
     r8 = make_run(root, "tide_ppo_selfplay_x__42__1799999008", "green",
-                  cells=deck_cells("green", OFF_T2), behavior=BEH_PASS)
+                  cells=deck_cells("green", OFF_T2), behavior=BEH_PASS,
+                  opponent="selfplay")
     rc = run_cli(["--run", str(r8)])
     check(rc == 2 and not (r8 / "teacher_manifest.json").exists(),
-          f"硬闸：run 名无 simpleai rc={rc} 拒绝出证")
+          f"硬闸：opponent≠simpleai rc={rc} 拒绝出证（名字不含 simpleai 不再拒）")
 
     # ---- ⑨ 非绿套：红专精 T2 + 行为文件存在但被忽略（§8.2 仅绿教师设行为门）----
     r9 = make_run(root, "tide_ppo_simpleai_red_teacher__42__1799999009", "red",
@@ -302,10 +303,28 @@ def run():
     check(mf["behavior_gate"] == "missing" and mf["behavior"] is None,
           "A2 缺行为证据：manifest.behavior_gate=missing、behavior=null")
 
+    # ---- ⑲ 名字闸修复（2026-11-27）：run 名不含 simpleai 但 opponent=simpleai → 放行留痕 ----
+    cells_red_t2 = {("red", 0): 24, ("red", 1): 24, ("green", 0): 24,
+                    ("green", 1): 24, ("blue", 0): 24, ("blue", 1): 24}
+    r19 = make_run(root, "red_teacher_600k__42__1799999019", "red",
+                   cells=deck_cells("red", cells_red_t2))
+    rc = run_cli(["--run", str(r19)])
+    g, mf = load(r19 / "teacher_gate.json"), load(r19 / "teacher_manifest.json")
+    check(rc == 0 and g["tier"] == "T2" and g["run_name_waived"] is True
+          and mf["run_name_waived"] is True,
+          f"名字闸修复：run 名无 simpleai + config opponent=simpleai → rc={rc} "
+          f"tier={g['tier']}，gate/manifest 均记 run_name_waived=true")
+    r19b = make_run(root, "tide_ppo_simpleai_red_teacher__42__1799999020", "red",
+                    cells=deck_cells("red", cells_red_t2))
+    rc = run_cli(["--run", str(r19b)])
+    g = load(r19b / "teacher_gate.json")
+    check(rc == 0 and g["run_name_waived"] is False,
+          f"名字带 simpleai：run_name_waived=false（rc={rc}，不误标）")
+
     # ---- ⑱ 退出码映射与 tier 一致 ----
     check(EXIT_CODES == {"T2": 0, "T1": 1},
           "退出码映射：0=T2、1=T1、2=其余（win-only/fail/needs_more/硬闸/用法）"
-          "——①②③④⑤⑦⑧⑩⑮⑯⑰ 已逐项实证")
+          "——①②③④⑤⑦⑧⑩⑮⑯⑰⑲ 已逐项实证")
 
     tmp.cleanup()
     print("【teacher_gate 单测】" + ("全部通过" if FAIL == 0 else f"{FAIL} 项失败"))

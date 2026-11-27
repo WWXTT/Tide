@@ -27,6 +27,7 @@ namespace SynergyUI
         private void ApplyProjection(BattleViewData d)
         {
             _field?.Apply(d);
+            _audioBridge?.OnView(d); // 战斗曲强度判定（平静→激昂，单向；本地/联机/复盘同一视图口径）
             ReconcileDeckMarks(); // 牌库标记常驻氛围（2026-10-26）：与卡堆高度同链对账——标记在库即亮、抽走即灭
             _chainStage?.Refresh(d); // 连锁链克隆对账（2026-10-19：结算期只增不删——保持到逆结算完成；
                                      // 施放卡面呈现归链，左上角 cast-stage 已退役）

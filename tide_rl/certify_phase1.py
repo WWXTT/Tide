@@ -30,8 +30,12 @@ from tide_features import LAYOUT_VERSION
 GATE_ONLY, NO_GATE = "gate-only", "no-gate"
 
 
-def check_gates(run_dir: Path):
-    """A1 硬闸四条；返回 (ok, [失败项描述])。"""
+def check_gates(run_dir: Path, require_simpleai_name: bool = True):
+    """A1 硬闸四条；返回 (ok, [失败项描述])。
+
+    `require_simpleai_name=False` 供 teacher_gate.py 使用（2026-11-27）：教师 run 可能是
+    `*_teacher_600k` 这类续训名，但 config.opponent 才是口径的权威来源；学生认证仍默认要求
+    目录名带 `simpleai`（A1 证书口径）。"""
     fails = []
     cfg_p = run_dir / "config.json"
     if not cfg_p.exists():
@@ -45,7 +49,7 @@ def check_gates(run_dir: Path):
     if cfg.get("layout_version") != LAYOUT_VERSION:
         fails.append(f"layout_version={cfg.get('layout_version')!r} ≠ 当前 LAYOUT_VERSION {LAYOUT_VERSION}"
                      f"（环境布局已换，旧 checkpoint 不能认证）")
-    if "simpleai" not in run_dir.name:
+    if require_simpleai_name and "simpleai" not in run_dir.name:
         fails.append(f"run 目录名 {run_dir.name!r} 不含 'simpleai'（A1 起 run 名带口径——"
                      f"自对弈/旧名 run 一眼可辨）")
     return not fails, fails

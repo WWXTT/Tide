@@ -9,7 +9,8 @@ namespace Tide.HotUpdate
 {
     /// <summary>
     /// 音频播放服务（2026-11-22 音效与 BGM 系统计划 B1/B3）：SFX 池化 + BGM 双源 crossfade +
-    /// 音乐/音效分轨音量 + PlayerPrefs 持久化。
+    /// 音乐/音效分轨音量 + PlayerPrefs 持久化。2026-11-27 补“按循环剩余时长切曲”
+    /// （<see cref="PlayMusicAtLoopBoundary"/>：剩余长于过渡段=快速淡出立即切，否则等循环播完再接）。
     ///
     /// 路由（§2.3）：TideAudioMixer（Master→Music/SFX/Voice，exposed：MasterVol/MusicVol/SfxVol/VoiceVol）
     /// ——音量走 exposed 参数，线性 0..1 → dB（20*log10(max(v,1e-4))）。混音器资产缺失（Audio 组未装）
@@ -84,6 +85,8 @@ namespace Tide.HotUpdate
         private AudioSource _active;       // 当前主音乐源（另一路候场）
         private BgmId _current = BgmId.None;
         private string _pendingLoopClip;   // intro 播完要接的 loop 文件名（null=无 intro 或非战斗链）
+        private BgmId _queuedAtLoopEnd = BgmId.None; // 等当前循环自然收尾再切的曲目（2026-11-27）
+        private float _queuedFadeSec = 0.25f;         // 排队切曲的淡出/淡入秒数
 
         // crossfade 状态（unscaled 时间驱动）
         private AudioSource _fadeFrom;
@@ -212,6 +215,15 @@ namespace Tide.HotUpdate
                 _pendingLoopClip = null; // loop 缺失也不再重试（A 线未跑属常态）
             }
 
+            // 等当前循环自然收尾再切（2026-11-27 战斗转激昂：舒缓剩得不多时不硬切，播完再接过渡段）
+            if (_queuedAtLoopEnd != BgmId.None && _active != null && !_active.isPlaying
+                && !AudioListener.pause)
+            {
+                var queued = _queuedAtLoopEnd;
+                _queuedAtLoopEnd = BgmId.None;
+                PlayMusic(queued, _queuedFadeSec);
+            }
+
             // 音量写入防抖落盘（§4.1）
             if (_prefDirtyAt >= 0f && Time.unscaledTime - _prefDirtyAt >= PrefDebounceSec)
             {
@@ -279,12 +291,54 @@ namespace Tide.HotUpdate
 
         // ================= BGM（§4.2/§4.4） =================
 
+        /// <summary>按当前循环剩余时长选择切曲时机（2026-11-27 战斗转激昂）：
+        /// 当前曲（循环）剩余 &gt; 目标曲 intro 段长度 → 立即以 fastFadeSec 切（舒缓快速淡出，
+        /// 过渡段接上）；剩余 ≤ intro 长度 → 让当前循环自然播完再切（不硬切尾段，intro 完整播放）。
+        /// 当前无循环曲/目标曲无 intro=立即切。排队在 StopMusic/PlayOutro/下一次 PlayMusic 时清空。</summary>
+        public static void PlayMusicAtLoopBoundary(BgmId id, float fastFadeSec = 0.25f)
+        {
+            var self = Instance;
+            if (self == null || id == BgmId.None || id == self._current) return;
+
+            var entry = AudioTable.Load().Music(id);
+            var intro = entry != null ? self.LoadClip(MusicFolder, entry.intro) : null;
+            float transitionLen = intro != null ? intro.length : 0f;
+            float remaining = self.CurrentLoopRemaining();
+            if (intro == null || transitionLen <= 0f || remaining < 0f || remaining > transitionLen)
+            {
+                self._queuedAtLoopEnd = BgmId.None;
+                PlayMusic(id, fastFadeSec);
+                return;
+            }
+
+            self._queuedAtLoopEnd = id;
+            self._queuedFadeSec = fastFadeSec;
+            if (self._active != null) self._active.loop = false; // 播完自然停，Update 接切曲
+        }
+
+        /// <summary>当前循环曲剩余秒数；无在播循环曲=-1（调用方走立即切）。</summary>
+        private float CurrentLoopRemaining()
+        {
+            if (_active == null || _active.clip == null || !_active.loop) return -1f;
+            return Mathf.Max(0f, _active.clip.length - _active.time);
+        }
+
+        /// <summary>取消“等循环收尾再切”的排队（离场/换曲/终局收尾调用）；当前曲恢复循环。</summary>
+        public static void CancelQueuedMusic()
+        {
+            if (Instance == null) return;
+            Instance._queuedAtLoopEnd = BgmId.None;
+            if (Instance._pendingLoopClip == null && Instance._active != null)
+                Instance._active.loop = true;
+        }
+
         /// <summary>切曲（双源 crossfade）。同曲在播=no-op（§4.4 同曲延续不重启）。
         /// fadeSec&lt;0=用表内 fadeInSec。曲目未配置=淡出停曲。</summary>
         public static void PlayMusic(BgmId id, float fadeSec = -1f)
         {
             var self = Instance;
             if (self == null) return;
+            self._queuedAtLoopEnd = BgmId.None; // 任何显式切曲/停曲都作废排队
             if (id == BgmId.None)
             {
                 StopMusic(1f);
@@ -292,7 +346,9 @@ namespace Tide.HotUpdate
             }
             if (id == self._current)
             {
-                return; // 同曲延续
+                // 同曲延续；若此前为“等循环收尾”把 loop 关了，恢复循环
+                if (self._pendingLoopClip == null && self._active != null) self._active.loop = true;
+                return;
             }
 
             var entry = AudioTable.Load().Music(id);
@@ -321,6 +377,7 @@ namespace Tide.HotUpdate
             if (self == null) return;
             self._current = BgmId.None;
             self._pendingLoopClip = null;
+            self._queuedAtLoopEnd = BgmId.None;
             if (self._active == null) return;
             self.StartFade(null, fadeSec);
         }
@@ -334,6 +391,7 @@ namespace Tide.HotUpdate
             var entry = AudioTable.Load().Music(self._current);
             self._current = BgmId.None;
             self._pendingLoopClip = null;
+            self._queuedAtLoopEnd = BgmId.None;
             var outroClip = entry != null ? self.LoadClip(MusicFolder, entry.outro) : null;
             if (outroClip != null)
             {

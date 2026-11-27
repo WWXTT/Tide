@@ -627,7 +627,7 @@ FSP 口径；开启后日志/config 标注 `fsp=true`，`info.fsp=True`。
   - 端到端验证（2026-11-20 01:14）：临时 headless + `.ztmp/probe_armor.py` 连跑两局蓝镜像——模型 P2 时 `g[34]=1.00/g[35]=0`、模型 P1 时 `g[34]=0/g[35]=1.00`，**ARMOR_PROBE PASS**。
   - 热启动已执行：从 `last`（step 179,712，旧 run step 179,712；其后约 1 万步未落盘）载入，新 run `tide_ppo_selfplay_v2c__42__1795108324`（config 记录 `init_params`），首 3 update EV 0.91–0.96 / KL 0.0025–0.0074 / 0 超时。
   - 待观察：热启动后前 100–300 update 的 KL/EV 与局长（首 update EpLen 82 为 3 局小样本，update 3 已回落到 46.4）。
-  - **2026-11-26 追记（二期 S1-5）**：`--init-params` 由严格结构匹配（`from_bytes` 整树还原，网络一加新模块旧 run 即整体拒载）改为**形状匹配合并**（`tide_agent.merge_params_by_shape`）——同名同形状叶子继承旧权重、其余保留本次初始化；启动时打印 loaded/fresh 清单并写入 `config.json` 的 `init_merge`，零匹配直接拒载。对共享 `last`（run `…1795540922`，step 658,944）实测（S1b 代码）：继承 39 叶子 / 4,187,009 参数（95.1%），新训 29 叶子 / 215,045（4.9%，均为二期新增模块）。**只有训练脚本走这个口**——`eval_*` / `behavior_probe` / `distill_student` 仍是严格 `from_bytes`，一期权重在二期网络代码下会被拒载（响亮失败，非静默）。
+  - **2026-11-26 追记（二期 S1-5）**：`--init-params` 由严格结构匹配（`from_bytes` 整树还原，网络一加新模块旧 run 即整体拒载）改为**形状匹配合并**（`tide_agent.merge_params_by_shape`）——同名同形状叶子继承旧权重、其余保留本次初始化；启动时打印 loaded/fresh 清单并写入 `config.json` 的 `init_merge`，零匹配直接拒载。对共享 `last`（run `…1795540922`，step 658,944）实测（S1b 代码）：继承 39 叶子 / 4,187,009 参数（95.1%），新训 29 叶子 / 215,045（4.9%，均为二期新增模块）。**该口已统一到全部加载方**（2026-11-26 P2 起）：`eval_checkpoint` / `behavior_probe` / `distill_student` 都走 merge-by-shape；旧代权重可部分继承，不再整树拒载。
 
 ### 4.7 部署/对局驱动口径（2026-11-27 统一：逐步驱动是唯一口径）
 

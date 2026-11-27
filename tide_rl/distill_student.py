@@ -13,6 +13,8 @@
     · 学生采样行动、自维护 rstate（DAgger）；教师链同观测流前向，每决策步记录
       obs（cards 191×158 / global 100 / 动作行截到 n_actions）+ 学生 incoming rstate(512)
       + 教师 logits(512) + 教师 value + n_actions + 选中行——τ/软化的位置在 train 侧；
+    · 采集权重：缺省用**学生本 run 的 last**（第 2 轮起的 DAgger 必须采当前学生），
+      首轮没有学生 last 才用共享 last（自动解析，见 resolve_shared_ckpt；--student-ckpt 可覆盖）；
     · 种子方案同 eval_matrix（对偏移×1000 + 座次×500 + 序号），与教师矩阵同批对局；
     · 分片 logs/<student_run>/distill/round_<n>/shard_<k>.npz（≤2000 步/片，压缩）
       + round_meta.json（逐局行为计数 + 学生胜率 + 教师清单 + 种子口径）。
@@ -29,8 +31,10 @@
       last/params.msgpack + meta.json；写/merge 学生 run 的 config.json
       （opponent=simpleai / criterion_era / layout_version 照填——certify 硬闸可用；
       distill 块记 teachers/shards/α/β/τ）。
-    · 学生 run 名必须是 tide_ppo_simpleai_student__42__<ts> 形态（certify 硬闸认这个）；
-      best 选点仍归 eval_matrix 18 格（§9.6），本工具不做胜率选点。
+    · 初始化：缺省=**本 run 的 last**（第 2 轮起在同一 run 上续训，不覆盖前一轮成果）；
+      没有 last 时才用共享 last（自动解析），--init-params/--scratch 可覆盖。
+    · 学生 run 名必须是 tide_ppo_simpleai_student__42__<ts> 形态（certify 硬闸认这个；
+      首次给这个形态的新名会直接建目录）；best 选点仍归 eval_matrix 18 格（§9.6），本工具不做胜率选点。
 
 磁盘量级：~120–160KB/决策步（cards 118KB + 动作行 + rstate/logits 各 2KB），
 600 局/轮 ≈ 数 GB——分片压缩落盘，不进 git。
@@ -39,6 +43,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import struct
 import time
 from pathlib import Path
@@ -57,17 +62,37 @@ from tide_features import (
 )
 from tide_env import TideEnv
 from phase1_criterion import BASELINE_ERA
-from train_tide_complete import Args
+try:
+    from train_tide_complete import Args
+except ModuleNotFoundError as _e:
+    # 环境事实（2026-11-20）：主仓根没有 ygo-agent-main，ygoai 只在训练副本里；训练脚本
+    # 自己只在 <工程>/ygo-agent-main 存在时插 sys.path。这里给可操作的提示，不抛裸 traceback。
+    if _e.name == "ygoai":
+        raise SystemExit(
+            "[!] 缺 ygoai：主仓根没有 ygo-agent-main（训练副本才有）。\n"
+            "    设 PYTHONPATH=<训练副本>\\ygo-agent-main 后重跑，或用 tide_rl\\run_distill.cmd。")
+    raise
 from eval_checkpoint import args_from_run
 from eval_matrix import pair_seed_offset
 from behavior_probe import behavior_of
 
 DECKS = ("red", "green", "blue")
 STEPS_PER_SHARD = 2000
-# 学生缺省权重 = 教师同源（共享 last（v22 口径）——三专精的热启动源，§9.5「从共享 last 热启动」；
-# 注意 v21 权重经 from_bytes 严格还原会因动作维 20≠26 拒载——须先经 merge_params_by_shape 并树）
-STUDENT_DEFAULT_CKPT = r"logs\tide_ppo_simpleai__42__1795540922\last\params.msgpack"
+# 学生缺省权重（2026-11-27 改）：不再写死一条会随环境失效的路径。解析顺序——
+#   1) --student-ckpt / --init-params；
+#   2) <student_run>/last/params.msgpack（DAgger/蒸馏第 2 轮起必须从学生自己的 last 继续，
+#      否则每轮都从共享 base 重来，第 1 轮训到的权重会被覆盖——4 轮链路的核心前提）；
+#   3) $TIDE_SHARED_CKPT；
+#   4) 主仓 logs/tide_ppo_simpleai__42__*/last/params.msgpack；
+#   5) 训练副本（C:\UnityProject\Tide_train*，make_train_copy.ps1 的 Dest 口径）
+#      */tide_rl/logs/tide_ppo_simpleai__42__*/last/params.msgpack
+#      （环境事实：主仓根没有 ygo-agent-main，共享基线 run 也只在副本里有）。
+# 共享 last 是一期/旧代权重：动作维与当前树不同，必须经 merge_params_by_shape 并树（严格 from_bytes 会拒载）。
 STUDENT_RUN_GLOB = "tide_ppo_simpleai_student__42__*"
+SHARED_RUN_GLOB = "tide_ppo_simpleai__42__*"
+CANONICAL_SHARED_RUN = "tide_ppo_simpleai__42__1795540922"  # 文档口径的共享基线 run（§5/§9.5）
+SHARED_CKPT_ENV = "TIDE_SHARED_CKPT"
+STUDENT_RUN_RE = re.compile(r"^tide_ppo_simpleai_student__42__\d+$")
 
 # ---- S3-2/S3-0c（2026-11-26 二期 §5）：脚本 BC 录制流对账常量 ----
 # C# ScriptBcRecorder 的二进制记录布局（小端）：7×int32 + 16B cardId + cards + global + 行特征。
@@ -140,9 +165,64 @@ def load_teacher(mf_path: str):
     return deck, jax.jit(agent.apply), params, mf
 
 
-def resolve_student_run(spec: str) -> Path:
+def _params_tree_nonempty(path: Path) -> bool:
+    """ckpt 是否至少有一片权重——过滤空/损坏/非参数树（merge 进去会「继承 0 参数」而不报错，
+    启动看似成功、实际从随机权重开训）。"""
+    try:
+        with open(path, "rb") as f:
+            tree = flax.serialization.from_bytes(None, f.read())
+        return bool(jax.tree.leaves(tree)) if tree is not None else False
+    except Exception:
+        return False
+
+
+def resolve_shared_ckpt(spec: str = "") -> Path:
+    """共享 last（学生第一轮热启动源，§9.5）解析：显式 → 环境变量 → 主仓 logs → 训练副本。
+
+    显式 spec 只做存在性检查（调用方给哪条就用哪条）；自动候选**文档基线 run 优先**，
+    其余按 mtime 从新到旧取第一条有实权的 ckpt。全部落空时报出试过的路径，不静默从头初始化。"""
+    if spec:
+        p = Path(spec)
+        if not p.is_file():
+            raise SystemExit(f"[!] 学生初始化权重不存在：{spec}")
+        return p
+    env = os.environ.get(SHARED_CKPT_ENV, "").strip()
+    if env:
+        p = Path(env)
+        if p.is_file():
+            return p
+        raise SystemExit(f"[!] {SHARED_CKPT_ENV}={env} 不是文件（或已随环境搬走）")
+    tide_rl = Path(__file__).resolve().parent
+    cands = list((tide_rl / "logs").glob(f"{SHARED_RUN_GLOB}/last/params.msgpack"))
+    # 训练副本：make_train_copy.ps1 的 Dest 口径是 C:\UnityProject\Tide_train*（与本仓库不同盘区），
+    # 再兜一层仓库父目录下的 */tide_rl/... 以防换机后副本跟仓库放在一起。
+    for base in (Path(r"C:\UnityProject"), tide_rl.parent):
+        cands += list(base.glob(f"*/tide_rl/logs/{SHARED_RUN_GLOB}/last/params.msgpack"))
+    cands = sorted({c.resolve() for c in cands if c.is_file()},
+                   key=lambda p: p.stat().st_mtime, reverse=True)
+    # 文档口径的共享基线优先（同名的其它 run 可能是 50k 冒烟/单主题 run，不能当共享 base）；
+    # 基线在副本里、主仓没有时也能命中。都不在才退到最新的同名 run，并明确提示。
+    exact = [c for c in cands if c.parent.parent.name == CANONICAL_SHARED_RUN]
+    ordered = exact + [c for c in cands if c not in exact]
+    for i, c in enumerate(ordered):
+        if _params_tree_nonempty(c):
+            if i >= len(exact):
+                print(f"[init] 注意：找不到文档共享基线 {CANONICAL_SHARED_RUN}，"
+                      f"退用最新的同名 run（确认它确实是共享 base）", flush=True)
+            print(f"[init] 共享 last 解析 → {c}", flush=True)
+            return c
+    raise SystemExit(
+        "[!] 找不到可用的共享 last（--init-params/--student-ckpt 指定，或设 "
+        f"{SHARED_CKPT_ENV}）。已试：\n    " + ("\n    ".join(str(c) for c in cands) or "（无候选）"))
+
+
+def resolve_student_run(spec: str, create: bool = True) -> Path:
     """学生 run 目录：给定名/路径，或取最新的 tide_ppo_simpleai_student__42__*，
-    没有则以当前时间戳新建（名字形态满足 certify 硬闸）。"""
+    没有则以当前时间戳新建（名字形态满足 certify 硬闸）。
+
+    2026-11-27 改：给了**合法但尚不存在**的新名时建目录（此前只认已存在目录——首次
+    `train --student-run logs/tide_...__<ts>` 会被判「不存在」）。新名必须匹配 certify
+    硬闸口径，防手滑造出无法认证的 run；已有目录不过滤（诊断/临时目录先建也能用）。"""
     if spec:
         p = Path(spec)
         if p.is_dir():
@@ -150,7 +230,16 @@ def resolve_student_run(spec: str) -> Path:
         q = Path("logs") / spec
         if q.is_dir():
             return q
-        raise SystemExit(f"[!] --student-run 不存在：{spec}（也不是 logs/{spec}）")
+        if not create:
+            raise SystemExit(f"[!] --student-run 不存在：{spec}（也不是 logs/{spec}）")
+        if not STUDENT_RUN_RE.match(p.name):
+            raise SystemExit(
+                f"[!] 新学生 run 名不合法：{p.name}\n"
+                f"    必须是 tide_ppo_simpleai_student__42__<时间戳>（certify 硬闸只认这个形态）")
+        target = p if (p.is_absolute() or len(p.parts) > 1) else Path("logs") / p
+        target.mkdir(parents=True, exist_ok=True)
+        print(f"[student] 新建 run 目录 {target}", flush=True)
+        return target
     cands = sorted(Path("logs").glob(STUDENT_RUN_GLOB))
     if cands:
         return cands[-1]
@@ -426,10 +515,15 @@ def cmd_collect(cli):
         student_ckpt = None
         print(f"[script-bc] TIDE_PROBE_BC_DIR={bc_raw}（C# 拦截录制）", flush=True)
     else:
-        student_ckpt = Path(cli.student_ckpt or STUDENT_DEFAULT_CKPT)
+        # 第 2 轮起必须用学生自己的 last 采集（DAgger 的状态分布是「当前学生」的）；
+        # 首轮没有学生 last 才回落到共享 last（解析顺序见 resolve_shared_ckpt）。
+        run_last = student_run / "last" / "params.msgpack"
+        student_ckpt = Path(cli.student_ckpt) if cli.student_ckpt else (
+            run_last if run_last.is_file() else resolve_shared_ckpt())
         if not student_ckpt.is_file():
             raise SystemExit(f"[!] 学生权重不存在：{student_ckpt}（--student-ckpt 指定，"
-                             f"缺省=教师同源共享 last）")
+                             f"缺省=本 run 的 last / 共享 last）")
+        print(f"[student] 采集用权重 ← {student_ckpt}", flush=True)
         s_agent = create_tide_agent(channels=sargs.channels, rnn_channels=sargs.rnn_channels,
                                     rnn_type=sargs.rnn_type)
         dummy = sample_input()
@@ -645,17 +739,26 @@ def cmd_train(cli):
 
     args = Args()
     args.channels, args.rnn_channels = cli.channels, cli.rnn_channels
+    # 学生 run 先解析（--student-run 第一次给了合法新名会建目录）：init 缺省要看它的 last。
+    student_run = resolve_student_run(cli.student_run)
     agent = create_tide_agent(channels=cli.channels, rnn_channels=cli.rnn_channels,
                               rnn_type=args.rnn_type)
     dummy = sample_input()
     dummy = jax.tree.map(lambda x: x[None, ...] if x is not None else None, dummy)
+    init_from = None
     if cli.scratch:
         params = agent.init(jax.random.PRNGKey(args.seed), init_rstate(args.rnn_type), dummy)
         print("[student] from scratch", flush=True)
     else:
-        init_from = Path(cli.init_params or STUDENT_DEFAULT_CKPT)
-        if not init_from.is_file():
-            raise SystemExit(f"[!] --init-params 不存在：{init_from}")
+        if cli.init_params:
+            init_from = Path(cli.init_params)
+            if not init_from.is_file():
+                raise SystemExit(f"[!] --init-params 不存在：{init_from}")
+        else:
+            # 第 2 轮起从学生自己的 last 续训（否则每轮都被拉回共享 base，前一轮白学）；
+            # 首轮没有学生 last 时才用共享 last（解析顺序见 resolve_shared_ckpt）。
+            run_last = student_run / "last" / "params.msgpack"
+            init_from = run_last if run_last.is_file() else resolve_shared_ckpt()
         params = agent.init(jax.random.PRNGKey(args.seed), init_rstate(args.rnn_type), dummy)
         with open(init_from, "rb") as f:
             # 跨树加载（决策③同口径）：init ckpt 树不同代（v21 共享 last→v22/S3）时 merge 并树
@@ -708,7 +811,6 @@ def cmd_train(cli):
     opt = optax.chain(optax.clip_by_global_norm(0.5), optax.adam(cli.lr))
     opt_state = opt.init(params)
 
-    student_run = resolve_student_run(cli.student_run)
     jsonl_p = student_run / "distill_train.jsonl"
     jsonl_p.parent.mkdir(parents=True, exist_ok=True)
     upd = 0
@@ -765,7 +867,7 @@ def cmd_train(cli):
                     "loss": cli.loss,
                     "alpha": cli.alpha, "beta": cli.beta, "tau": cli.tau,
                     "lr": cli.lr, "epochs": cli.epochs, "updates": upd,
-                    "init_params": "" if cli.scratch else str(cli.init_params or STUDENT_DEFAULT_CKPT)},
+                    "init_params": "" if cli.scratch else str(init_from)},
     })
     cfg_p.write_text(json.dumps(cfg, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"\n[train] {upd} updates / {time.time() - t0:.0f}s → {last_dir / 'params.msgpack'}")
@@ -785,7 +887,7 @@ def main():
                    help="逗号分隔 teacher_manifest.json（逐 deck 一份）；--actor script 时不需要")
     c.add_argument("--student-run", default="", help="学生 run（缺省最新 student run 或新建）")
     c.add_argument("--student-ckpt", default="",
-                   help=f"学生权重（缺省=教师同源共享 last：{STUDENT_DEFAULT_CKPT}）")
+                   help="学生权重（缺省=本 run 的 last〔第 2 轮起〕；没有则共享 last（自动解析））")
     c.add_argument("--actor", default="student", choices=["student", "teacher", "script"],
                    help="student=DAgger 4b（默认）；teacher=离线 BC 4a；"
                         "script=S3-2 脚本臂 BC（C# 拦截录制，2026-11-26 二期）")
@@ -802,7 +904,7 @@ def main():
     t.add_argument("--shards", required=True,
                    help="逗号分隔：round 目录 / npz 文件 / glob 模式")
     t.add_argument("--student-run", default="", help="学生 run（产物落盘处）")
-    t.add_argument("--init-params", default="", help="初始权重（缺省=共享 last）")
+    t.add_argument("--init-params", default="", help="初始权重（缺省=本 run 的 last → 共享 last；--scratch 从头）")
     t.add_argument("--scratch", action="store_true", help="from scratch（仅诊断对照）")
     t.add_argument("--channels", type=int, default=128)
     t.add_argument("--rnn-channels", type=int, default=512)

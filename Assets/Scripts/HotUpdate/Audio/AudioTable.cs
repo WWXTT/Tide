@@ -15,12 +15,15 @@ namespace Tide.HotUpdate
         Voice
     }
 
-    /// <summary>BGM 曲目 id（场景表 Audio.json 的 music[].id 同名映射）。</summary>
+    /// <summary>BGM 曲目 id（场景表 Audio.json 的 music[].id 同名映射）。
+    /// 战斗曲分平静/激昂两态（2026-11-27）：进战斗先播 <see cref="BattleCalm"/>，触发激昂条件后
+    /// 单向切 <see cref="BattleFierce"/>（判定见 BattleAudioBridge.OnView）。</summary>
     public enum BgmId
     {
         None = 0,
         Menu,
-        Battle
+        BattleCalm,
+        BattleFierce
     }
 
     /// <summary>关键音效 id（Audio.json 的 sfx[].id 同名映射；计划 §0 四类：抽牌/命中/死亡/胜负；
@@ -68,7 +71,7 @@ namespace Tide.HotUpdate
 
         public sealed class MusicEntry
         {
-            /// <summary>BgmId 枚举名（Menu/Battle…）。</summary>
+            /// <summary>BgmId 枚举名（Menu/BattleCalm/BattleFierce…）。</summary>
             public string id;
             /// <summary>主循环段文件名（Assets/Audio/Music/ 下不含扩展名）。</summary>
             public string clip;

@@ -18,8 +18,12 @@
 判据常量全部 import 自 phase1_criterion（不改值）；T1/T2 线是教师门自身口径（§8.1 定义）。
 
 硬闸复用 certify_phase1.check_gates（opponent=simpleai / criterion_era=BASELINE_ERA /
-layout_version=LAYOUT_VERSION / run 名含 simpleai）：不符**拒绝出证**（退出码 2，
-不写任何产物）。矩阵 json 格式 = eval_matrix.py 产出（matrix["mt|opp"] 带 P1/P2 [胜,局]）。
+layout_version=LAYOUT_VERSION）：不符**拒绝出证**（退出码 2，不写任何产物）。
+**run 目录名不再参与教师门硬闸（2026-11-27 修）**：口径以 config.opponent 为权威——
+本批教师是 `*_teacher_600k__42__<ts>` 续训名（不含 simpleai），旧名字闸会把合法教师
+全部误拒；学生认证（certify_phase1）仍默认要求目录名带 `simpleai`。名字不含 simpleai
+的教师会被记 `run_name_waived=true`（gate json + manifest），只作口径提示、不阻断。
+矩阵 json 格式 = eval_matrix.py 产出（matrix["mt|opp"] 带 P1/P2 [胜,局]）。
 
 用法（tide_rl 目录，--run 同 certify：run 名（相对 logs/）或 run 目录）：
   python teacher_gate.py --run logs/tide_ppo_simpleai_green_teacher__42__<ts>
@@ -205,10 +209,12 @@ def sha256_ckpt(ckpt, run_dir):
     return None
 
 
-def build_manifest(run_dir, deck, mdata, matrix_p, result, opponent):
+def build_manifest(run_dir, deck, mdata, matrix_p, result, opponent, run_name_waived=False):
     """teacher_manifest.json（框架 §8.4 schema 全字段）。behavior=绿套且行为门已合并时
     给扁平 rates dict（§8.4 示例形态），否则 None；behavior_gate 记行为门状态
-    （applied / missing / skipped-not-green，A2 2026-11-26）。"""
+    （applied / missing / skipped-not-green，A2 2026-11-26）。
+    run_name_waived（2026-11-27）：run 目录名不含 simpleai 但 config.opponent=simpleai，
+    教师门按 config 放行——记 true 留痕，蒸馏侧可见「名字未带口径」。"""
     bhd = result["behavior"]
     behavior_out = None
     if bhd and bhd.get("gate") == "applied":
@@ -222,6 +228,7 @@ def build_manifest(run_dir, deck, mdata, matrix_p, result, opponent):
         "layout_version": LAYOUT_VERSION,
         "criterion_era": BASELINE_ERA,
         "opponent": opponent,
+        "run_name_waived": bool(run_name_waived),
         "matrix_eval": matrix_p.name,
         "cells": {f"{deck}|{c['opp']}|{c['seat']}": [c["wins"], c["games"]]
                   for c in result["per_cell"]},
@@ -286,11 +293,16 @@ def main(argv=None):
         print(f"[!] run 目录不存在：{cli.run}", file=sys.stderr)
         return 2
 
-    # ===== 硬闸（复用 certify_phase1.check_gates 四条；不符拒绝出证、不写任何产物）=====
-    gates_ok, gate_fails = check_gates(run_dir)
+    # ===== 硬闸（复用 certify_phase1.check_gates 三条；2026-11-27 起名字不参与）=====
+    gates_ok, gate_fails = check_gates(run_dir, require_simpleai_name=False)
+    run_name_waived = "simpleai" not in run_dir.name
     print(f"===== 硬闸（run={run_dir.name}）=====")
     if gates_ok:
-        print("  ✓ opponent=simpleai / criterion_era / layout_version / run 名 四项全过")
+        print("  ✓ opponent=simpleai / criterion_era / layout_version 三项全过"
+              "（教师门不看目录名，口径以 config.opponent 为准）")
+        if run_name_waived:
+            print(f"  ⚠ run 目录名不含 'simpleai' → run_name_waived=true（可当教师；"
+                  f"不能直接作为学生认证对象——certify 仍要求名字带口径）")
     else:
         for f in gate_fails:
             print(f"  ✗ {f}")
@@ -367,6 +379,7 @@ def main(argv=None):
         "run": run_dir.name,
         "matrix": str(matrix_p),
         "criterion_era": BASELINE_ERA,
+        "run_name_waived": run_name_waived,
         "generated_at": datetime.now().isoformat(timespec="seconds"),
         "per_cell": result["per_cell"],
         "delta_agg": result["delta_agg"],
@@ -383,7 +396,8 @@ def main(argv=None):
     out_p.parent.mkdir(parents=True, exist_ok=True)
     out_p.write_text(json.dumps(gate_doc, ensure_ascii=False, indent=1), encoding="utf-8")
     manifest = build_manifest(run_dir, deck, mdata, matrix_p, result,
-                              opponent=cfg.get("opponent", "simpleai"))
+                              opponent=cfg.get("opponent", "simpleai"),
+                              run_name_waived=run_name_waived)
     manifest_p.parent.mkdir(parents=True, exist_ok=True)
     manifest_p.write_text(json.dumps(manifest, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"[out] {out_p}")
