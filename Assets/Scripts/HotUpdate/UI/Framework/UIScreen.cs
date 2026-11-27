@@ -6,6 +6,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UButton = UnityEngine.UI.Button;
 using UInputField = TMPro.TMP_InputField;
+using SfxId = Tide.HotUpdate.SfxId; // UI 点击音分型（2026-11-27 第一版音效入库；AudioService 用全限定名免 using 冲突）
 
 namespace SynergyUI
 {
@@ -137,8 +138,11 @@ namespace SynergyUI
             return rt != null ? rt.GetComponentInChildren<TMP_Text>(true) : null;
         }
 
-        /// <summary>深度查找按钮并接线点击（按钮可挂在节点自身或其子级）。</summary>
-        protected UButton BindButton(string name, Action onClick)
+        /// <summary>深度查找按钮并接线点击（按钮可挂在节点自身或其子级）。
+        /// 点击音（2026-11-27 第一版 UI 音效入库）：显式 sfx 参数优先；缺省按 <see cref="ButtonSfx"/>
+        /// 对按钮名自动分型（返回/关闭族=取消音、确认/开始族=确认音、其余=通用点击音）。
+        /// 声音只挂本接线层一处——UIManager.Back 等导航口不再播，避免与按钮音叠加。</summary>
+        protected UButton BindButton(string name, Action onClick, SfxId? sfx = null)
         {
             var rt = Find(name);
             var btn = rt != null ? rt.GetComponentInChildren<UButton>(true) : null;
@@ -147,8 +151,27 @@ namespace SynergyUI
                 if (rt != null) Debug.LogError($"[{GetType().Name}] 节点无 Button 组件：{name}");
                 return null;
             }
-            btn.onClick.AddListener(() => { Debug.Log($"[UI点击] {name}"); onClick?.Invoke(); });
+            var sfxId = sfx ?? ButtonSfx(name);
+            btn.onClick.AddListener(() => { Debug.Log($"[UI点击] {name}"); Tide.HotUpdate.AudioService.PlaySfx(sfxId); onClick?.Invoke(); });
             return btn;
+        }
+
+        /// <summary>按钮名 → 点击音分型（纯静态函数，数据层可断言）：名字命中取消族=UiCancel、
+        /// 确认族=UiConfirm、其余=UiClick。英文关键词 ToLowerInvariant 后子串匹配，中文直接匹配——
+        /// 与"深度按名绑定"约定同源（存量按钮形如 btn-back / btn-room-start / btn-cancel）。
+        /// 不入两族的关键词一律降级为通用点击音（不会无声）。</summary>
+        public static SfxId ButtonSfx(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return SfxId.UiClick;
+            var n = name.ToLowerInvariant();
+            if (n.Contains("cancel") || n.Contains("back") || n.Contains("close") || n.Contains("quit")
+                || name.Contains("取消") || name.Contains("返回") || name.Contains("关闭") || name.Contains("退出"))
+                return SfxId.UiCancel;
+            if (n.Contains("confirm") || n.Contains("ok") || n.Contains("start") || n.Contains("ready")
+                || n.Contains("save") || n.Contains("apply")
+                || name.Contains("确定") || name.Contains("确认") || name.Contains("开始"))
+                return SfxId.UiConfirm;
+            return SfxId.UiClick;
         }
 
         /// <summary>深度查找 TMP 输入框；找不到 LogError 并返回 null。</summary>

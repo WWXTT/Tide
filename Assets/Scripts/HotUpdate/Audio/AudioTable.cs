@@ -23,7 +23,8 @@ namespace Tide.HotUpdate
         Battle
     }
 
-    /// <summary>关键音效 id（Audio.json 的 sfx[].id 同名映射；计划 §0 四类：抽牌/命中/死亡/胜负）。</summary>
+    /// <summary>关键音效 id（Audio.json 的 sfx[].id 同名映射；计划 §0 四类：抽牌/命中/死亡/胜负；
+    /// 2026-11-27 第一版 UI 音效入库补三类：点击/确认/取消——走 UIScreen.BindButton 按名分型）。</summary>
     public enum SfxId
     {
         None = 0,
@@ -33,7 +34,10 @@ namespace Tide.HotUpdate
         DeathUnit,  // 生物/永久物死亡
         DeathHero,  // 角色死亡（更重；同帧压制 DeathUnit）
         Win,        // 胜利
-        Lose        // 失败
+        Lose,       // 失败
+        UiClick,    // UI 点击·通用（BindButton 默认；页签/打开界面等普通按钮）
+        UiConfirm,  // UI 点击·确认（确认/确定/开始/准备/保存族按钮，按名分型）
+        UiCancel    // UI 点击·取消（返回/取消/关闭/退出族按钮，按名分型）
     }
 
     /// <summary>

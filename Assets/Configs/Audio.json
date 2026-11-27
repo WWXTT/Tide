@@ -33,13 +33,19 @@
     { "id": "DeathUnit", "clip": "sfx_death_unit_01" },
     { "id": "DeathHero", "clip": "sfx_death_hero_01" },
     { "id": "Win", "clip": "sfx_win_01" },
-    { "id": "Lose", "clip": "sfx_lose_01" }
+    { "id": "Lose", "clip": "sfx_lose_01" },
+    { "id": "UiClick", "clip": "sfx_ui_click" },
+    { "id": "UiConfirm", "clip": "sfx_ui_confirm" },
+    { "id": "UiCancel", "clip": "sfx_ui_cancel" }
   ],
   "preload": [
     "Draw",
     "HitLight",
     "DeathUnit",
-    "Win"
+    "Win",
+    "UiClick",
+    "UiConfirm",
+    "UiCancel"
   ],
   "hitHeavyThreshold": 3.0,
   "tutorialDuckDb": -6.0
