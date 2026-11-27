@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using CardCore;
 using SynergyUI;
@@ -10,9 +10,11 @@ namespace Tide.HotUpdate
 {
     /// <summary>
     /// 战场音频桥（2026-11-22 音效与 BGM 系统计划 §4.3/B2）：订阅引擎事件 → AudioService。
-    /// 四组接线：抽牌（CardDrawEvent）/ 命中（CombatDamage + AtomicDamage 按量分档）/
-    /// 死亡（CardDestroy=单位、RoleDeath=角色——同帧角色死亡压制单位声）/ 胜负（GameOver——
-    /// 按本地座次判胜负 + 终局收尾曲）。
+    /// 只保留用户确认的五类战斗音效：抽牌（CardDraw）/ 攻击宣言（AttackDeclaration）/
+    /// 攻击命中（CombatDamage）/ 效果发动（StackAdd 的 EffectInstance + 手牌法术 CardPlay）/
+    /// 发动失败（CardActivationFailed）/ 统一入场（CardPutToBattlefield：生物与结界）/
+    /// 死亡（CardDestroy/RoleDeath）/ 胜负（GameOver）。横置、放地等事件不出声（2026-11-27 定）。
+    /// 战斗界面 UI 点击走 sfx_ui_*（UIScreen.BindButton），不经过本桥。
     /// 战斗 BGM 强度（2026-11-27）：<see cref="OnView"/> 读投影器快照判「转激昂」——地牌上限到
     /// 默认成长上限 10，或任一方进生命 ≤7 危险区／对手场面攻击力已够击杀（护甲计入有效生命）；
     /// 单向闩，整局只切一次。视图单源=本地/联机/复盘同一口径（不依赖 Core，回放/无 Core 局可用）。
@@ -51,6 +53,12 @@ namespace Tide.HotUpdate
             bus.Subscribe<CardDestroyEvent>(OnCardDestroy);
             bus.Subscribe<RoleDeathEvent>(OnRoleDeath);
             bus.Subscribe<GameOverEvent>(OnGameOver);
+            bus.Subscribe<AttackDeclarationEvent>(OnAttackDeclaration);
+            bus.Subscribe<StackAddEvent>(OnStackAdd);
+            bus.Subscribe<CardPlayEvent>(OnCardPlay);
+            bus.Subscribe<CardActivationFailedEvent>(OnCardActivationFailed);
+            bus.Subscribe<EffectActivationRejectedEvent>(OnEffectActivationRejected);
+            bus.Subscribe<CardPutToBattlefieldEvent>(OnCardPutToBattlefield);
 
             // 进战斗固定从平静起（重开/换局同样复位）；激昂由 OnView 单向切。战斗曲播放权归本桥，
             // ScreenMusic 只负责教学压音量——防从设置/暂停返回触发屏激活时把激昂顶回平静。
@@ -69,6 +77,12 @@ namespace Tide.HotUpdate
             bus.Unsubscribe<CardDestroyEvent>(OnCardDestroy);
             bus.Unsubscribe<RoleDeathEvent>(OnRoleDeath);
             bus.Unsubscribe<GameOverEvent>(OnGameOver);
+            bus.Unsubscribe<AttackDeclarationEvent>(OnAttackDeclaration);
+            bus.Unsubscribe<StackAddEvent>(OnStackAdd);
+            bus.Unsubscribe<CardPlayEvent>(OnCardPlay);
+            bus.Unsubscribe<CardActivationFailedEvent>(OnCardActivationFailed);
+            bus.Unsubscribe<EffectActivationRejectedEvent>(OnEffectActivationRejected);
+            bus.Unsubscribe<CardPutToBattlefieldEvent>(OnCardPutToBattlefield);
         }
 
         // ================= 战斗曲强度（平静 → 激昂，单向） =================
@@ -169,7 +183,7 @@ namespace Tide.HotUpdate
         private void OnCombatDamage(CombatDamageEvent e)
         {
             if (e == null || e.Damage <= 0) return;
-            PlayHit(e.Damage);
+            AudioService.PlaySfx(SfxId.AttackClash);
         }
 
         /// <summary>效果伤害（非战斗路径；战斗伤害走 CombatDamageEvent，IsCombatDamage 的
@@ -207,5 +221,58 @@ namespace Tide.HotUpdate
             AudioService.PlaySfx(win ? SfxId.Win : SfxId.Lose);
             AudioService.PlayOutro(1.5f); // 终局淡出/outro（§4.4；回菜单由场景表接 menu 曲）
         }
+
+        // ================= 战斗事件音效（只保留用户确认的五类，2026-11-27） =================
+
+        /// <summary>攻击宣言：先用“攻击”刮奏，命中时再播 AttackClash。</summary>
+        private void OnAttackDeclaration(AttackDeclarationEvent e)
+        {
+            if (e == null || e.Attacker == null) return;
+            AudioService.PlaySfx(SfxId.Attack);
+        }
+
+        /// <summary>效果发动：主动/自动效果入栈时播（EffectInstance）。</summary>
+        private void OnStackAdd(StackAddEvent e)
+        {
+            if (e == null || !(e.AddedObject is EffectInstance)) return;
+            AudioService.PlaySfx(SfxId.EffectActivate);
+        }
+
+        /// <summary>手牌法术发动的兜底口：若 StackAdd 没覆盖到，CardPlayEvent 的 Spell 也播；
+        /// AudioService 同 id 0.1 s 节流会压掉与 OnStackAdd 的重复。</summary>
+        private void OnCardPlay(CardPlayEvent e)
+        {
+            if (e == null || !(e.PlayedCard is IHasSupertype st)) return;
+            if (st.Supertype == Cardtype.Spell) AudioService.PlaySfx(SfxId.EffectActivate);
+        }
+
+        /// <summary>发动失败：入场失败等 CardActivationFailed 路径。</summary>
+        private void OnCardActivationFailed(CardActivationFailedEvent e)
+        {
+            if (e == null || e.Card == null) return;
+            AudioService.PlaySfx(SfxId.EffectFail);
+        }
+
+        /// <summary>主动效果被拒（条件/费用/时机不满足）：也算发动失败。</summary>
+        private void OnEffectActivationRejected(EffectActivationRejectedEvent e)
+        {
+            if (e == null || e.Card == null) return;
+            AudioService.PlaySfx(SfxId.EffectFail);
+        }
+
+        /// <summary>统一入场：生物/结界都用 sfx_battle_enter；控制权变更不重播。</summary>
+        private void OnCardPutToBattlefield(CardPutToBattlefieldEvent e)
+        {
+            if (e == null || e.Card == null || e.Source == EnterSource.ControlChange) return;
+            var st = e.Card as IHasSupertype;
+            if (st == null) return;
+            if (st.Supertype == Cardtype.Creature || st.Supertype == Cardtype.Enchantment)
+                AudioService.PlaySfx(SfxId.Enter);
+        }
     }
 }
+
+
+
+
+

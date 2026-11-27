@@ -190,8 +190,26 @@ namespace CardCore
             => ActivateEffect(core, player, effect, source, targets, dynamicCounts, paidBoost, null, out reason);
 
         /// <summary>交互参数版（2026-11-19 P1 v0.3）：interaction=声明期移动落格/宣言卡名——随
-        /// PendingEffect 入栈（结算期 MoveUnitHandler/ProphecyHandlerUtil 消费）；null=旧行为。</summary>
+        /// PendingEffect 入栈（结算期 MoveUnitHandler/ProphecyHandlerUtil 消费）；null=旧行为。
+        /// 2026-11-27：失败时补发 <see cref="EffectActivationRejectedEvent"/>，供战斗音效播“发动失败”；
+        /// 条件/费用/时机不满足都算失败。事件只做表现，不改任何区域/光环判定。</summary>
         public static bool ActivateEffect(GameCore core, Player player, EffectDefinition effect, Card source,
+            List<Entity> targets, IReadOnlyList<int> dynamicCounts, int paidBoost, InteractionParams interaction, out string reason)
+        {
+            bool ok = ActivateEffectCore(core, player, effect, source, targets, dynamicCounts, paidBoost, interaction, out reason);
+            if (!ok && source != null && !string.IsNullOrEmpty(reason))
+            {
+                EventManager.Instance.Publish(new EffectActivationRejectedEvent
+                {
+                    Card = source,
+                    Controller = player,
+                    Reason = reason
+                });
+            }
+            return ok;
+        }
+
+        private static bool ActivateEffectCore(GameCore core, Player player, EffectDefinition effect, Card source,
             List<Entity> targets, IReadOnlyList<int> dynamicCounts, int paidBoost, InteractionParams interaction, out string reason)
         {
             reason = null;

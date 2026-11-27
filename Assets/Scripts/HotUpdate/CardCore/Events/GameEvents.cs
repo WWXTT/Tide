@@ -332,6 +332,17 @@ namespace CardCore
         public string Reason { get; set; }
     }
 
+    /// <summary>
+    /// 主动效果发动被拒事件（2026-11-27）：条件/费用/时机不满足，玩家实际点了发动但引擎拒绝。
+    /// 只供表现层（战斗音效 EffectFail）使用；不参与区域/光环判定，避免和 CardActivationFailed 混淆。
+    /// </summary>
+    public class EffectActivationRejectedEvent : GameEventBase
+    {
+        public Card Card { get; set; }
+        public Player Controller { get; set; }
+        public string Reason { get; set; }
+    }
+
     // ==================== 信息族事件（宣言/预言） ====================
 
     /// <summary>

@@ -27,7 +27,9 @@ namespace Tide.HotUpdate
     }
 
     /// <summary>关键音效 id（Audio.json 的 sfx[].id 同名映射；计划 §0 四类：抽牌/命中/死亡/胜负；
-    /// 2026-11-27 第一版 UI 音效入库补三类：点击/确认/取消——走 UIScreen.BindButton 按名分型）。</summary>
+    /// 2026-11-27 第一版 UI 音效入库补三类：点击/确认/取消——走 UIScreen.BindButton 按名分型；
+    /// 2026-11-27 战斗只保留五类：攻击宣言/攻击命中/效果发动/发动失败/统一入场——
+    /// 由 <see cref="BattleAudioBridge"/> 订阅引擎事件触发；横置等事件不配音。</summary>
     public enum SfxId
     {
         None = 0,
@@ -40,7 +42,12 @@ namespace Tide.HotUpdate
         Lose,       // 失败
         UiClick,    // UI 点击·通用（BindButton 默认；页签/打开界面等普通按钮）
         UiConfirm,  // UI 点击·确认（确认/确定/开始/准备/保存族按钮，按名分型）
-        UiCancel    // UI 点击·取消（返回/取消/关闭/退出族按钮，按名分型）
+        UiCancel,   // UI 点击·取消（返回/取消/关闭/退出族按钮，按名分型）
+        Attack,          // 攻击宣言（AttackDeclarationEvent）
+        AttackClash,     // 攻击命中（CombatDamageEvent）
+        EffectActivate,  // 效果发动（StackAdd 的 EffectInstance + 手牌法术 CardPlay）
+        EffectFail,      // 发动失败（CardActivationFailedEvent，含条件不满足的入场失败）
+        Enter            // 统一入场（CardPutToBattlefieldEvent：生物/结界）
     }
 
     /// <summary>
@@ -144,3 +151,4 @@ namespace Tide.HotUpdate
         public static void Reload() => _cached = null;
     }
 }
+
