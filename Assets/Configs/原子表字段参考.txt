@@ -48,7 +48,8 @@
   不改 DisplayName、不影响 ID/指纹；当前 11 行：驱散/净化/无实体/剧毒/绝缘体/沉默/失效/
   冻结/紊乱/沉睡/铭刻——苏醒行已随 2026-11-02 机制删除）；参数=实例级字符串参数声明（None/CardRef/CardName/Dimension 四值，
   装载校验口 CardLoader.ValidateAtomParams，非法值告警回落 None）。手牌序位引擎退役
-  （表行 83c150f2 改挂团结）。
+  （表行 83c150f2 改挂团结）。（2026-11-28 定案：特殊裁定此前被 AtomText.Render 以括注追加进
+  卡面/合成器效果描述，已删除该追加——本列自此真正只做数据注记，任何卡面描述不得引用其原文。）
 2026-11-01 战斗法师退役（原舍身——d7e338e8 时代→2026-10-30 改版 GrantBattleMage·表行 c3112c0b：
   改版整体弃用回滚态）：关键词表行 c3112c0b 删；代码全链**注释保留**（枚举位 GrantBattleMage/
   GrantKeywordHandlers.Specs 授予映射/KeywordRules.BattleMage 常量+ApplyDamage 散射改写块/

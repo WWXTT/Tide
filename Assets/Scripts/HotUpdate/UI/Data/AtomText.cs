@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using CardCore;
@@ -378,10 +378,9 @@ namespace SynergyUI
                 if (idx < 0 && noun.Length > 0) idx = body.IndexOf(noun, StringComparison.Ordinal);
                 if (idx >= 0) body = body.Insert(idx, "随机");
             }
-            // 特殊列（2026-10-31 阶段B）：文案没说、但引擎实际这么做的规则——括注追加在描述后。
-            // 纯展示层（本渲染口=合成器效果描述/卡面 tooltip/挂载预览共用），不动模板与行 ID。
-            if (!string.IsNullOrEmpty(cfg?.Special))
-                body = body + "（" + cfg.Special.TrimEnd('。') + "）";
+            // 特殊裁定列**不再进效果描述**（2026-11-28 用户定案）：该列是数据/审核用的规则注记
+            //（"文案没说、但引擎实际这么做"），属于表行内部说明，不得混进卡面 tooltip / 效果描述。
+            // 旧实现（2026-10-31~11-28）在此追加「（特殊裁定原文）」，已删除；字段本身保留供审核读。
             return body;
         }
 

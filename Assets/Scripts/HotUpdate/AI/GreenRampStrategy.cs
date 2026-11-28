@@ -33,7 +33,8 @@ namespace CardCore.AI
         private const string NameSeal = "封印";       // 封印一个对方单位（绿线保命）
         private const string NameWitheredGuard = "枯木守卫"; // 2/8 守护+帷幕，优先级低于暗影豹
         private const string NameEraseLand = "枯竭";  // 抹除对方元素池地牌（2026-11-15 起=全取）
-        private const string NamePanther = "系命者 阿格洛斯"; // 12/8；推导费 14（灰9红2绿3）；系命+狩猎
+        private const string NamePanther = "系命者 阿格洛斯"; // 12/10；推导费 14（灰11绿3）；无印刷关键词——
+                                                              // 效果1（登场）赋予狩猎+代价己方单位2伤（净0）；效果2（进场）赋予系命 3绿；2026-11-28 改卡
         // 虚化 = 2026-11-15 用户口径里替换掉旧的 4 费「减半」的 3 费保命件（无实体，钳伤害到 1）。
         // 只能在对**对手回合**的响应窗贴自己；自己回合打 = 回合末掉层白给。全类只保留这一个名字。
         private const string NameVeil = "虚化";

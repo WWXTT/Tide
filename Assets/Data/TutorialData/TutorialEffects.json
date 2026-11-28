@@ -4197,15 +4197,15 @@
     },
     {
       "id": "FXGREEN11",
-      "name": "登场时，赋予一个己方单位系命；代价：一个敌方单位获得6层护甲",
-      "hash": "8BA91E98",
+      "name": "登场时，赋予一个己方单位狩猎；代价：对己方单位造成2点伤害",
+      "hash": "F8EB2ED4",
       "selection": 0,
       "count": 1,
       "cost": [
         0.0,
+        2.0,
         0.0,
         0.0,
-        3.0,
         0.0
       ],
       "costs": [
@@ -4215,11 +4215,12 @@
           "manaType": 0,
           "turns": 0,
           "payload": {
-            "refId": "9ff1954d",
-            "value": 6,
+            "refId": "a4b823fc",
+            "value": 2,
             "kinds": [
-              2
-            ]
+              1
+            ],
+            "domain": "己方角色"
           }
         }
       ],
@@ -4227,7 +4228,7 @@
         {
           "kind": 0,
           "atom": {
-            "refId": "1e60cb92",
+            "refId": "a81e2068",
             "kinds": [
               1
             ]

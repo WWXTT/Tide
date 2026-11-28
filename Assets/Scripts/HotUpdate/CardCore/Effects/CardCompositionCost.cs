@@ -37,14 +37,12 @@ namespace CardCore
  ///   结界 → 折免费耐久底（⌊N÷DurabilityUnitCost⌋，计价侧免除、入场耐久=印刷值下限1——
  ///   2026-11-04 碑族0费改版，取代旧「全入耐久=入场+N」）；
  ///   地牌/其余 → 全额抵价（ReduceBuckets 先灰后最高色）；
-///   生物 → **免费属性点数池 2n**（2026-11-03 底盘分配改版；2026-11-14 自由分配定案）：预算优先占坑 攻1+守1+**首个效果槽**，
-///   剩余 n=3−(攻+守+首槽) 折成 2n 点属性免费额度——计价侧（StatBucketsOf/ComputeStatValue）按合并点数
-///   一次免除 max(0,(攻+血)−2n)，超出部分按灰收费（攻/血/耐久同锚 0.5 灰/点——2026-11-14 基础属性归灰；
-///   真实小数，卡层出口逐色向上取整，支付终点同规则）。免费点可在攻/血间任意分配（3-1/0-8 之类偏斜同样合法，价不变），
-///   未用完作废。旧「盈余点先红后绿扣色桶」（StatOffsetOf）与「免费底 n/n 不可偏移」均已退役。
- /// ③超槽加价（2026-11-03 生物改版）：生物 = **首个效果槽之外每槽恒 +1 灰**（攻/守占坑不触发加价；
- ///   旧「结构项>3 差额」口径对攻守齐全生物等价、对 opt-out 生物少收——新口径统一按槽数计）；
- ///   非生物保持 结构项>3 差额 ×1 入灰；取整后入灰（不吃 d(C)）。
+///   生物 → 攻/守能力（卡面声明各占 1 点）之后剩余归**属性费用减免**（2026-11-28 优先级定案）：
+///   剩余 n 折 2n 点属性免费额度，计价侧按合并点数一次免除 max(0,(攻+血)−2n)，超出按灰 0.5/点
+///   （2026-11-14 基础属性归灰；免费点可在攻/血任意分配，未用完作废）。
+///   旧 2026-11-03「预算只数 攻/守/首槽、其余槽恒 +1 灰」的生物特例已删——②③与③统一同式，总价恒等、优先级可读。
+/// ③超槽加价（2026-11-28 三卡型同式）：结构项>3 的差额 × 费率入灰（取整后入灰、不吃 d(C)）；
+///   生物 3 效果 + 攻 + 守 = 5 项 → 2 灰；纯白板攻+守=2 项 → 无加价、盈余 1 点折属性。
  /// ④抵价落位：非生物 d(C) 取整后总价逐点扣，先灰后最高费用色（ReduceBuckets）；
  ///   生物无抵价步（免费属性底已在计价桶内免除）。
     /// ⑤衍生物无底盘（CardCostService.ContentPriceOf/ByColor 口径）：未走「入组/抽牌」通道，
@@ -83,9 +81,11 @@ namespace CardCore
             var cfg = ValueSystemConfigManager.Instance.GetOrCreateConfig().CardCompositionConfig;
             int budget = (int)Math.Max(0f, cfg.ChassisBudget);
             int rate = Math.Max(1, (int)Math.Max(0f, cfg.ChassisItemRate));
-            // 生物（2026-11-03 底盘分配改版）：首槽上预算，其余槽恒 1 灰/个——攻/守占坑不再触发加价
-            if (card != null && card.Supertype == Cardtype.Creature)
-                return Math.Max(0, CostDerivationService.CountEffectSlots(card) - 1) * rate;
+            // 2026-11-28 用户定案（统一口径，取代 2026-11-03 生物特例）：三卡型同式——
+            // 结构项按「效果槽 → 攻/守能力 → 剩余归特殊属性（法术速度/结界耐久/生物属性减免）」的
+            // 优先级占 3 点预算，**结构项>3 的差额入灰**；原先「首槽占预算、其余槽恒 +1 灰」的生物
+            // 特例（slots−1）删除——两种写法对总价等价（差额−减免 恒等），但特例把「攻/守占不占预算」
+            // 与「第几槽」混在一起，读不出用户要的优先级。
             return Math.Max(0, ChassisItems(card) * rate - budget);
         }
 
@@ -127,8 +127,10 @@ namespace CardCore
             var cfg = ValueSystemConfigManager.Instance.GetOrCreateConfig().CardCompositionConfig;
             int budget = (int)Math.Max(0f, cfg.ChassisBudget);
             int rate = Math.Max(1, (int)Math.Max(0f, cfg.ChassisItemRate));
-            int slots = CostDerivationService.CountEffectSlots(card);
-            int items = (card.AttackAbility ? 1 : 0) + (card.GuardAbility ? 1 : 0) + Math.Min(1, slots);
+            // 2026-11-28 用户定案：底盘优先级 = 效果槽 → 攻/守能力 → 特殊属性。
+            // 生物「特殊属性」= 属性费用减免（2 点属性/剩余点）；攻/守与效果槽一起先占预算，
+            // 不再有「只数首个槽」或「攻/守不占坑」的特例（与 StructuralSurcharge 同式，总价等价）。
+            int items = ChassisItems(card);
             return Math.Max(0, budget - items * rate);
         }
 

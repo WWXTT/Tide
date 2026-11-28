@@ -431,8 +431,10 @@ def cmd_collect(cli):
     # rstate 全零=逐步独立口径（脚本标签不绑学生递归上下文）。
     bc_raw = round_dir / "bc_raw"
     bc_raw.mkdir(parents=True)
-    os.environ["TIDE_PROBE_BC_DIR"] = str(bc_raw)
-    print(f"[script-bc] TIDE_PROBE_BC_DIR={bc_raw}（C# 拦截录制）", flush=True)
+    # 必须绝对路径：Unity batchmode 的 cwd=工程根，相对路径会写进 <工程>\Logs\
+    bc_abs = bc_raw.resolve()
+    os.environ["TIDE_PROBE_BC_DIR"] = str(bc_abs)
+    print(f"[script-bc] TIDE_PROBE_BC_DIR={bc_abs}（C# 拦截录制）", flush=True)
 
     env = TideEnv(
         unity_path=sargs.unity_path,
@@ -448,7 +450,11 @@ def cmd_collect(cli):
     cells = [(opp, seat) for opp in DECKS for seat in (0, 1)]
     games_meta = []
     t0 = time.time()
-    decks_run = list(DECKS)
+    spec = (cli.decks or "all").strip().lower()
+    decks_run = list(DECKS) if spec == "all" else [d.strip() for d in spec.split(",") if d.strip()]
+    bad = [d for d in decks_run if d not in DECKS]
+    if bad or not decks_run:
+        raise SystemExit(f"[!] --decks 非法：{bad or spec!r}（可选 all/red/green/blue/逗号列表）")
     total = len(decks_run) * cli.games_per_deck
     done_games = 0
     print(f"\n[collect] 脚本示范 BC：decks={decks_run} × {cli.games_per_deck} 局/deck"
@@ -502,6 +508,7 @@ def cmd_collect(cli):
         "round": round_n,
         "actor": "script",
         "student_run": student_run.name,
+        "decks": decks_run,
         "games": len(games_meta),
         "games_per_deck": cli.games_per_deck,
         "seed": cli.seed,
@@ -558,6 +565,12 @@ def load_dataset(shard_files):
     data = {k: np.concatenate(v, axis=0) for k, v in parts.items()}
     data["actions_offsets"] = offsets
     data["game_keys"] = np.concatenate(gkeys)
+    # 脚本分片的选中卡 ID（方案 A 加权用）；教师/旧分片没有该列 → None
+    if all("chosen_card_id" in np.load(f).files for f in shard_files):
+        data["chosen_card_id"] = np.concatenate(
+            [np.load(f)["chosen_card_id"] for f in shard_files])
+    else:
+        data["chosen_card_id"] = None
     return data, list(range(next_gid))
 
 
@@ -573,6 +586,26 @@ def cmd_train(cli):
     data, uniq_games = load_dataset(files)
     n = len(data["cards"])
     print(f"[data] {len(files)} 片 · {n} 决策步 · {len(uniq_games)} 局", flush=True)
+
+    # 方案 A（2026-11-28 用户定）：按「线是否真的打出来」给步权重——含目标 key 卡的局=1.0，
+    # 其余（脚本兜底/简单策略）=--fallback-weight（默认 0.2）。不做局级过滤，保留坏手牌覆盖。
+    line_cards = {c.strip() for c in (cli.line_cards or "").split(",") if c.strip()}
+    step_w = np.ones(n, dtype=np.float32)
+    line_games = set()
+    cid = data.get("chosen_card_id")
+    if cid is not None and line_cards:
+        gk_all = data["game_keys"]
+        for i, c in enumerate(cid):
+            if c and str(c) in line_cards:
+                line_games.add(int(gk_all[i]))
+        if line_games:
+            step_w = np.where(np.isin(gk_all, list(line_games)), 1.0,
+                              float(cli.fallback_weight)).astype(np.float32)
+        print(f"[weight] line_cards={sorted(line_cards)} line_games={len(line_games)}/{len(uniq_games)}"
+              f" · fallback={cli.fallback_weight} · line步占比="
+              f"{float((step_w > 0.5).mean()) * 100:.1f}%", flush=True)
+    else:
+        print("[weight] 无 chosen_card_id 或无 --line-cards → 全部权重 1.0", flush=True)
 
     rng = np.random.default_rng(42)
     n_val = max(1, round(len(uniq_games) * 0.05)) if len(uniq_games) > 1 else 0
@@ -628,11 +661,12 @@ def cmd_train(cli):
         return (jnp.asarray(data["cards"][sel]), jnp.asarray(data["global"][sel]),
                 jnp.asarray(acts), jnp.asarray(rstate_in),
                 jnp.asarray(data["teacher_logits"][sel]),
-                jnp.asarray(data["teacher_value"][sel]))
+                jnp.asarray(data["teacher_value"][sel]),
+                jnp.asarray(step_w[sel]))
 
     alpha, beta, tau = cli.alpha, cli.beta, cli.tau
 
-    def loss_tuple(p, cards, glob_, acts, rstate_in, t_logits, t_value, chosen):
+    def loss_tuple(p, cards, glob_, acts, rstate_in, t_logits, t_value, sw, chosen):
         obs = {"cards_": cards, "global_": glob_, "actions_": acts, "h_actions_": None}
         _, logits_s, v_s = agent.apply(p, rstate_in, obs)
         if cli.loss == "ce":
@@ -641,7 +675,7 @@ def cmd_train(cli):
             # 以 0 权重剔除；value 头不训（脚本无价值标签——β 不消费）。
             logp = jax.nn.log_softmax(logits_s)                       # (B, A)
             pick = jnp.take_along_axis(logp, chosen[:, None], axis=-1)[:, 0]
-            w = (chosen >= 0).astype(jnp.float32)
+            w = (chosen >= 0).astype(jnp.float32) * sw
             ce = -(pick * w).sum() / jnp.maximum(w.sum(), 1.0)
             return ce, (ce, 0.0)
         # 非法行双方 logits 均已被网络置 −1e9（学生侧由重建 obs 的 [0]valid 列屏蔽，
@@ -714,6 +748,8 @@ def cmd_train(cli):
                     "loss": cli.loss,
                     "alpha": cli.alpha, "beta": cli.beta, "tau": cli.tau,
                     "lr": cli.lr, "epochs": cli.epochs, "updates": upd,
+                    "line_cards": sorted(line_cards), "fallback_weight": cli.fallback_weight,
+                    "line_games": len(line_games),
                     "init_params": "" if cli.scratch else str(init_from)},
     })
     cfg_p.write_text(json.dumps(cfg, ensure_ascii=False, indent=1), encoding="utf-8")
@@ -733,6 +769,8 @@ def main():
     c.add_argument("--student-run", default="", help="学生 run（缺省最新 student run 或新建）")
     c.add_argument("--actor", default="script", choices=["script"],
                    help="script=脚本示范 BC（C# 拦截录制；2026-11-28 起唯一模式）")
+    c.add_argument("--decks", default="all",
+                   help="学习者侧卡组：all=三套；也可 red / green / blue / red,green（先绿试点传 green）")
     c.add_argument("--games-per-deck", type=int, default=700)
     c.add_argument("--seed", type=int, default=20261128)
     c.add_argument("--round", type=int, default=0, help="轮次号（缺省=已有 round 数+1）")
@@ -752,6 +790,10 @@ def main():
     t.add_argument("--lr", type=float, default=1e-4)
     t.add_argument("--epochs", type=int, default=3)
     t.add_argument("--batch", type=int, default=64)
+    t.add_argument("--line-cards", default="C_D1A00009",
+                   help="方案 A 加权：命中这些卡 ID 的局算「线内」（默认绿·归根 C_D1A00009；逗号分隔）")
+    t.add_argument("--fallback-weight", type=float, default=0.2,
+                   help="方案 A 加权：非线内步的损失权重（默认 0.2；0=只用线内局）")
     t.add_argument("--alpha", type=float, default=1.0)
     t.add_argument("--beta", type=float, default=0.5)
     t.add_argument("--tau", type=float, default=1.0)

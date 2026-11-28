@@ -1022,13 +1022,6 @@
       "hash": "1A06F706",
       "timing": 19,
       "activation": 2,
-      "cost": [
-        0.0,
-        2.0,
-        0.0,
-        0.0,
-        0.0
-      ],
       "steps": [
         {
           "kind": 0,
@@ -1051,13 +1044,6 @@
       "hash": "0EDB028C",
       "timing": 19,
       "activation": 2,
-      "cost": [
-        0.0,
-        0.0,
-        0.0,
-        2.0,
-        0.0
-      ],
       "steps": [
         {
           "kind": 0,

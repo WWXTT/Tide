@@ -53,7 +53,12 @@
     <Compile Include="..\TideServer\HeadlessAiShims.cs" Link="Shared\TideServer\HeadlessAiShims.cs" />
     <!-- 残局求解器（2026-11-19 阶段1）：合法动作枚举=训练侧同一份 LegalActionEnumerator，
          不复制「什么算合法动作」；TideObservation 是它的槽位/特征依赖（纯 C#，无 UnityEngine）。 -->
+    <!-- 2026-11-28：TargetPickPlan 已从 LAE 提取到 TargetPickGate.cs（2026-11-24 A6 重构），
+         此处同步纳入编译，否则 LAE 引用 TargetPickPlan 报 CS0246，TideSim 全链路不可构建。 -->
+    <Compile Include="..\Assets\Scripts\HotUpdate\AI\NeuralEnv\TargetPickGate.cs" Link="Shared\NeuralEnv\TargetPickGate.cs" />
     <Compile Include="..\Assets\Scripts\HotUpdate\AI\NeuralEnv\LegalActionEnumerator.cs" Link="Shared\NeuralEnv\LegalActionEnumerator.cs" />
+    <!-- 2026-11-28：SimpleAI 的 BC 录制钩子（ScriptBcRecorder）同属 NeuralEnv，TideSim 需同源码编译。 -->
+    <Compile Include="..\Assets\Scripts\HotUpdate\AI\NeuralEnv\ScriptBcRecorder.cs" Link="Shared\NeuralEnv\ScriptBcRecorder.cs" />
     <Compile Include="..\Assets\Scripts\HotUpdate\AI\NeuralEnv\TideObservation.cs" Link="Shared\NeuralEnv\TideObservation.cs" />
     <Compile Include="..\Assets\Scripts\HotUpdate\AI\NeuralEnv\FieldValueReward.cs" Link="Shared\NeuralEnv\FieldValueReward.cs" />
   </ItemGroup>

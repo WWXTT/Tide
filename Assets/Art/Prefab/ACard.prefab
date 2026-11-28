@@ -101,8 +101,8 @@ MonoBehaviour:
   m_fontSizeMin: 8
   m_fontSizeMax: 11
   m_fontStyle: 1
-  m_HorizontalAlignment: 1
-  m_VerticalAlignment: 4096
+  m_HorizontalAlignment: 2
+  m_VerticalAlignment: 512
   m_textAlignment: 65535
   m_characterSpacing: 0
   m_characterHorizontalScale: 1
@@ -335,8 +335,8 @@ MonoBehaviour:
   m_fontSizeMin: 8
   m_fontSizeMax: 11
   m_fontStyle: 1
-  m_HorizontalAlignment: 1
-  m_VerticalAlignment: 4096
+  m_HorizontalAlignment: 2
+  m_VerticalAlignment: 512
   m_textAlignment: 65535
   m_characterSpacing: 0
   m_characterHorizontalScale: 1
@@ -1229,8 +1229,8 @@ MonoBehaviour:
   m_fontSizeMin: 10
   m_fontSizeMax: 30
   m_fontStyle: 1
-  m_HorizontalAlignment: 1
-  m_VerticalAlignment: 256
+  m_HorizontalAlignment: 2
+  m_VerticalAlignment: 512
   m_textAlignment: 65535
   m_characterSpacing: 0
   m_characterHorizontalScale: 1
@@ -1388,8 +1388,8 @@ MonoBehaviour:
   m_fontSizeMin: 8
   m_fontSizeMax: 11
   m_fontStyle: 1
-  m_HorizontalAlignment: 1
-  m_VerticalAlignment: 4096
+  m_HorizontalAlignment: 2
+  m_VerticalAlignment: 512
   m_textAlignment: 65535
   m_characterSpacing: 0
   m_characterHorizontalScale: 1
@@ -2302,8 +2302,8 @@ MonoBehaviour:
   m_fontSizeMin: 10
   m_fontSizeMax: 30
   m_fontStyle: 1
-  m_HorizontalAlignment: 1
-  m_VerticalAlignment: 256
+  m_HorizontalAlignment: 2
+  m_VerticalAlignment: 512
   m_textAlignment: 65535
   m_characterSpacing: 0
   m_characterHorizontalScale: 1
@@ -2499,8 +2499,8 @@ MonoBehaviour:
   m_fontSizeMin: 10
   m_fontSizeMax: 30
   m_fontStyle: 1
-  m_HorizontalAlignment: 1
-  m_VerticalAlignment: 256
+  m_HorizontalAlignment: 2
+  m_VerticalAlignment: 512
   m_textAlignment: 65535
   m_characterSpacing: 0
   m_characterHorizontalScale: 1
@@ -3401,12 +3401,12 @@ PrefabInstance:
     - target: {fileID: 793676217268106794, guid: 838600764eb94df459f8370a362b48da,
         type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 36
+      value: 30
       objectReference: {fileID: 0}
     - target: {fileID: 793676217268106794, guid: 838600764eb94df459f8370a362b48da,
         type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: -11.49999
+      value: -12
       objectReference: {fileID: 0}
     - target: {fileID: 1135111379078841468, guid: 838600764eb94df459f8370a362b48da,
         type: 3}
@@ -3622,6 +3622,16 @@ PrefabInstance:
         type: 3}
       propertyPath: m_AnchoredPosition.y
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6596883180684647749, guid: 838600764eb94df459f8370a362b48da,
+        type: 3}
+      propertyPath: m_VerticalAlignment
+      value: 512
+      objectReference: {fileID: 0}
+    - target: {fileID: 6596883180684647749, guid: 838600764eb94df459f8370a362b48da,
+        type: 3}
+      propertyPath: m_HorizontalAlignment
+      value: 2
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

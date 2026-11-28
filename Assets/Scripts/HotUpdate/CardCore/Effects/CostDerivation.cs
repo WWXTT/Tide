@@ -1387,8 +1387,9 @@ namespace CardCore
         /// 主动照常计槽（2026-10-02 用户定案：「不占费用，占技能挂载」维持——效果槽是 AI 侧
         /// 每卡最大原子数限制的可见性锚，免槽会让 AI 看不见超限的主动堆叠）；
         /// 主动占用的只是底盘免费额度抵扣位，元素锚价仍构筑期全免（运行时现付）。
-        /// 代价**不计槽**（2026-11-02 减费三选一改版定案）：代价=并列槽位添加、不占灰槽位费——
-        /// 卡级行（PayloadCosts）与效果级行（Costs）一律不计（旧「每条已填代价行各计 1 槽」随批退役）。
+        /// **印刷关键词也占一个效果槽（2026-11-28 用户定案）**：效果槽=「卡面能力位」，关键词与效果同权
+        /// 占底盘预算（12/10 + 攻 + 效果1 + 关键词系命 = 3 项 → 无剩余、无超槽）。
+        /// 代价行不计槽（代价已效果级化；2026-11-28 确认删除旧「代价栏占 1 槽」口径）。
         /// </summary>
         public static int CountEffectSlots(CardData card)
         {
@@ -1401,6 +1402,12 @@ namespace CardCore
                     if (eff == null) continue;
                     slots += 1; // 每效果 1 槽（Choice 分支计槽已随 kind==2 退役删除）
                 }
+            }
+            // 印刷关键词各占 1 槽（2026-11-28）：空串/空表安全。
+            if (card.Keywords != null)
+            {
+                foreach (var kw in card.Keywords)
+                    if (!string.IsNullOrEmpty(kw)) slots += 1;
             }
             return slots;
         }

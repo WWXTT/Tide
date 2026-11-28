@@ -466,6 +466,11 @@ def evaluate_greedy(agent_apply, params, env, args, num_episodes=20, opponent=No
 
         while not done and step_count < args.max_episode_steps:
             obs_batch = jax.tree.map(lambda x: x[None, ...] if x is not None else None, obs)
+            # 诊断开关（2026-11-28）：脚本 BC 训练时 rstate 恒零（recorder 无递归上下文），
+            # 评估若带真实 rstate 是训练/推理错配——置 TIDE_BC_STATELESS=1 用零态评估，
+            # 验证「模型是否只是被 h≠0 打崩」。仅诊断，不改默认口径。
+            if os.environ.get("TIDE_BC_STATELESS") == "1":
+                rstate = init_rstate(args.rnn_type)
             rstate, logits, _ = agent_apply(params, rstate, obs_batch)
             # P1（2026-11-25）：采样主口径（argmax 旧口径废弃——到达率读数系统性偏高，
             # 见 e2_sample_vs_greedy.json）；logits 已屏蔽非法动作，categorical 直接用。
